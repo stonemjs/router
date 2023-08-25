@@ -1,0 +1,89 @@
+{
+  "name": "@stone-js/router",
+  "version": "0.0.1",
+  "description": "Stone.js router",
+  "author": "Mr. Stone <evensstone@gmail.com>",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/stonemjs/router.git"
+  },
+  "homepage": "https://github.com/stonemjs/router#readme",
+  "bugs": {
+    "url": "https://github.com/stonemjs/router/issues"
+  },
+  "keywords": [
+    "node",
+    "worker",
+    "browser",
+    "Stone.js",
+    "router",
+    "serverless"
+  ],
+  "files": [
+    "/dist"
+  ],
+  "type": "module",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "lint": "ts-standard src",
+    "lint:fix": "ts-standard --fix src tests",
+    "predoc": "rimraf docs",
+    "doc": "typedoc",
+    "prebuild": "rimraf dist && npm run doc",
+    "build": "rollup -c",
+    "test": "vitest run",
+    "test:cvg": "npm run test -- --coverage",
+    "test:text": "npm run test:cvg -- --coverage.reporter=text",
+    "test:html": "npm run test:cvg -- --coverage.reporter=html",
+    "test:clover": "npm run test:cvg -- --coverage.reporter=clover",
+    "prepare": "husky"
+  },
+  "peerDependencies": {
+    "@stone-js/core": "^0.0.36",
+    "@stone-js/pipeline": "^0.0.46"
+  },
+  "dependencies": {
+    "lodash-es": "^4.17.21"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^19.6.1",
+    "@commitlint/config-conventional": "^19.6.0",
+    "@rollup/plugin-commonjs": "^28.0.2",
+    "@rollup/plugin-multi-entry": "^6.0.1",
+    "@rollup/plugin-node-resolve": "^15.2.3",
+    "@rollup/plugin-typescript": "^12.1.1",
+    "@types/node": "^22.9.0",
+    "@types/yargs": "^17.0.33",
+    "@vitest/coverage-v8": "^2.1.4",
+    "husky": "^9.1.6",
+    "rimraf": "^6.0.1",
+    "rollup": "^4.1.5",
+    "rollup-plugin-delete": "^2.1.0",
+    "rollup-plugin-dts": "^6.1.1",
+    "rollup-plugin-node-externals": "^8.0.0",
+    "ts-standard": "^12.0.2",
+    "tslib": "^2.8.1",
+    "typedoc": "^0.27.6",
+    "typedoc-plugin-markdown": "^4.4.1",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.4"
+  },
+  "ts-standard": {
+    "globals": [
+      "it",
+      "expect",
+      "describe",
+      "beforeEach"
+    ]
+  }
+}
