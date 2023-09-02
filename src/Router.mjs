@@ -3,7 +3,7 @@ export class Router {
 
   }
 
-  buildRoutes (routeThree) {
-    
-  }
+  match (pathInfo) {}
+
+  generate (nameOrPath, params, query, hash) {}
 }

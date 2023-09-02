@@ -61,3 +61,26 @@ To generate url base on a given value
 6. Delete
 7. Options
 8. Controller
+
+
+# Routes
+`
+  {
+    name: 'user',
+    pattern: '/users',
+    rules: {},
+    domain: '',
+    method: 'GET',
+    methods: [],
+    policies: [],
+    validators: [],
+    middleware: [],
+    children: [
+      {}
+    ],
+    fallback: true,
+    action: ({ request, container, params }) => {
+
+    }
+  }
+`
