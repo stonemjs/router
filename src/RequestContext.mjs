@@ -97,4 +97,8 @@ export class RequestContext {
   get isSecure () {
     return 'https' === this.protocol
   }
+
+  get decodedPath () {
+    return decodeURI(this.path)
+  }
 }
