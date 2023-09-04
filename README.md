@@ -61,15 +61,17 @@ To generate url base on a given value
 6. Delete
 7. Options
 8. Controller
+9. Match
+10. Any
 
 
 # Routes
 `
   {
     name: 'user',
-    pattern: '/users',
-    rules: {},
-    domain: '',
+    uri: '/users/:id? | /users/{id?}',
+    rules: { id: '\d+' },
+    domain: '{domain}.example.com',
     method: 'GET',
     methods: [],
     policies: [],
@@ -78,9 +80,122 @@ To generate url base on a given value
     children: [
       {}
     ],
+    defaults: { id: 12 }
     fallback: true,
     action: ({ request, container, params }) => {
 
     }
   }
+`
+
+
+Route to do:
+1. Check match path with pattern
+2. Get current route
+3. Get pattern regex
+4. Get path params (RouteParameterBinding object to retrieve the params)
+5. Execute query and return response (check if action is callable or controller)
+6. Add route in cache and call them instead of creating one
+7. ControllerDispatcher
+8. CallableDispatcher
+
+
+
+Router deps
+1. Noowow Service container
+
+
+Router parametrable features
+1. Callable dispatcher
+2. Controller dispatcher
+3. Service Container
+
+
+
+to do:
+1. Callable dispatcher
+2. Controller dispatcher
+3. Route parameter binder
+4. Matchers
+
+
+
+## Route use case
+const route  = new Route({
+  name: 'users',
+  domain: ':section.example.com',
+  uri: '/users/:id?',
+  rules: { id: '\d+' }
+  methods: ['GET', 'POST'],
+  middleware: [AuthMiddleware],
+  action: ({ request, params, container }) => {
+    return request.query.name
+  }
+})
+
+@Get({
+  uri: '/users/:id?',
+  middleware: [AuthMiddleware]
+})
+@Post({
+  uri: '/users/:id?',
+  middleware: [AuthMiddleware]
+})
+@Put({
+  uri: '/users/:id?',
+  middleware: [AuthMiddleware]
+})
+@Patch({
+  uri: '/users/:id?',
+  middleware: [AuthMiddleware]
+})
+@Delete({
+  uri: '/users/:id?',
+  middleware: [AuthMiddleware]
+})
+@Options({
+  uri: '/users/:id?',
+  middleware: [AuthMiddleware]
+})
+@Match({
+  uri: '/users/:id?',
+  methods: ['GET', 'POST'],
+  middleware: [AuthMiddleware]
+})
+@Any({
+  uri: '/users/:id?',
+  middleware: [AuthMiddleware]
+})
+
+
+
+
+
+## Param name regex
+`
+const regex = (type = 'default', value = '\\w+', flag = 'gm') => {
+  return {
+    required: new RegExp(`\/(:(${value})|\\{(${value})\\})\/`, flag),
+    optional: new RegExp(`\/(:(${value})\\?|\\{(${value})\\?\\})\/`, flag),
+    default: new RegExp(`\/(:(${value})\\??|\\{(${value})\\??\\})`, flag)
+  }[type]
+}
+
+const uri = '/articles/:id/comments/{id2}/:patate?/{banane}/{avocat?}/'
+
+const getNames = (regex, value) => {
+  let matchers
+  const names = []
+
+  while ((matchers = regex.exec(value)) !== null) {
+    matchers[0] && names.push(matchers[0].replace(/:|\{|\}|\?|\//gm, ''))
+  }
+
+  return names
+}
+
+console.log(regex(), regex().test(uri), getNames(regex(), uri))
+console.log(regex('optional'), regex('optional').test(uri), getNames(regex('optional'), uri))
+console.log(regex('required'), regex('required').test(uri), getNames(regex('required'), uri))
+
 `
