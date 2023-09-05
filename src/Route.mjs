@@ -30,11 +30,10 @@ export class Route {
     this.middleware = middleware
     
     this
-    .setMethods(method)
-    .setMethods(methods)
-    .setAction(action)
+      .setMethods(method)
+      .setMethods(methods)
+      .setAction(action)
     
-    this._path = null
     this._router = null
     this._methods = null
     this._matchers = null
@@ -53,14 +52,18 @@ export class Route {
     throw new LogicException('routeDefinition must be an instance of `RouteDefinition`')
   }
 
-  get path () {
-    return this._path
+  bind (requestContext) {
+    this._protocol = requestContext.protocol
+    this.domain = this.domain ?? requestContext.hostname
+    this._parameters = (new RouteParameterBinder(this)).parameters(requestContext)
+
+    return this
   }
 
-  matches (request, includingMethod = true) {
+  matches (requestContext, includingMethod = true) {
     const matchers = this.getMatchers().filter(matcher => !(!includingMethod && matcher instanceof MethodMatcher))
     for (const matcher of matchers) {
-      if (!matcher.matches(this, request)) {
+      if (!matcher.matches(this, requestContext)) {
         return false
       }
     }
@@ -73,11 +76,6 @@ export class Route {
 
   setMatchers (matchers) {
     this._matchers = matchers
-    return this
-  }
-
-  addMatchers (matchers) {
-    this._matchers = { ...this._getDefaultMatchers(), ...matchers }
     return this
   }
 
@@ -123,7 +121,7 @@ export class Route {
     return Array.isArray(this.action)
   }
 
-  _isControllerClass () {
+  isControllerClass () {
     return this.action[0] && /^\s*class/.test(this.action[0].toString())
   }
 
@@ -137,7 +135,7 @@ export class Route {
 
   getController () {
     if (!this._controller) {
-      if (this._isControllerAction() && this._isControllerClass()) {
+      if (this._isControllerAction() && this.isControllerClass()) {
         this._controller = this._container.make(this.action[0])
       } else {
         throw new LogicException('First value of action must be a class')
@@ -167,15 +165,6 @@ export class Route {
     
     this._methods = this._methods.map(v => v.toUpperCase())
     
-    return this
-  }
-
-  bind (requestContext) {
-    this._path = requestContext.path
-    this._protocol = requestContext.protocol
-    this.domain = this.domain ?? requestContext.hostname
-    this._parameters = (new RouteParameterBinder(this)).parameters(requestContext)
-
     return this
   }
 
@@ -291,12 +280,12 @@ export class Route {
   }
 
   setAction (action) {
-    if (action && (this._isControllerClass() || this._isCallable())) {
+    if (action && (this.isControllerClass() || this._isCallable())) {
       this.action = action
       return this
     }
 
-    throw new LogicException('Must provide an action for route')
+    throw new LogicException(`Invalid action {${action}}. Must provide an action for route`)
   }
 
   getActionType () {
@@ -319,8 +308,20 @@ export class Route {
     return `${this.getDomain() ?? ''}${this.uri}`
   }
 
-  uriRegex (fullUri = true, flag = 'gm') {
-    const value = `^${fullUri ? this.getFullUri() : this.uri}$`
+  uriRegex (flag = 'gm') {
+    return this._regex(this.uri, flag)
+  }
+
+  domainRegex (flag = 'gm') {
+    return this._regex(this.getDomain(), flag)
+  }
+
+  domainAndUriRegex (flag = 'gm') {
+    return this._regex(this.getFullUri(), flag)
+  }
+
+  _regex (value, flag = 'gm') {
+    if (!value) return /^(\w*)$/
     return new RegExp(
       this
         .parameterNames()
@@ -333,7 +334,7 @@ export class Route {
             : `(${this.getRule(name)})`
           
           return prev.replace(regex, replace)
-        }, value),
+        }, `^${value}$`),
       flag
     )
   }

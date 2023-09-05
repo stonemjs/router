@@ -88,6 +88,10 @@ export class RequestContext {
         return prev
       }, {})
   }
+
+  isMethod (name) {
+    return this.method.toUpperCase() === name.toUpperCase()
+  }
   
   /**
    * Is Secure
