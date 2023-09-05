@@ -54,8 +54,7 @@ export class Route {
 
   bind (requestContext) {
     this._protocol = requestContext.protocol
-    this.domain = this.domain ?? requestContext.hostname
-    this._parameters = (new RouteParameterBinder(this)).parameters(requestContext)
+    this._parameters = RouteParameterBinder.getParameters(this, requestContext)
 
     return this
   }
@@ -313,7 +312,7 @@ export class Route {
   }
 
   domainRegex (flag = 'gm') {
-    return this._regex(this.getDomain(), flag)
+    return this.getDomain() ? this._regex(this.getDomain(), flag) : null
   }
 
   domainAndUriRegex (flag = 'gm') {
@@ -321,7 +320,6 @@ export class Route {
   }
 
   _regex (value, flag = 'gm') {
-    if (!value) return /^(\w*)$/
     return new RegExp(
       this
         .parameterNames()

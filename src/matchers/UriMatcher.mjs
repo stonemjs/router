@@ -1,5 +1,5 @@
 export class UriMatcher {
-  matches (route, request) {
-    return RegExp(`^${route.getPathRegex()}$`, 'g').test(request.pathInfo)
+  matches (route, requestContext) {
+    return route.uriRegex().test(requestContext.decodedPath)
   }
 }

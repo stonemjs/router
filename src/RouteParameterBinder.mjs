@@ -3,15 +3,19 @@ export class RouteParameterBinder {
     this._route = route
   }
 
-  parameters (request) {
-    return this._replaceDefaults(this._bindParameters(request))
+  static getParameters (route, requestContext) {
+    return new this({ route }).parameters(requestContext)
   }
 
-  _bindParameters (request) {
+  parameters (requestContext) {
+    return this._replaceDefaults(this._bindParameters(requestContext))
+  }
+
+  _bindParameters (requestContext) {
     let matchers
     const values = []
-    const regex = this._route.uriRegex()
-    const value = `${request.hostname}${request.decodedPath}`
+    const regex = this._route.domainAndUriRegex()
+    const value = `${requestContext.hostname}${requestContext.decodedPath}`
 
     while ((matchers = regex.exec(value)) !== null) {
       if (matchers.index === regex.lastIndex) { regex.lastIndex++ } // This is necessary to avoid infinite loops with zero-width matches

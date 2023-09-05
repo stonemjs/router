@@ -1,5 +1,5 @@
 export class MethodMatcher {
-  matches (route, request) {
-    return route.getMethods().includes(request.method)
+  matches (route, requestContext) {
+    return route.getMethods().includes(requestContext.method)
   }
 }
