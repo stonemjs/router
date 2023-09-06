@@ -4,6 +4,8 @@
  * @author Mr. Stone <pierre.evens16@gmail.com>
  */
 export class RequestContext {
+  #routeResolver
+
   constructor({
     ip,
     host,
@@ -104,5 +106,25 @@ export class RequestContext {
 
   get decodedPath () {
     return decodeURI(this.path)
+  }
+
+  route (param = null, fallback = null) {
+    const route = this.getRouteResolver()()
+
+    if (!route || !param) {
+      return route
+    }
+
+    return route.parameter(param, fallback)
+  }
+
+  getRouteResolver () {
+    return this.#routeResolver ?? (() => {})
+  }
+
+  setRouteResolver (resolver) {
+    this.#routeResolver = resolver
+
+    return this
   }
 }

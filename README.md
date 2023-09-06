@@ -115,6 +115,7 @@ Router parametrable features
 to do:
 1. Router
 2. RouteUrlGenerator
+3. Router loader (RouteDefinitionLoader, RouteDecoratorLoader)
 
 
 

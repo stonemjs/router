@@ -20,6 +20,7 @@ export class Route {
     fallback,
     defaults,
     middleware,
+    excludeMiddleware
   }) {
     this.uri = uri
     this.name = name
@@ -28,6 +29,7 @@ export class Route {
     this.fallback = fallback
     this.defaults = defaults
     this.middleware = middleware
+    this.excludeMiddleware = excludeMiddleware
     
     this
       .setMethods(method)
@@ -162,7 +164,12 @@ export class Route {
     else if (typeof value === 'string') this.push(value)
     if (this._methods.includes('GET') && !this._methods.includes('HEAD')) this.push('HEAD')
     
-    this._methods = this._methods.map(v => v.toUpperCase())
+    this._methods = this._methods
+      .map(v => v.toUpperCase())
+      .reduce((prev, curr) => {
+        if (!prev.includes(curr)) prev.push(curr)
+        return prev
+      }, [])
     
     return this
   }
