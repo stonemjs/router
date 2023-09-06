@@ -198,3 +198,52 @@ console.log(regex('optional'), regex('optional').test(uri), getNames(regex('opti
 console.log(regex('required'), regex('required').test(uri), getNames(regex('required'), uri))
 
 `
+
+# Route raw definition
+`
+  {
+  uri: '/users',
+  name: 'users',
+  middleware: ['User'],
+  action: LogicException,
+  rules: { id: '\d+' },
+  children: [
+    {
+      method: 'GET',
+      children: [
+        {
+          uri: '/',
+          name: 'list',
+          action: 'list'
+        },
+        {
+          uri: '/:id',
+          name: 'show',
+          action: 'show',
+        }
+      ]
+    },
+    {
+      uri: '/',
+      name: 'post',
+      method: 'POST',
+      action: 'create'
+    },
+    {
+      uri: '/:id',
+      children: [
+        {
+          name: 'update',
+          method: 'PUT',
+          action: 'update',
+        },
+        {
+          name: 'delete',
+          method: 'DELETE',
+          action: [RouteDefinition, 'remove'],
+        }
+      ]
+    }
+  ]
+}
+`

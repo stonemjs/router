@@ -84,7 +84,15 @@ export class Router {
       .setContainer(this.#container)
   }
 
-  loadRoutes () {}
+  async loadRoutes (routeLoader) {
+    if (!routeLoader.load) {
+      throw new LogicException('Invalid parameter must have `load` method')
+    }
+
+    const routeDefinitions = await routeLoader.load()
+
+    routeDefinitions.forEach(definition => this.addRoute(definition))
+  }
 
   generate (nameOrPath, params, query, hash) {}
 

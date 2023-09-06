@@ -5,7 +5,6 @@ export class RouteDefinition {
     rules,
     domain,
     action,
-    method,
     methods,
     fallback,
     defaults,
@@ -15,7 +14,6 @@ export class RouteDefinition {
     this.name = name
     this.rules = rules
     this.action = action
-    this.method = method
     this.domain = domain
     this.methods = methods
     this.fallback = fallback
