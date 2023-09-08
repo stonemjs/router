@@ -21,7 +21,6 @@ export const Match = (definition) => {
     }
 
     const metadata = {
-      name,
       decorators: {
         route: { ...definition, method: null }
       }
@@ -31,6 +30,8 @@ export const Match = (definition) => {
       target.metadata = deepmerge(target.metadata ?? {}, metadata)
       return target
     }
+
+    metadata.decorators.route.action = [target.constructor, name]
 
     if (descriptor.value instanceof MetaResponse) {
       descriptor.value = new MetaResponse(

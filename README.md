@@ -247,3 +247,7 @@ console.log(regex('required'), regex('required').test(uri), getNames(regex('requ
   ]
 }
 `
+
+
+# Controller
+Should pass an application context to controller
