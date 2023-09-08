@@ -1,7 +1,7 @@
 export class ControllerDispatcher {
-  constructor({
+  constructor ({
     request,
-    container,
+    container
   }) {
     this._request = request
     this._container = container
@@ -14,7 +14,7 @@ export class ControllerDispatcher {
       container: this._container,
       parameters: route.parametersWithoutNulls()
     }
-    
+
     if (controller.callAction) {
       return controller.callAction(method, params)
     }

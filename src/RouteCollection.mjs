@@ -1,7 +1,7 @@
-import { Route } from "./Route.mjs"
-import { Router } from "./Router.mjs"
-import { MethodNotAllowedHttpException } from "./exceptions/MethodNotAllowedHttpException.mjs"
-import { NotFoundHttpException } from "./exceptions/NotFoundHttpException.mjs"
+import { Route } from './Route.mjs'
+import { Router } from './Router.mjs'
+import { MethodNotAllowedHttpException } from './exceptions/MethodNotAllowedHttpException.mjs'
+import { NotFoundHttpException } from './exceptions/NotFoundHttpException.mjs'
 
 export class RouteCollection {
   #routes = new Map()
@@ -14,7 +14,7 @@ export class RouteCollection {
     this._addToActionList(route)
     this._addToMethodList(route)
     this._addToNameList(route)
-    
+
     return route
   }
 
@@ -75,9 +75,9 @@ export class RouteCollection {
     if (route) { return route.bind(requestContext) }
 
     const others = this._checkForAlternateVerbs(requestContext)
-    
+
     if (others.length > 0) { return this._getRouteForMethods(requestContext, others) }
-    
+
     throw new NotFoundHttpException(`The route ${requestContext.path} could not be found.`)
   }
 
@@ -101,7 +101,7 @@ export class RouteCollection {
         uri: requestContext.path,
         action: () => ({
           statusText: '',
-          statusCode: 200, 
+          statusCode: 200,
           content: { Allow: methods.join(',') }
         })
       }).bind(requestContext)
@@ -110,14 +110,14 @@ export class RouteCollection {
     this._requestMethodNotAllowed(requestContext, methods, requestContext.method)
   }
 
-  _requestMethodNotAllowed(request, others, method) {
+  _requestMethodNotAllowed (request, others, method) {
     throw new MethodNotAllowedHttpException(
       others,
       `The ${method} method is not supported for route ${request.path}. Supported methods: ${others.join(', ')}.`
     )
   }
 
-  _methodNotAllowed(others, method) {
+  _methodNotAllowed (others, method) {
     throw new MethodNotAllowedHttpException(
       others,
       `The ${method} method is not supported for this route. Supported methods: ${others.join(', ')}.`
@@ -132,12 +132,12 @@ export class RouteCollection {
     return this.getRoutes().length
   }
 
-  [Symbol.iterator]() {
+  [Symbol.iterator] () {
     let index = -1
-    const data  = this.getRoutes()
+    const data = this.getRoutes()
 
     return {
       next: () => ({ value: data[++index], done: !(index in data) })
-    };
+    }
   };
 }

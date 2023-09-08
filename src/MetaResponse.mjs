@@ -2,7 +2,7 @@ export class MetaResponse {
   #response
   #metadata
 
-  constructor(response, metadata) {
+  constructor (response, metadata) {
     this.#response = response
     this.#metadata = metadata
   }

@@ -33,7 +33,7 @@ export class RouteParameterBinder {
 
   _replaceDefaults (entries) {
     const params = Object.fromEntries(entries.map(([name, value]) => [name, value ?? this._route.getDefault(name)]))
-    
+
     for (const [name, value] of Object.entries(this._route.defaults)) {
       if (!params[name]) params[name] = value
     }

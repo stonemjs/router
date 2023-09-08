@@ -1,4 +1,4 @@
 export class RouteMiddleware {
-  handleRequest(request) {}
-  handleResponse(request, response) {}
+  handleRequest (request) {}
+  handleResponse (request, response) {}
 }

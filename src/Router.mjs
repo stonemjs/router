@@ -1,17 +1,25 @@
-import { MetaResponse } from "./MetaResponse.mjs"
-import { Route } from "./Route.mjs"
-import { RouteCollection } from "./RouteCollection.mjs"
-import { RouteResponse } from "./RouteResponse.mjs"
-import { PreparingResponse } from "./events/PreparingResponse.mjs"
-import { ResponsePrepared } from "./events/ResponsePrepared.mjs"
-import { RouteMatched } from "./events/RouteMatched.mjs"
-import { Routing } from "./events/Routing.mjs"
-import { LogicException } from "./exceptions/LogicException.mjs"
+import { MetaResponse } from './MetaResponse.mjs'
+import { Route } from './Route.mjs'
+import { RouteCollection } from './RouteCollection.mjs'
+import { RouteResponse } from './RouteResponse.mjs'
+import { PreparingResponse } from './events/PreparingResponse.mjs'
+import { ResponsePrepared } from './events/ResponsePrepared.mjs'
+import { RouteMatched } from './events/RouteMatched.mjs'
+import { Routing } from './events/Routing.mjs'
+import { LogicException } from './exceptions/LogicException.mjs'
 
 export class Router {
+  #rules
+  #routes
+  #current
+  #container
+  #middleware
+  #eventManager
+  #currentRequest
+
   constructor ({
     container,
-    eventManager,
+    eventManager
   }) {
     this.#rules = {}
     this.#current = null
@@ -29,7 +37,7 @@ export class Router {
     'HEAD',
     'PATCH',
     'DELETE',
-    'OPTIONS',
+    'OPTIONS'
   ]
 
   get (routeDefinition) {
@@ -70,11 +78,11 @@ export class Router {
       method: 'GET',
       fallback: true,
       uri: ':__fallback__',
-      rules: { '__fallback__': '.*' },
+      rules: { __fallback__: '.*' }
     })
   }
 
-  addRoute(routeDefinition) {
+  addRoute (routeDefinition) {
     return this.#routes.add(this.createRoute(routeDefinition))
   }
 
@@ -99,17 +107,17 @@ export class Router {
 
   respondWithRouteName (name) {
     const route = this.#routes.getByName(name)
-    
+
     if (!route) {
       throw new LogicException(`No routes found for this name ${name}`)
     }
-    
-    return this._runRoute(requestContext, route.bind(this.currentRequest))
+
+    return this._runRoute(this.#currentRequest, route.bind(this.#currentRequest))
   }
 
   dispatch (requestContext) {
     this.#currentRequest = requestContext
-    
+
     return this.dispatchToRoute(requestContext)
   }
 
@@ -138,7 +146,7 @@ export class Router {
     let response = null
     const skip = this.#container.bound('middleware.disable') && this.#container.make('middleware.disable') === false
     const middleware = skip ? [] : this.gatherRouteMiddleware(route)
-    
+
     for (const item of middleware) {
       requestContext = await item.handleRequest(requestContext) ?? requestContext
     }
@@ -164,15 +172,15 @@ export class Router {
 
   prepareResponse (requestContext, response) {
     this.#eventManager.notify(new PreparingResponse(requestContext, response))
-    
+
     response = Router.toResponse(requestContext, response)
 
     this.#eventManager.notify(new ResponsePrepared(requestContext, response))
-    
+
     return response
   }
 
-  static toResponse(requestContext, response) {
+  static toResponse (requestContext, response) {
     if (response === null) {
       response = RouteResponse.empty()
     } else if (response instanceof MetaResponse) {
@@ -295,7 +303,7 @@ export class Router {
 
   setContainer (container) {
     this.#container = container
-    
+
     return this
   }
 

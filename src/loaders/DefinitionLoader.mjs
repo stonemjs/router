@@ -1,10 +1,10 @@
-import { AbstractLoader } from "./AbstractLoader.mjs"
+import { AbstractLoader } from './AbstractLoader.mjs'
 
 export class DefinitionLoader extends AbstractLoader {
   #rawDefinitions
   #flattenDefinitions
 
-  constructor(rawDefinitions) {
+  constructor (rawDefinitions) {
     super()
     this.#flattenDefinitions = []
     this.#rawDefinitions = rawDefinitions
@@ -40,7 +40,7 @@ export class DefinitionLoader extends AbstractLoader {
     }
 
     this.#flattenDefinitions.push(definition)
-    
+
     return this
   }
 }

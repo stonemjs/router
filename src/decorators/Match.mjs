@@ -1,24 +1,10 @@
-import deepmerge from "deepmerge"
-import { MetaResponse } from "../MetaResponse.mjs"
-import { LogicException } from "../exceptions/LogicException.mjs"
-
-const isClass = (value) => {
-  return /^\s*class/.test(value.toString())
-}
-
-const isMethod = (value) => {
-  return !isClass(value) && typeof value === 'function'
-}
+import deepmerge from 'deepmerge'
+import { MetaResponse } from '../MetaResponse.mjs'
+import { classAndMethodDecoratorException, isClass } from './utils.mjs'
 
 export const Match = (definition) => {
   return (target, name, descriptor) => {
-    if (
-      !isClass(target) ||
-      !isMethod(descriptor.value) ||
-      !(descriptor.value instanceof MetaResponse)
-    ) {
-      throw new LogicException('This decorator can only be applied at method or class level')
-    }
+    classAndMethodDecoratorException(target, descriptor.value)
 
     const metadata = {
       decorators: {

@@ -1,7 +1,7 @@
 export class CallableDispatcher {
-  constructor({
+  constructor ({
     request,
-    container,
+    container
   }) {
     this._request = request
     this._container = container

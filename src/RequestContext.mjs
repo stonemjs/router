@@ -6,7 +6,7 @@
 export class RequestContext {
   #routeResolver
 
-  constructor({
+  constructor ({
     ip,
     host,
     body,
@@ -51,7 +51,7 @@ export class RequestContext {
    * @param {string = 'http'}  protocol
    * @param {number = 80}  httpPort
    * @param {number = 443}  httpsPort
-   * 
+   *
    * @return ${this}
    */
   static fromUri (uri, hostname = 'localhost', protocol = 'http', httpPort = 80, httpsPort = 443) {
@@ -67,7 +67,7 @@ export class RequestContext {
       query: this.#parseQuery(url.searchParams),
       protocol: url.protocol.replace(':', '') ?? protocol,
       httpPort: (url.protocol === 'http' && url.port) ?? httpPort,
-      httpsPort: (url.protocol === 'https' && url.port) ?? httpsPort,
+      httpsPort: (url.protocol === 'https' && url.port) ?? httpsPort
     })
   }
 
@@ -75,10 +75,10 @@ export class RequestContext {
    * Creates the RequestContext information based on a HttpFoundation Request.
    *
    * @param {Request} request
-   * 
+   *
    * @return {this}
    */
-  static fromRequest(request) {
+  static fromRequest (request) {
     return new this({ ...request })
   }
 
@@ -94,14 +94,14 @@ export class RequestContext {
   isMethod (name) {
     return this.method.toUpperCase() === name.toUpperCase()
   }
-  
+
   /**
    * Is Secure
    *
    * @return {boolean}
    */
   get isSecure () {
-    return 'https' === this.protocol
+    return this.protocol === 'https'
   }
 
   get decodedPath () {

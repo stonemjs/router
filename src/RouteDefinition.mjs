@@ -8,7 +8,7 @@ export class RouteDefinition {
     methods,
     fallback,
     defaults,
-    middleware,
+    middleware
   }) {
     this.uri = uri
     this.name = name

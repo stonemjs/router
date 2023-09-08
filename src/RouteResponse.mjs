@@ -3,7 +3,7 @@ export class RouteResponse {
     content,
     headers,
     statusText,
-    statusCode,
+    statusCode
   }) {
     this.content = content
     this.headers = headers

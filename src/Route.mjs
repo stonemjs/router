@@ -1,12 +1,12 @@
-import { RouteParameterBinder } from "./RouteParameterBinder.mjs"
-import { RouteDefinition } from "./RouteDefinition.mjs"
-import { CallableDispatcher } from "./dispatchers/CallableDispatcher.mjs"
-import { ControllerDispatcher } from "./dispatchers/ControllerDispatcher.mjs"
-import { LogicException } from "./exceptions/LogicException.mjs"
-import { HostMatcher } from "./matchers/HostMatcher.mjs"
-import { MethodMatcher } from "./matchers/MethodMatcher.mjs"
-import { ProtocolMatcher } from "./matchers/ProtocolMatcher.mjs"
-import { UriMatcher } from "./matchers/UriMatcher.mjs"
+import { RouteParameterBinder } from './RouteParameterBinder.mjs'
+import { RouteDefinition } from './RouteDefinition.mjs'
+import { CallableDispatcher } from './dispatchers/CallableDispatcher.mjs'
+import { ControllerDispatcher } from './dispatchers/ControllerDispatcher.mjs'
+import { LogicException } from './exceptions/LogicException.mjs'
+import { HostMatcher } from './matchers/HostMatcher.mjs'
+import { MethodMatcher } from './matchers/MethodMatcher.mjs'
+import { ProtocolMatcher } from './matchers/ProtocolMatcher.mjs'
+import { UriMatcher } from './matchers/UriMatcher.mjs'
 
 export class Route {
   constructor ({
@@ -30,12 +30,12 @@ export class Route {
     this.defaults = defaults
     this.middleware = middleware
     this.excludeMiddleware = excludeMiddleware
-    
+
     this
       .setMethods(method)
       .setMethods(methods)
       .setAction(action)
-    
+
     this._router = null
     this._methods = null
     this._matchers = null
@@ -163,19 +163,19 @@ export class Route {
     if (Array.isArray(value)) this._methods = value
     else if (typeof value === 'string') this.push(value)
     if (this._methods.includes('GET') && !this._methods.includes('HEAD')) this.push('HEAD')
-    
+
     this._methods = this._methods
       .map(v => v.toUpperCase())
       .reduce((prev, curr) => {
         if (!prev.includes(curr)) prev.push(curr)
         return prev
       }, [])
-    
+
     return this
   }
 
   hasParameters () {
-    !!this._parameters
+    return !!this._parameters
   }
 
   hasParameter (name) {
@@ -188,7 +188,7 @@ export class Route {
 
   setParameter (name, value) {
     this._parameters()[name] = value
-    
+
     return this
   }
 
@@ -228,9 +228,9 @@ export class Route {
 
   parameterNameRegex (type = 'default', value = '\\w+', flag = 'gm') {
     return {
-      required: new RegExp(`\/(:(${value})|\\{(${value})\\})\/`, flag),
-      optional: new RegExp(`\/(:(${value})\\?|\\{(${value})\\?\\})\/`, flag),
-      default: new RegExp(`\/(:(${value})\\??|\\{(${value})\\??\\})`, flag)
+      required: new RegExp(`\\/(:(${value})|\\{(${value})\\})\\/`, flag),
+      optional: new RegExp(`\\/(:(${value})\\?|\\{(${value})\\?\\})\\/`, flag),
+      default: new RegExp(`\\/(:(${value})\\??|\\{(${value})\\??\\})`, flag)
     }[type]
   }
 
@@ -250,7 +250,7 @@ export class Route {
   setDefault (name, value) {
     this.defaults = this.defaults ?? {}
     this.defaults[name] = value
-    
+
     return this
   }
 
@@ -261,20 +261,24 @@ export class Route {
   setRule (name, value) {
     this.rules = this.rules ?? {}
     this.rules[name] = value
-    
+
     return this
   }
 
-  getRule (name, defaultRule = '\\w+') {
-    return this.rules[name] ?? defaultRule
+  getRule (name, defaultRule = /\w+/) {
+    const rule = this.rules[name] ?? defaultRule
+    if (!(rule instanceof RegExp)) {
+      throw new LogicException(`This rule ${rule} must be a RegExp`)
+    }
+    return rule.toString().replace(/^\/|\/$/g, '')
   }
 
   getDomain () {
-    return this.domain ? this.domain.replace(/http[s]?:\/\//, '') : null
+    return this.domain ? this.domain.replace(/^https?:\/\//, '') : null
   }
 
   httpOnly () {
-    return 'http' === this._protocol
+    return this._protocol === 'http'
   }
 
   httpsOnly () {
@@ -282,7 +286,7 @@ export class Route {
   }
 
   secure () {
-    return 'https' === this._protocol
+    return this._protocol === 'https'
   }
 
   setAction (action) {
@@ -300,13 +304,13 @@ export class Route {
 
   setRouter (router) {
     this._router = router
-    
+
     return this
   }
 
   setContainer (container) {
     this._container = container
-    
+
     return this
   }
 
@@ -333,11 +337,11 @@ export class Route {
         .reduce((prev, name) => {
           const isOpt = this.isParameterNameOptional(name)
           const regex = this.parameterNameRegex(isOpt ? 'optional' : 'required', name)
-          
+
           const replace = isOpt
-            ? `\?(${this.getRule(name, '\\w*')})\/?`
+            ? `\\?(${this.getRule(name, /\w*/)})\\/?`
             : `(${this.getRule(name)})`
-          
+
           return prev.replace(regex, replace)
         }, `^${value}$`),
       flag
@@ -349,7 +353,7 @@ export class Route {
       HostMatcher,
       MethodMatcher,
       ProtocolMatcher,
-      UriMatcher,
+      UriMatcher
     ]
   }
 }

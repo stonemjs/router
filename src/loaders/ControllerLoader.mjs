@@ -1,10 +1,10 @@
-import { MetaResponse } from "../MetaResponse.mjs"
-import { AbstractLoader } from "./AbstractLoader.mjs"
+import { MetaResponse } from '../MetaResponse.mjs'
+import { AbstractLoader } from './AbstractLoader.mjs'
 
 export class ControllerLoader extends AbstractLoader {
   #controllers
 
-  constructor(controllers) {
+  constructor (controllers) {
     super()
     this.#controllers = controllers
   }
@@ -39,7 +39,7 @@ export class ControllerLoader extends AbstractLoader {
       definition.defaults = this._flattenDefaults(definition, parent)
       definition.middleware = this._flattenMiddleware(definition, parent)
     }
-    
+
     return definition
   }
 

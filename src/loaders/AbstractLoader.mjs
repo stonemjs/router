@@ -1,5 +1,5 @@
-import { RouteDefinition } from "../RouteDefinition.mjs"
-import { LogicException } from "../exceptions/LogicException.mjs"
+import { RouteDefinition } from '../RouteDefinition.mjs'
+import { LogicException } from '../exceptions/LogicException.mjs'
 
 export class AbstractLoader {
   load () {
@@ -88,18 +88,18 @@ export class AbstractLoader {
       ...(parent.methods ?? []),
       ...(definition.methods ?? []),
       ...(parent.method ? [parent.method] : []),
-      ...(definition.method ? [definition.method] : []),
+      ...(definition.method ? [definition.method] : [])
     ].reduce((prev, method) => prev.includes(method) ? prev : prev.concat([method]), [])
   }
 
   _flattenMiddleware (definition, parent) {
     return [
       ...(parent.middleware ?? []),
-      ...(definition.middleware ?? []),
+      ...(definition.middleware ?? [])
     ].reduce((prev, middleware) => prev.includes(middleware) ? prev : prev.concat([middleware]), [])
   }
 
   _keyExistsInUri (uri, key) {
-    return new RegExp(`\/(:(${key})|\\{(${key})\\})`, 'gm').test(uri)
+    return new RegExp(`\\/(:(${key})|\\{(${key})\\})`, 'gm').test(uri)
   }
 }
