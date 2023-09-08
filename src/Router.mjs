@@ -1,3 +1,4 @@
+import { MetaResponse } from "./MetaResponse.mjs"
 import { Route } from "./Route.mjs"
 import { RouteCollection } from "./RouteCollection.mjs"
 import { RouteResponse } from "./RouteResponse.mjs"
@@ -174,6 +175,8 @@ export class Router {
   static toResponse(requestContext, response) {
     if (response === null) {
       response = RouteResponse.empty()
+    } else if (response instanceof MetaResponse) {
+      response = RouteResponse.fromMetaResponse(response)
     } else if (typeof response === 'string') {
       response = RouteResponse.fromString(response)
     } else if (response.toJson) {

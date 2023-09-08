@@ -1,3 +1,4 @@
+import { MetaResponse } from "../MetaResponse.mjs"
 import { AbstractLoader } from "./AbstractLoader.mjs"
 
 export class ControllerLoader extends AbstractLoader {
@@ -14,13 +15,12 @@ export class ControllerLoader extends AbstractLoader {
 
   _getDefintions () {
     const flattenDefinitions = []
-    
+
     for (const controllerClass of this.#controllers) {
-      const controller = this._getControllerInstance(controllerClass)
-      const methods = this._getControllerMethods(controller)
-      const parent = this._getParentDefinition(controller)
-      for (const method of methods) {
-        const definition = this._getMethodDefinition(controller, method)
+      const parent = this._getParentDefinition(controllerClass)
+      const metaResponses = this._getMetaResponses(controllerClass)
+      for (const metaResponse of metaResponses) {
+        const definition = metaResponse.getRouteDecorator()
         definition && flattenDefinitions.push(this._flattenDefinition(definition, parent))
       }
     }
@@ -43,24 +43,11 @@ export class ControllerLoader extends AbstractLoader {
     return definition
   }
 
-  _getControllerMethods (controller) {
-    return Object.getOwnPropertyNames(controller).filter(method => typeof controller[method] === 'function')
-  }
-
-  _getMethodDefinition (controller, method) {
-    try {
-      const response = controller[method]({})
-      return (response.metadata ?? {}).route
-    } catch (_e) {
-      return null
-    }
+  _getMetaResponses (controller) {
+    return Object.getOwnPropertyNames(controller.prototype).filter(name => controller[name] instanceof MetaResponse)
   }
 
   _getParentDefinition (controller) {
-    return (controller.metadata ?? {}).route
-  }
-
-  _getControllerInstance (Controller) {
-    return new Controller({})
+    return (controller.metadata ?? controller.prototype.metadata ?? {}).route
   }
 }
