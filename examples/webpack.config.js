@@ -3,6 +3,7 @@ const { CleanWebpackPlugin } = require('clean-webpack-plugin')
 const NodePolyfillPlugin = require('node-polyfill-webpack-plugin')
 
 module.exports = {
+  target: 'node',
   mode: 'development',
   entry: {
     simple: path.resolve(__dirname, './src/simple/index.mjs'),
@@ -12,7 +13,7 @@ module.exports = {
   devtool: 'inline-source-map',
   plugins: [
     new CleanWebpackPlugin(),
-    new NodePolyfillPlugin({ excludeAliases: ['console'] }),
+    new NodePolyfillPlugin({ includeAliases: ['http', 'https'] }),
   ],
   output: {
     libraryTarget: 'umd',

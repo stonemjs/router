@@ -1,14 +1,25 @@
-import modules from "./**/*.mjs"
+// import "./routes.mjs"
+import http from 'http'
 import { container, router } from "./services.mjs"
-import AuthMiddleware from "./middleware/AuthMiddleware.mjs"
-import UserController from "./controllers/UserController.mjs"
+import middleware from "./middleware/**/*Middleware.mjs"
+import controllers from "./controllers/**/*Controller.mjs"
 
-const services = modules
-  .filter(v => v.default)
-  .map(v => v.default)
-  .filter(v => v.metadata && v.metadata.type === 'service')
+const services = [ ...middleware, ...controllers ]
+  .reduce((prev, curr) => {
+    return prev.concat(Object.values(curr).filter(v => (v.metadata ?? {}).type === 'service'))
+  }, [])
+
 
 container.discovering(services)
 console.log('Binding values:', container.bindings.size);
-container.make(AuthMiddleware).handleRequest({ body: { name: 'Evens' } })
-container.make(UserController).list({ body: { name: 'Evens' } })
+
+http
+  .createServer(async (req, res) => {
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Accept': 'application/json' })
+    res.end(JSON.stringify({ name: "Mr Stone" }))
+  })
+  .listen(
+    4200,
+    'localhost',
+    () => console.log('Server started at:', 'http://localhost:4200')
+  )

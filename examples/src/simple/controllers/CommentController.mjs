@@ -1,5 +1,10 @@
 import { comments } from "../../data/comments.mjs";
+import { RouteResponse } from "@noowow-community/router"
+import { Service } from "@noowow-community/service-container"
 
+@Service({
+  singleton: true
+})
 export class CommentController {
 
   list () {

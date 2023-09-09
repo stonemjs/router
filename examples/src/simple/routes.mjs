@@ -1,6 +1,8 @@
 import { ArticleController } from "./controllers/ArticleController.mjs";
 import { CommentController } from "./controllers/CommentController.mjs";
-import AuthMiddleware from "./middleware/AuthMiddleware.mjs";
+import { UserController } from "./controllers/UserController.mjs";
+import { RouteResponse } from "@noowow-community/router"
+import { AuthMiddleware } from "./middleware/AuthMiddleware.mjs";
 import { router } from "./services.mjs";
 
 // Route definition

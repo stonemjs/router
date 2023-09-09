@@ -1,30 +1,22 @@
 export default class EventManager {
   constructor () {
-    this.listeners = []
-  }
-
-  static getInstance () {
-    return new this()
-  }
-
-  static get shared () {
-    if (!this.singleton) {
-      this.singleton = this.getInstance()
-    }
-    return this.singleton
+    this.listeners = new Map()
   }
 
   subscribe (eventType, callback) {
-    return this.listeners.push({ eventType, callback }) - 1
+    const callbacks = this.listeners.get(eventType) ?? new Set()
+    !callbacks.has(callback) && callbacks.add(callback)
+    this.listeners.set(eventType, callbacks)
+    return this
   }
 
-  unsubscribe (subscriptionId) {
-    this.listeners = this.listeners.filter((_, i) => i !== subscriptionId)
+  unsubscribe (eventType, callback) {
+    this.listeners.get(eventType)?.delete(callback)
+    return this
   }
 
   notify (eventType, data) {
-    this.listeners
-      .filter(v => v.eventType === eventType)
-      .forEach(v => v.callback(data))
+    this.listeners.get(eventType).forEach(callback => callback(data))
+    return this
   }
 }
