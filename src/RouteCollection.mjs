@@ -10,18 +10,18 @@ export class RouteCollection {
   #methodList = new Map()
 
   add (route) {
-    this._addToCollections(route)
-    this._addToActionList(route)
-    this._addToMethodList(route)
-    this._addToNameList(route)
+    this.#addToCollections(route)
+    this.#addToActionList(route)
+    this.#addToMethodList(route)
+    this.#addToNameList(route)
 
     return route
   }
 
   match (requestContext, includingMethod = true) {
     const routes = this.getByMethod(requestContext.method)
-    const route = this._matchAgainstRoutes(routes, requestContext, includingMethod)
-    return this._handleMatchedRoute(requestContext, route)
+    const route = this.#matchAgainstRoutes(routes, requestContext, includingMethod)
+    return this.#handleMatchedRoute(requestContext, route)
   }
 
   hasNamedRoute (name) {
@@ -55,46 +55,54 @@ export class RouteCollection {
     return this.#nameList
   }
 
-  _addToCollections (route) {
+  toJSON () {
+    return this.getRoutes().map(route => route.toJSON())
+  }
+
+  toString () {
+    return JSON.stringify(this.toJSON())
+  }
+
+  #addToCollections (route) {
     this.#routes.set(route.getFullUri(), route)
   }
 
-  _addToActionList (route) {
+  #addToActionList (route) {
     if (route.isControllerClass()) { this.#actionList.set(route.action[0], route) }
   }
 
-  _addToNameList (route) {
+  #addToNameList (route) {
     if (route.name) { this.#nameList.set(route.name, route) }
   }
 
-  _addToMethodList (route) {
-    route.getMethods().foreach(method => this.#methodList.set(`${method}.${route.getFullUri()}`, route))
+  #addToMethodList (route) {
+    route.getMethods().forEach(method => this.#methodList.set(`${method}.${route.getFullUri()}`, route))
   }
 
-  _handleMatchedRoute (requestContext, route) {
+  #handleMatchedRoute (requestContext, route) {
     if (route) { return route.bind(requestContext) }
 
-    const others = this._checkForAlternateVerbs(requestContext)
+    const others = this.#checkForAlternateVerbs(requestContext)
 
-    if (others.length > 0) { return this._getRouteForMethods(requestContext, others) }
+    if (others.length > 0) { return this.#getRouteForMethods(requestContext, others) }
 
     throw new NotFoundHttpException(`The route ${requestContext.path} could not be found.`)
   }
 
-  _checkForAlternateVerbs (requestContext) {
+  #checkForAlternateVerbs (requestContext) {
     return Router
       .METHODS
       .filter(method => method.toUpperCase() !== requestContext.method.toUpperCase())
-      .filter(method => !!this._matchAgainstRoutes(this.getByMethod(method), requestContext, false))
+      .filter(method => !!this.#matchAgainstRoutes(this.getByMethod(method), requestContext, false))
   }
 
-  _matchAgainstRoutes (routes, requestContext, includingMethod = true) {
+  #matchAgainstRoutes (routes, requestContext, includingMethod = true) {
     return routes
       .sort((a, b) => Boolean(a.fallback) - Boolean(b.fallback))
       .find(route => route.matches(requestContext, includingMethod))
   }
 
-  _getRouteForMethods (requestContext, methods) {
+  #getRouteForMethods (requestContext, methods) {
     if (requestContext.isMethod('OPTIONS')) {
       return new Route({
         method: 'OPTIONS',
@@ -107,17 +115,17 @@ export class RouteCollection {
       }).bind(requestContext)
     }
 
-    this._requestMethodNotAllowed(requestContext, methods, requestContext.method)
+    this.#requestMethodNotAllowed(requestContext, methods, requestContext.method)
   }
 
-  _requestMethodNotAllowed (request, others, method) {
+  #requestMethodNotAllowed (request, others, method) {
     throw new MethodNotAllowedHttpException(
       others,
       `The ${method} method is not supported for route ${request.path}. Supported methods: ${others.join(', ')}.`
     )
   }
 
-  _methodNotAllowed (others, method) {
+  #methodNotAllowed (others, method) {
     throw new MethodNotAllowedHttpException(
       others,
       `The ${method} method is not supported for this route. Supported methods: ${others.join(', ')}.`

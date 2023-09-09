@@ -15,7 +15,7 @@ export class RouteParameterBinder {
     let matchers
     const values = []
     const regex = this._route.domainAndUriRegex()
-    const value = `${requestContext.hostname}${requestContext.decodedPath}`
+    const value = `${this._route.hasDomain() ? requestContext.hostname : ''}${requestContext.decodedPath}`
 
     while ((matchers = regex.exec(value)) !== null) {
       if (matchers.index === regex.lastIndex) { regex.lastIndex++ } // This is necessary to avoid infinite loops with zero-width matches
@@ -26,15 +26,13 @@ export class RouteParameterBinder {
   }
 
   _matchToKeys (matches) {
-    const names = this._route.parameterNames()
-    if (names && names.length === 0) return {}
-    return names.map((name, i) => [name, matches[i]])
+    return this._route.parameterNames()?.map((name, i) => [name, matches[i]])
   }
 
   _replaceDefaults (entries) {
     const params = Object.fromEntries(entries.map(([name, value]) => [name, value ?? this._route.getDefault(name)]))
 
-    for (const [name, value] of Object.entries(this._route.defaults)) {
+    for (const [name, value] of Object.entries(this._route.defaults ?? {})) {
       if (!params[name]) params[name] = value
     }
 

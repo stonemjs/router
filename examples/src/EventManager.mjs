@@ -1,22 +1,28 @@
 export default class EventManager {
-  constructor () {
-    this.listeners = new Map()
-  }
+  #listeners = new Map()
 
   subscribe (eventType, callback) {
-    const callbacks = this.listeners.get(eventType) ?? new Set()
-    !callbacks.has(callback) && callbacks.add(callback)
-    this.listeners.set(eventType, callbacks)
+    this.#listeners.set(eventType, this.#addCallback(eventType, callback))
     return this
   }
 
   unsubscribe (eventType, callback) {
-    this.listeners.get(eventType)?.delete(callback)
+    this.#getCallbacksByEventType(eventType).delete(callback)
     return this
   }
 
   notify (eventType, data) {
-    this.listeners.get(eventType).forEach(callback => callback(data))
+    this.#getCallbacksByEventType(eventType).forEach(callback => callback(data))
     return this
+  }
+
+  #addCallback (eventType, callback) {
+    const callbacks = this.#getCallbacksByEventType(eventType)
+    !callbacks.has(callback) && callbacks.add(callback)
+    return callbacks
+  }
+
+  #getCallbacksByEventType (eventType) {
+    return this.#listeners.get(eventType) ?? new Set()
   }
 }

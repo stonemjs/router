@@ -5,7 +5,8 @@
   "main": "./dist/simple.router.example.js",
   "scripts": {
     "build": "webpack",
-    "start": "npm run build && node ./dist/simple.router.example.js"
+    "start": "npm run build && node ./dist/simple.router.example.js",
+    "dev": "npm run build && node --inspect ./dist/simple.router.example.js"
   },
   "author": "Mr Stone <pierre.evens16@gmail.com>",
   "license": "MIT",

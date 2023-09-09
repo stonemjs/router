@@ -82,6 +82,70 @@ export class RequestContext {
     return new this({ ...request })
   }
 
+  static async fromNodeRequest (request, { hostname = 'localhost', protocol = 'http', httpPort = 80, httpsPort = 443 }) {
+    const url = new URL(`${protocol}://${hostname}${request.url}`)
+    let body = null
+    try {
+      body = await this.#getRequestBodyAsJson(request)
+    } catch (_e) {}
+
+    return new this({
+      body,
+      host: url.host,
+      path: url.pathname,
+      baseUrl: url.origin,
+      method: request.method,
+      hostname: url.hostname,
+      queryString: url.search,
+      headers: request.headers,
+      ip: this.#getUserIp(request),
+      query: this.#parseQuery(url.searchParams),
+      protocol: url.protocol.replace(':', '') ?? protocol,
+      locale: this.#getUserLocale(request, url.searchParams),
+      httpPort: (url.protocol === 'http' && url.port) ?? httpPort,
+      httpsPort: (url.protocol === 'https' && url.port) ?? httpsPort
+    })
+  }
+
+  static async #getRequestBodyAsJson (request) {
+    const body = await this.#getRequestBody(request)
+    return JSON.parse(body)
+  }
+
+  static #getUserIps (request) {
+    return (request.headers['x-forwarded-for'] || '').split(',')
+  }
+
+  static #getUserIp (request) {
+    return this.#getUserIps(request).shift() || (request.socket || {}).remoteAddress
+  }
+
+  static #getRequestBody (request) {
+    return new Promise((resolve, reject) => {
+      let body = []
+      request.on('error', (err) => {
+        reject(err)
+      }).on('data', (chunk) => {
+        body.push(chunk)
+      }).on('end', () => {
+        body = Buffer.concat(body).toString()
+        resolve(body)
+      })
+    })
+  }
+
+  static #getUserLocale (request, searchParams) {
+    return this.#parseQuery(searchParams).locale || (request.headers['accept-language'] ?? '').split('-')[0]
+  }
+
+  getPayload (filled) {
+    return Object.fromEntries(
+      Object
+        .entries(this.body)
+        .filter(([key]) => filled.includes(key))
+    )
+  }
+
   static #parseQuery (searchParams) {
     return Array
       .from(searchParams)

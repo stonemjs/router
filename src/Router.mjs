@@ -1,19 +1,26 @@
 import { MetaResponse } from './MetaResponse.mjs'
 import { Route } from './Route.mjs'
 import { RouteCollection } from './RouteCollection.mjs'
+import { RouteDefinition } from './RouteDefinition.mjs'
 import { RouteResponse } from './RouteResponse.mjs'
+import { CallableDispatcher } from './dispatchers/CallableDispatcher.mjs'
+import { ControllerDispatcher } from './dispatchers/ControllerDispatcher.mjs'
 import { PreparingResponse } from './events/PreparingResponse.mjs'
 import { ResponsePrepared } from './events/ResponsePrepared.mjs'
 import { RouteMatched } from './events/RouteMatched.mjs'
 import { Routing } from './events/Routing.mjs'
 import { LogicException } from './exceptions/LogicException.mjs'
+import { ControllerLoader } from './loaders/ControllerLoader.mjs'
+import { DefinitionLoader } from './loaders/DefinitionLoader.mjs'
 
 export class Router {
   #rules
   #routes
   #current
+  #matchers
   #container
   #middleware
+  #dispatchers
   #eventManager
   #currentRequest
 
@@ -22,12 +29,20 @@ export class Router {
     eventManager
   }) {
     this.#rules = {}
-    this.#current = null
+    this.#matchers = []
     this.#middleware = []
-    this.#currentRequest = null
+    this.#dispatchers = {}
     this.#container = container
     this.#eventManager = eventManager
     this.#routes = new RouteCollection()
+
+    if (!this.#container) {
+      throw new LogicException('Must provice and instance of the service container.')
+    }
+
+    if (!this.#eventManager) {
+      console.log('No Event manager provided. No events will be disptach.')
+    }
   }
 
   static METHODS = [
@@ -41,45 +56,46 @@ export class Router {
   ]
 
   get (routeDefinition) {
-    return this.addRoute(this._handleRouteDefinition(routeDefinition, ['GET', 'HEAD']))
+    return this.addRoute(this.#mapRouteDefinition(routeDefinition, ['GET', 'HEAD']))
   }
 
   post (routeDefinition) {
-    return this.addRoute(this._handleRouteDefinition(routeDefinition, ['POST']))
+    return this.addRoute(this.#mapRouteDefinition(routeDefinition, ['POST']))
   }
 
   put (routeDefinition) {
-    return this.addRoute(this._handleRouteDefinition(routeDefinition, ['PUT']))
+    return this.addRoute(this.#mapRouteDefinition(routeDefinition, ['PUT']))
   }
 
   patch (routeDefinition) {
-    return this.addRoute(this._handleRouteDefinition(routeDefinition, ['PATCH']))
+    return this.addRoute(this.#mapRouteDefinition(routeDefinition, ['PATCH']))
   }
 
   delete (routeDefinition) {
-    return this.addRoute(this._handleRouteDefinition(routeDefinition, ['DELETE']))
+    return this.addRoute(this.#mapRouteDefinition(routeDefinition, ['DELETE']))
   }
 
   options (routeDefinition) {
-    return this.addRoute(this._handleRouteDefinition(routeDefinition, ['OPTIONS']))
+    return this.addRoute(this.#mapRouteDefinition(routeDefinition, ['OPTIONS']))
   }
 
   match (routeDefinition) {
-    return this.addRoute(this._handleRouteDefinition(routeDefinition, routeDefinition.methods))
+    return this.addRoute(this.#mapRouteDefinition(routeDefinition, routeDefinition.methods))
   }
 
   any (routeDefinition) {
-    return this.addRoute(this._handleRouteDefinition(routeDefinition, Router.METHODS))
+    return this.addRoute(this.#mapRouteDefinition(routeDefinition, Router.METHODS))
   }
 
   fallback (action) {
-    return this.addRoute({
-      action,
-      method: 'GET',
-      fallback: true,
-      uri: ':__fallback__',
-      rules: { __fallback__: '.*' }
-    })
+    return this.addRoute(
+      this.#mapRouteDefinition({
+        action,
+        fallback: true,
+        uri: ':__fallback__',
+        rules: { __fallback__: /.*?/ }
+      }, ['GET', 'HEAD'])
+    )
   }
 
   addRoute (routeDefinition) {
@@ -91,19 +107,37 @@ export class Router {
       .fromRouteDefinition(routeDefinition)
       .setRouter(this)
       .setContainer(this.#container)
+      .setMatchers(this.getMatchers())
+      .setDispatchers(this.getDispatchers())
   }
 
   async loadRoutes (routeLoader) {
     if (!routeLoader.load) {
-      throw new LogicException('Invalid parameter must have `load` method')
+      throw new LogicException('Invalid value, parameter must have `load` method')
     }
 
     const routeDefinitions = await routeLoader.load()
 
-    routeDefinitions.forEach(definition => this.addRoute(definition))
+    for (const definition of routeDefinitions) {
+      this.addRoute(definition)
+    }
   }
 
-  generate (nameOrPath, params, query, hash) {}
+  loadRouteFromDefinitions (rawDefinitions) {
+    return this.loadRoutes(new DefinitionLoader(rawDefinitions))
+  }
+
+  loadRouteFromControllers (controllers) {
+    return this.loadRoutes(new ControllerLoader(controllers))
+  }
+
+  dispatch (requestContext) {
+    return this.dispatchToRoute(requestContext)
+  }
+
+  dispatchToRoute (requestContext) {
+    return this.#runRoute(requestContext, this.findRoute(requestContext))
+  }
 
   respondWithRouteName (name) {
     const route = this.#routes.getByName(name)
@@ -112,21 +146,13 @@ export class Router {
       throw new LogicException(`No routes found for this name ${name}`)
     }
 
-    return this._runRoute(this.#currentRequest, route.bind(this.#currentRequest))
+    return this.#runRoute(this.#currentRequest, route.bind(this.#currentRequest))
   }
 
-  dispatch (requestContext) {
-    this.#currentRequest = requestContext
-
-    return this.dispatchToRoute(requestContext)
-  }
-
-  dispatchToRoute (requestContext) {
-    return this._runRoute(requestContext, this.findRoute(requestContext))
-  }
+  generate (nameOrPath, params, query, hash) {}
 
   findRoute (requestContext) {
-    this.#eventManager.notify(new Routing(requestContext))
+    this.#eventManager?.notify(Routing, new Routing(requestContext))
     this.#current = this.#routes.match(requestContext)
     this.#current.setContainer(this.#container).setRouter(this)
     this.#container.instance(Route, this.#current)
@@ -134,36 +160,16 @@ export class Router {
     return this.#current
   }
 
-  _runRoute (requestContext, route) {
-    requestContext.setRouteResolver(() => route)
-
-    this.#eventManager.notify(new RouteMatched(route, requestContext))
-
-    return this._runRouteWithMiddleware(requestContext, route)
-  }
-
-  async _runRouteWithMiddleware (requestContext, route) {
-    let response = null
-    const skip = this.#container.bound('middleware.disable') && this.#container.make('middleware.disable') === false
-    const middleware = skip ? [] : this.gatherRouteMiddleware(route)
-
-    for (const item of middleware) {
-      requestContext = await item.handleRequest(requestContext) ?? requestContext
-    }
-
-    response = await route.run()
-
-    for (const item of middleware) {
-      response = await item.handleResponse(requestContext, response) ?? response
-    }
-
-    return this.prepareResponse(requestContext, response)
+  gatherRouteMiddlewareInstances (route) {
+    return this
+      .gatherRouteMiddleware(route)
+      .map(middleware => this.#container.make(middleware))
   }
 
   gatherRouteMiddleware (route) {
-    return this.middleware
-      .concat(route.middleware)
-      .filter(v => !route.excludeMiddleware.includes(v))
+    return this.#middleware
+      .concat(route.middleware ?? [])
+      .filter(v => !route.excludeMiddleware?.includes(v))
       .reduce((prev, curr) => {
         if (!prev.includes(curr)) prev.push(curr)
         return prev
@@ -171,11 +177,11 @@ export class Router {
   }
 
   prepareResponse (requestContext, response) {
-    this.#eventManager.notify(new PreparingResponse(requestContext, response))
+    this.#eventManager?.notify(PreparingResponse, new PreparingResponse(requestContext, response))
 
     response = Router.toResponse(requestContext, response)
 
-    this.#eventManager.notify(new ResponsePrepared(requestContext, response))
+    this.#eventManager?.notify(ResponsePrepared, new ResponsePrepared(requestContext, response))
 
     return response
   }
@@ -205,14 +211,14 @@ export class Router {
   }
 
   matched (callback) {
-    this.#eventManager.subscribe(RouteMatched, callback)
+    this.#eventManager?.subscribe(RouteMatched, callback)
   }
 
   getMiddleware () {
     return this.#middleware
   }
 
-  middleware (middleware) {
+  setMiddleware (middleware) {
     if (Array.isArray(middleware)) {
       middleware.forEach(item => this.#middleware.push(item))
     } else {
@@ -226,13 +232,13 @@ export class Router {
     return this.#rules
   }
 
-  rule (name, pattern) {
+  setRule (name, pattern) {
     this.#rules[name] = pattern
 
     return this
   }
 
-  rules (rules) {
+  setRules (rules) {
     Object.entries(rules).forEach(([name, pattern]) => this.rule(name, pattern))
 
     return this
@@ -301,13 +307,105 @@ export class Router {
     return this
   }
 
+  dumpRoutes () {
+    return this.#routes.toJSON()
+  }
+
   setContainer (container) {
     this.#container = container
+    return this
+  }
+
+  setEventManager (eventManager) {
+    this.#eventManager = eventManager
+    return this
+  }
+
+  getMatchers () {
+    return this.#matchers
+  }
+
+  setMatchers (matchers) {
+    this.#matchers = matchers
+    return this
+  }
+
+  addMatchers (matcher) {
+    this.#matchers.push(matcher)
+    return this
+  }
+
+  getDispatchers (orDefault = true) {
+    return this.hasDispatchers() ? this.#dispatchers : (orDefault ? this.#getDefaultDispatchers() : {})
+  }
+
+  hasDispatchers () {
+    return Object.values(this.#dispatchers).length > 0
+  }
+
+  setDispatchers (dispatchers) {
+    Object
+      .entries(dispatchers)
+      .forEach(([type, dispatcher]) => this.addDispatcher(type, dispatcher))
 
     return this
   }
 
-  _handleRouteDefinition (routeDefinition, methods) {
-    return { ...routeDefinition, methods, method: undefined }
+  addDispatcher (type, dispatcher) {
+    if (!['callable', 'controller'].includes(type)) {
+      throw new LogicException(`Invalid dispatcher type ${type}. Valid types are 'callable' and 'controller'`)
+    }
+
+    this.#dispatchers[type] = dispatcher
+
+    return this
+  }
+
+  #getDefaultDispatchers () {
+    return {
+      callable: CallableDispatcher,
+      controller: ControllerDispatcher
+    }
+  }
+
+  #bindDispatchers () {
+    Object.values(this.getDispatchers())
+      .forEach(Class => {
+        this.#container.singleton(Class, container => new Class({ container: container, request: this.#currentRequest }))
+      })
+    return this
+  }
+
+  #runRoute (requestContext, route) {
+    requestContext.setRouteResolver(() => route)
+
+    this.#currentRequest = requestContext
+
+    this.#bindDispatchers()
+    this.#eventManager?.notify(RouteMatched, new RouteMatched(route, requestContext))
+
+    return this.#runRouteWithMiddleware(requestContext, route)
+  }
+
+  async #runRouteWithMiddleware (requestContext, route) {
+    let response = null
+    const skip = this.#container.bound('configurations.middleware.disabled') && this.#container.make('configurations.middleware.disabled') === false
+    const middleware = skip ? [] : this.gatherRouteMiddlewareInstances(route)
+
+    for (const item of middleware) {
+      requestContext = (await item.handleRequest(requestContext)) ?? requestContext
+    }
+
+    response = await route.bind(requestContext).run()
+
+    for (const item of middleware) {
+      response = (await item.handleResponse(requestContext, response)) ?? response
+    }
+
+    return this.prepareResponse(requestContext, response)
+  }
+
+  #mapRouteDefinition (routeDefinition, methods) {
+    return new RouteDefinition({ ...routeDefinition, methods, method: undefined })
   }
 }

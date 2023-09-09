@@ -1,7 +1,5 @@
 import { RouteParameterBinder } from './RouteParameterBinder.mjs'
 import { RouteDefinition } from './RouteDefinition.mjs'
-import { CallableDispatcher } from './dispatchers/CallableDispatcher.mjs'
-import { ControllerDispatcher } from './dispatchers/ControllerDispatcher.mjs'
 import { LogicException } from './exceptions/LogicException.mjs'
 import { HostMatcher } from './matchers/HostMatcher.mjs'
 import { MethodMatcher } from './matchers/MethodMatcher.mjs'
@@ -9,6 +7,17 @@ import { ProtocolMatcher } from './matchers/ProtocolMatcher.mjs'
 import { UriMatcher } from './matchers/UriMatcher.mjs'
 
 export class Route {
+  #router
+  #action
+  #methods
+  #matchers
+  #protocol
+  #container
+  #controller
+  #parameters
+  #dispatchers
+  #parameterNames
+
   constructor ({
     uri,
     name,
@@ -24,26 +33,20 @@ export class Route {
   }) {
     this.uri = uri
     this.name = name
-    this.rules = rules
     this.domain = domain
-    this.fallback = fallback
-    this.defaults = defaults
-    this.middleware = middleware
-    this.excludeMiddleware = excludeMiddleware
+    this.rules = rules ?? {}
+    this.defaults = defaults ?? {}
+    this.fallback = fallback ?? false
+    this.middleware = middleware ?? []
+    this.excludeMiddleware = excludeMiddleware ?? []
 
     this
       .setMethods(method)
       .setMethods(methods)
       .setAction(action)
 
-    this._router = null
-    this._methods = null
-    this._matchers = null
-    this._protocol = null
-    this._container = null
-    this._controller = null
-    this._parameters = null
-    this._parameterNames = null
+    this.#matchers = []
+    this.#dispatchers = {}
   }
 
   static fromRouteDefinition (routeDefinition) {
@@ -55,8 +58,8 @@ export class Route {
   }
 
   bind (requestContext) {
-    this._protocol = requestContext.protocol
-    this._parameters = RouteParameterBinder.getParameters(this, requestContext)
+    this.#protocol = requestContext.protocol
+    this.#parameters = RouteParameterBinder.getParameters(this, requestContext)
 
     return this
   }
@@ -71,26 +74,31 @@ export class Route {
     return true
   }
 
-  getMatchers () {
-    return this._matchers ?? this._getDefaultMatchers()
+  getMatchers (orDefault = true) {
+    return this.hasMatchers() ? this.#matchers : (orDefault ? this.#getDefaultMatchers() : {})
   }
 
-  setMatchers (matchers) {
-    this._matchers = matchers
+  hasMatchers () {
+    return this.#matchers?.length > 0
+  }
+
+  setMatchers (matchers, mergeWithDefault = true) {
+    this.#matchers = [].concat(mergeWithDefault ? this.#getDefaultMatchers() : [], matchers)
     return this
   }
 
   run () {
-    if (!this._container) {
+    if (!this.#container) {
       throw new LogicException('No service container provided')
     }
 
     try {
-      if (this._isControllerAction()) {
-        return this._runController()
+      if (this.#isControllerAction()) {
+        return this.#runController()
       }
-      return this._runCallable()
+      return this.#runCallable()
     } catch (error) {
+      console.log('error', error)
       if (!error.getResponse) {
         throw new LogicException("Controller or callable's Exception must contain a `getResponse` method.")
       }
@@ -98,122 +106,104 @@ export class Route {
     }
   }
 
-  _runCallable () {
-    return this._callableDispatcher().dispatch(this, this.getCallable())
-  }
-
   getCallable () {
-    if (this._isCallable()) {
-      return this.action
+    if (this.#isCallable()) {
+      return this.#action
     }
 
     throw new LogicException('Action must be a function')
   }
 
-  _isCallable () {
-    return !this._isControllerAction() && typeof this.action === 'function'
-  }
-
-  _callableDispatcher () {
-    return this._container.make(CallableDispatcher)
-  }
-
-  _isControllerAction () {
-    return Array.isArray(this.action)
-  }
-
   isControllerClass () {
-    return this.action[0] && /^\s*class/.test(this.action[0].toString())
-  }
-
-  _runController () {
-    return this._controllerDispatcher().dispatch(this, this.getController(), this.getControllerMethod())
-  }
-
-  _controllerDispatcher () {
-    return this._container.make(ControllerDispatcher)
+    return this.#action?.[0] && /^\s*class/.test(this.#action[0].toString())
   }
 
   getController () {
-    if (!this._controller) {
-      if (this._isControllerAction() && this.isControllerClass()) {
-        this._controller = this._container.make(this.action[0])
+    if (!this.#controller) {
+      if (this.#isControllerAction() && this.isControllerClass()) {
+        this.#controller = this.#container.make(this.#action[0])
       } else {
         throw new LogicException('First value of action must be a class')
       }
     }
 
-    return this._controller
+    return this.#controller
   }
 
   getControllerMethod () {
-    if (this._isControllerAction() && this.action[1]) {
-      return this.action[1]
+    if (this.#isControllerAction() && typeof this.#action[1] === 'string') {
+      return this.#action[1]
     } else {
       throw new LogicException('Second value of action must be the controller method')
     }
   }
 
+  get methods () {
+    return this.#methods ?? []
+  }
+
   getMethods () {
-    return this._methods ?? []
+    return this.#methods ?? []
   }
 
   setMethods (value) {
-    this._methods = this._methods ?? []
-    if (Array.isArray(value)) this._methods = value
-    else if (typeof value === 'string') this.push(value)
-    if (this._methods.includes('GET') && !this._methods.includes('HEAD')) this.push('HEAD')
+    this.#methods = this.#methods ?? []
 
-    this._methods = this._methods
-      .map(v => v.toUpperCase())
-      .reduce((prev, curr) => {
-        if (!prev.includes(curr)) prev.push(curr)
-        return prev
-      }, [])
+    if (Array.isArray(value)) {
+      this.#methods = value
+    } else if (typeof value === 'string') {
+      this.#methods.push(value)
+    } else {
+      this.#methods.push('GET')
+    }
+
+    if (this.#methods.includes('GET')) { this.#methods.push('HEAD') }
+
+    this.#methods = this.#methods.reduce((prev, curr) => prev.concat(!prev.includes(curr) ? [curr.toUpperCase()] : []), [])
 
     return this
   }
 
   hasParameters () {
-    return !!this._parameters
+    return !!this.#parameters
   }
 
   hasParameter (name) {
-    return this.hasParameters() && !!this._parameters[name]
+    return this.hasParameters() && !!this.#parameters[name]
   }
 
   parameter (name, fallback = null) {
-    return this._parameters()[name] ?? fallback
+    return this.#parameters()[name] ?? fallback
   }
 
   setParameter (name, value) {
-    this._parameters()[name] = value
+    this.#parameters()[name] = value
 
     return this
   }
 
   deleteParameter (name) {
-    delete this._parameters()[name]
+    delete this.#parameters()[name]
   }
 
   parameters () {
     if (this.hasParameters()) {
-      return this._parameters
+      return this.#parameters
     }
 
     throw new LogicException('Route is not bound')
   }
 
   parametersWithoutNulls () {
-    return Object.fromEntries(Object.entries(this._parameters).filter(([, value]) => !!value))
+    return Object.fromEntries(Object.entries(this.#parameters).filter(([, value]) => !!value))
   }
 
   parameterNames () {
-    if (!this._parameterNames) {
-      this._parameterNames = this._compileParameterNames()
+    if (!this.#parameterNames) {
+      this.#parameterNames = this.#compileParameterNames()
     }
 
-    return this._parameterNames
+    return this.#parameterNames
   }
 
   optionalParameterNames () {
@@ -234,19 +224,6 @@ export class Route {
     }[type]
   }
 
-  _compileParameterNames () {
-    let matchers
-    const names = []
-    const regex = this.parameterNameRegex()
-
-    while ((matchers = regex.exec(this.getFullUri())) !== null) {
-      if (matchers.index === regex.lastIndex) { regex.lastIndex++ } // This is necessary to avoid infinite loops with zero-width matches
-      matchers[0] && names.push(matchers[0].replace(/:|\{|\}|\?|\//gm, ''))
-    }
-
-    return names
-  }
-
   setDefault (name, value) {
     this.defaults = this.defaults ?? {}
     this.defaults[name] = value
@@ -255,7 +232,7 @@ export class Route {
   }
 
   getDefault (name) {
-    return this.defaults[name] ?? null
+    return this.defaults[name]
   }
 
   setRule (name, value) {
@@ -277,40 +254,84 @@ export class Route {
     return this.domain ? this.domain.replace(/^https?:\/\//, '') : null
   }
 
-  httpOnly () {
-    return this._protocol === 'http'
+  hasDomain () {
+    return !!this.getDomain()
   }
 
-  httpsOnly () {
-    return this.secure()
+  isHttpOnly () {
+    return this.#protocol === 'http'
   }
 
-  secure () {
-    return this._protocol === 'https'
+  isHttpsOnly () {
+    return this.isSecure()
+  }
+
+  isSecure () {
+    return this.#protocol === 'https'
+  }
+
+  get action () {
+    return this.#action
+  }
+
+  getAction () {
+    return this.#action
   }
 
   setAction (action) {
-    if (action && (this.isControllerClass() || this._isCallable())) {
-      this.action = action
-      return this
+    this.#action = action
+
+    if (!(this.isControllerClass() || this.#isCallable())) {
+      throw new LogicException(`Invalid action {${action}}. Must provide an action for route`)
     }
 
-    throw new LogicException(`Invalid action {${action}}. Must provide an action for route`)
+    return this
   }
 
   getActionType () {
-    return Array.isArray(this.action) ? 'Controller' : 'Closure'
+    return Array.isArray(this.#action) ? 'Controller' : 'Closure'
+  }
+
+  getRouter () {
+    return this.#router
   }
 
   setRouter (router) {
-    this._router = router
+    this.#router = router
 
     return this
   }
 
   setContainer (container) {
-    this._container = container
+    this.#container = container
 
+    return this
+  }
+
+  hasDispatcher (type) {
+    return !!this.getDispatcher(type)
+  }
+
+  getDispatcher (type) {
+    return this.getDispatchers()[type]
+  }
+
+  getDispatchers () {
+    return this.#dispatchers
+  }
+
+  setDispatchers (dispatchers) {
+    Object
+      .entries(dispatchers)
+      .forEach(([type, dispatcher]) => this.addDispatcher(type, dispatcher))
+    return this
+  }
+
+  addDispatcher (type, dispatcher) {
+    if (!['callable', 'controller'].includes(type)) {
+      throw new LogicException(`Invalid dispatcher type ${type}. Valid types are 'callable' and 'controller'`)
+    }
+    this.#dispatchers[type] = dispatcher
     return this
   }
 
@@ -319,18 +340,18 @@ export class Route {
   }
 
   uriRegex (flag = 'gm') {
-    return this._regex(this.uri, flag)
+    return this.#regex(this.uri, flag)
   }
 
   domainRegex (flag = 'gm') {
-    return this.getDomain() ? this._regex(this.getDomain(), flag) : null
+    return this.getDomain() ? this.#regex(this.getDomain(), flag) : null
   }
 
   domainAndUriRegex (flag = 'gm') {
-    return this._regex(this.getFullUri(), flag)
+    return this.#regex(this.getFullUri(), flag)
   }
 
-  _regex (value, flag = 'gm') {
+  #regex (value, flag = 'gm') {
     return new RegExp(
       this
         .parameterNames()
@@ -348,12 +369,80 @@ export class Route {
     )
   }
 
-  _getDefaultMatchers () {
+  #getDefaultMatchers () {
     return [
-      HostMatcher,
-      MethodMatcher,
-      ProtocolMatcher,
-      UriMatcher
+      new HostMatcher(),
+      new MethodMatcher(),
+      new ProtocolMatcher(),
+      new UriMatcher()
     ]
+  }
+
+  #compileParameterNames () {
+    let matchers
+    const names = []
+    const regex = this.parameterNameRegex()
+
+    while ((matchers = regex.exec(this.getFullUri())) !== null) {
+      if (matchers.index === regex.lastIndex) { regex.lastIndex++ } // This is necessary to avoid infinite loops with zero-width matches
+      matchers[0] && names.push(matchers[0].replace(/:|\{|\}|\?|\//gm, ''))
+    }
+
+    return names
+  }
+
+  #runCallable () {
+    return this.#callableDispatcher().dispatch(this, this.getCallable())
+  }
+
+  #isCallable () {
+    return !this.#isControllerAction() && typeof this.#action === 'function'
+  }
+
+  #callableDispatcher () {
+    if (this.hasDispatcher('callable')) {
+      return this.#container.make(this.getDispatcher('callable'))
+    }
+
+    throw new LogicException('No callable dispatcher provided')
+  }
+
+  #isControllerAction () {
+    return Array.isArray(this.#action)
+  }
+
+  #runController () {
+    return this.#controllerDispatcher().dispatch(this, this.getController(), this.getControllerMethod())
+  }
+
+  #controllerDispatcher () {
+    if (this.hasDispatcher('controller')) {
+      return this.#container.make(this.getDispatcher('controller'))
+    }
+
+    throw new LogicException('No controller dispatcher provided')
+  }
+
+  #getControllerActionFullname (separator = '@') {
+    return [this.#action[0].name, this.#action[1]].join(separator)
+  }
+
+  toJSON () {
+    return {
+      name: this.name ?? 'Empty',
+      uri: this.uri ?? 'Empty',
+      methods: this.getMethods(),
+      action: this.isControllerClass() ? this.#getControllerActionFullname() : this.getActionType(),
+      rules: this.rules ?? 'Empty',
+      defaults: this.defaults ?? 'Empty',
+      domain: this.getDomain() ?? 'Empty',
+      fallback: this.fallback ?? false,
+      middleware: this.middleware?.map(v => v.name) ?? 'Empty',
+      excludeMiddleware: this.excludeMiddleware?.map(v => v.name) ?? 'Empty'
+    }
+  }
+
+  toString () {
+    return JSON.stringify(this.toJSON())
   }
 }

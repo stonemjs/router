@@ -18,6 +18,12 @@ export class UserController {
     return users.find(v => v.id === params.id)
   }
 
+  showMe ({ request }) {
+    console.log('Get me')
+    console.log('Request', request)
+    return users[0]
+  }
+
   create ({ request, payload }) {
     console.log('Create user')
     console.log('Request and payload', request, payload)
