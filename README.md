@@ -172,7 +172,7 @@ const route  = new Route({
 
 ## Param name regex
 `
-const regex = (type = 'default', value = '\\w+', flag = 'gm') => {
+const regex = (type = 'default', value = '\\w+', flag = 'gi') => {
   return {
     required: new RegExp(`\/(:(${value})|\\{(${value})\\})\/`, flag),
     optional: new RegExp(`\/(:(${value})\\?|\\{(${value})\\?\\})\/`, flag),

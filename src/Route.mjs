@@ -81,6 +81,7 @@ export class Route {
       }
       return await this.#runCallable()
     } catch (error) {
+      console.log('error--', error)
       if (!error.getResponse) {
         throw new LogicException("Controller or callable's Exception must contain a `getResponse` method.")
       }
@@ -166,7 +167,7 @@ export class Route {
     return this.optionalParameterNames().includes(name)
   }
 
-  parameterNameRegex (type = 'default', value = '\\w+', flag = 'gm') {
+  parameterNameRegex (type = 'default', value = '\\w+', flag = 'gi') {
     return {
       required: new RegExp(`\\/(:(${value})|\\{(${value})\\})\\/?`, flag),
       optional: new RegExp(`\\/(:(${value})\\?|\\{(${value})\\?\\})\\/?`, flag),
@@ -347,31 +348,28 @@ export class Route {
     return `${this.getDomain() ?? ''}${this.uri}`
   }
 
-  uriRegex (flag = 'gm') {
+  uriRegex (flag = 'gi') {
     return this.#regex(this.uri, flag)
   }
 
-  domainRegex (flag = 'gm') {
+  domainRegex (flag = 'gi') {
     return this.getDomain() ? this.#regex(this.getDomain(), flag) : null
   }
 
-  domainAndUriRegex (flag = 'gm') {
+  domainAndUriRegex (flag = 'gi') {
     return this.#regex(this.getFullUri(), flag)
   }
 
-  #regex (value, flag = 'gm') {
+  #regex (value, flag = 'gi') {
     const pattern = this
       .parameterNames()
       .reduce((prev, name) => {
         const isOpt = this.isParameterNameOptional(name)
-        const regex = this.parameterNameRegex(isOpt ? 'optional' : 'required', name)
-
-        const replace = isOpt
-          ? `\\/?(${this.getRule(name, /\w*/)})`
-          : `\\/?(${this.getRule(name)})`
-
-        return prev.replace(regex, replace)
-      }, value)
+        const val = isOpt ? `:${name}?` : `:${name}`
+        const val2 = isOpt ? `{${name}?}` : `{${name}}`
+        const replace = `(${this.getRule(name, isOpt ? /\w*/ : /\w+/)})`
+        return prev.replaceAll(val, replace).replaceAll(val2, replace)
+      }, value.startsWith('/') ? value : `/${value}`)
 
     return new RegExp(`^${pattern}\\/?$`, flag)
   }

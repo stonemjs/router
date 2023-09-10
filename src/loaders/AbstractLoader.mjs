@@ -100,6 +100,6 @@ export class AbstractLoader {
   }
 
   _keyExistsInUri (uri, key) {
-    return new RegExp(`\\/(:(${key})|\\{(${key})\\})`, 'gm').test(uri)
+    return new RegExp(`\\/(:(${key})|\\{(${key})\\})`, 'gi').test(uri)
   }
 }

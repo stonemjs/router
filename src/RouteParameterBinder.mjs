@@ -14,15 +14,10 @@ export class RouteParameterBinder {
   }
 
   #bindParameters (requestContext) {
-    let matchers
-    const values = []
-    const regex = this.#route.domainAndUriRegex()
     const value = `${this.#route.hasDomain() ? requestContext.hostname : ''}${requestContext.decodedPath}`
-
-    while ((matchers = regex.exec(value)) !== null) {
-      if (matchers.index === regex.lastIndex) { regex.lastIndex++ } // This is necessary to avoid infinite loops with zero-width matches
-      (matchers[1] || matchers[0]) && values.push((matchers[1] ?? matchers[0]).replace(/\//gm, ''))
-    }
+    const values = [
+      ...value.matchAll(this.#route.domainAndUriRegex())
+    ].reduce((prev, curr) => prev.concat(curr.filter((_v, i) => i > 0)), [])
 
     return this.#matchToKeys(this.#parseMatches(values))
   }

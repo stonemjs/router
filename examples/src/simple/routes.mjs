@@ -105,7 +105,7 @@ export const routes = [
     action: [CommentController, 'listByArticle']
   }),
   router.get({
-    uri: 'users/:userId/articles/:articleId/comments',
+    uri: '/users/:userId/articles/:articleId/comments',
     name: 'user.article.comment.list',
     rules: { userId: /\d+/, articleId: /\d+/ },
     middleware: [AuthMiddleware],
