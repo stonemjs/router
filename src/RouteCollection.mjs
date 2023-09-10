@@ -68,7 +68,7 @@ export class RouteCollection {
   }
 
   #addToActionList (route) {
-    if (route.isControllerClass()) { this.#actionList.set(route.action[0], route) }
+    if (route.isControllerAction()) { this.#actionList.set(route.action[0], route) }
   }
 
   #addToNameList (route) {

@@ -1,20 +1,9 @@
 // import "./routes.mjs"
 import http from 'http'
 import { container, router } from "./services.mjs"
-import middleware from "./middleware/**/*Middleware.mjs"
-import controllers from "./controllers/**/*Controller.mjs"
 import { RouteDefinition, RequestContext } from "@noowow-community/router"
 import { AuthMiddleware } from './middleware/AuthMiddleware.mjs'
 import { UserController } from './controllers/UserController.mjs'
-
-const services = [ ...middleware, ...controllers ]
-  .reduce((prev, curr) => {
-    return prev.concat(Object.values(curr).filter(v => (v.metadata ?? {}).type === 'service'))
-  }, [])
-
-
-// Bind services
-container.discovering(services)
 
 // Routes
 const routeDefinition = new RouteDefinition({
@@ -26,7 +15,9 @@ const routeDefinition = new RouteDefinition({
 })
 
 router.addRoute(routeDefinition)
-console.log('Route size', router.getRoutes().size);
+
+// Log route infos
+console.log('Routes count', router.getRoutes().size)
 console.table(router.dumpRoutes())
 
 http

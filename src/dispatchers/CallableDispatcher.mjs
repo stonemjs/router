@@ -1,18 +1,22 @@
 export class CallableDispatcher {
+  #container
+
   constructor ({
-    request,
     container
   }) {
-    this._request = request
-    this._container = container
+    this.#container = container
   }
 
   dispatch (route, callable) {
     return callable({
       route,
-      request: this._request,
-      container: this._container,
+      container: this.#container,
+      request: this.#getRequest(),
       parameters: route.parametersWithoutNulls()
     })
+  }
+
+  #getRequest () {
+    return this.#container.make('request')
   }
 }

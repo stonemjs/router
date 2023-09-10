@@ -1,17 +1,17 @@
 export class ControllerDispatcher {
+  #container
+
   constructor ({
-    request,
     container
   }) {
-    this._request = request
-    this._container = container
+    this.#container = container
   }
 
   dispatch (route, controller, method) {
     const params = {
       route,
-      request: this._request,
-      container: this._container,
+      container: this.#container,
+      request: this.#getRequest(),
       parameters: route.parametersWithoutNulls()
     }
 
@@ -20,5 +20,9 @@ export class ControllerDispatcher {
     }
 
     return controller[method](params)
+  }
+
+  #getRequest () {
+    return this.#container.make('request')
   }
 }

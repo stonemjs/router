@@ -1,10 +1,7 @@
 import { RouteParameterBinder } from './RouteParameterBinder.mjs'
 import { RouteDefinition } from './RouteDefinition.mjs'
 import { LogicException } from './exceptions/LogicException.mjs'
-import { HostMatcher } from './matchers/HostMatcher.mjs'
 import { MethodMatcher } from './matchers/MethodMatcher.mjs'
-import { ProtocolMatcher } from './matchers/ProtocolMatcher.mjs'
-import { UriMatcher } from './matchers/UriMatcher.mjs'
 
 export class Route {
   #router
@@ -54,13 +51,12 @@ export class Route {
       return new this({ ...routeDefinition })
     }
 
-    throw new LogicException('routeDefinition must be an instance of `RouteDefinition`')
+    throw new LogicException("This method's parameter must be an instance of `RouteDefinition`")
   }
 
   bind (requestContext) {
     this.#protocol = requestContext.protocol
     this.#parameters = RouteParameterBinder.getParameters(this, requestContext)
-
     return this
   }
 
@@ -74,31 +70,18 @@ export class Route {
     return true
   }
 
-  getMatchers (orDefault = true) {
-    return this.hasMatchers() ? this.#matchers : (orDefault ? this.#getDefaultMatchers() : {})
-  }
-
-  hasMatchers () {
-    return this.#matchers?.length > 0
-  }
-
-  setMatchers (matchers, mergeWithDefault = true) {
-    this.#matchers = [].concat(mergeWithDefault ? this.#getDefaultMatchers() : [], matchers)
-    return this
-  }
-
-  run () {
+  async run () {
     if (!this.#container) {
       throw new LogicException('No service container provided')
     }
 
     try {
-      if (this.#isControllerAction()) {
-        return this.#runController()
+      if (this.isControllerAction()) {
+        return await this.#runController()
       }
-      return this.#runCallable()
+      return await this.#runCallable()
     } catch (error) {
-      console.log('error', error)
+      console.log('Route running error', error)
       if (!error.getResponse) {
         throw new LogicException("Controller or callable's Exception must contain a `getResponse` method.")
       }
@@ -106,40 +89,8 @@ export class Route {
     }
   }
 
-  getCallable () {
-    if (this.#isCallable()) {
-      return this.#action
-    }
-
-    throw new LogicException('Action must be a function')
-  }
-
-  isControllerClass () {
-    return this.#action?.[0] && /^\s*class/.test(this.#action[0].toString())
-  }
-
-  getController () {
-    if (!this.#controller) {
-      if (this.#isControllerAction() && this.isControllerClass()) {
-        this.#controller = this.#container.make(this.#action[0])
-      } else {
-        throw new LogicException('First value of action must be a class')
-      }
-    }
-
-    return this.#controller
-  }
-
-  getControllerMethod () {
-    if (this.#isControllerAction() && typeof this.#action[1] === 'string') {
-      return this.#action[1]
-    } else {
-      throw new LogicException('Second value of action must be the controller method')
-    }
-  }
-
   get methods () {
-    return this.#methods ?? []
+    return this.getMethods()
   }
 
   getMethods () {
@@ -281,7 +232,7 @@ export class Route {
   setAction (action) {
     this.#action = action
 
-    if (!(this.isControllerClass() || this.#isCallable())) {
+    if (!(this.isControllerAction() || this.isCallableAction())) {
       throw new LogicException(`Invalid action {${action}}. Must provide an action for route`)
     }
 
@@ -290,6 +241,42 @@ export class Route {
 
   getActionType () {
     return Array.isArray(this.#action) ? 'Controller' : 'Closure'
+  }
+
+  getCallable () {
+    if (this.isCallableAction()) {
+      return this.#action
+    }
+
+    throw new LogicException('Callable action must be a function')
+  }
+
+  getController () {
+    if (!this.#controller) {
+      if (this.isControllerAction()) {
+        this.#controller = this.#container.make(this.#action[0])
+      } else {
+        throw new LogicException('First value of action must be a class')
+      }
+    }
+
+    return this.#controller
+  }
+
+  getControllerMethod () {
+    if (this.isControllerAction() && typeof this.#action?.[1] === 'string') {
+      return this.#action[1]
+    } else {
+      throw new LogicException('Second value of action must be the controller method and must be as string')
+    }
+  }
+
+  isControllerAction () {
+    return Array.isArray(this.#action) && /^\s*class/.test(this.#action[0]?.toString())
+  }
+
+  isCallableAction () {
+    return typeof this.#action === 'function'
   }
 
   getRouter () {
@@ -305,6 +292,24 @@ export class Route {
   setContainer (container) {
     this.#container = container
 
+    return this
+  }
+
+  hasMatchers () {
+    return this.#matchers.length > 0
+  }
+
+  getMatchers () {
+    return this.#matchers
+  }
+
+  setMatchers (matchers) {
+    this.#matchers = matchers
+    return this
+  }
+
+  addMatchers (matcher) {
+    this.#matchers.push(matcher)
     return this
   }
 
@@ -335,6 +340,10 @@ export class Route {
     return this
   }
 
+  get fullUri () {
+    return this.getFullUri()
+  }
+
   getFullUri () {
     return `${this.getDomain() ?? ''}${this.uri}`
   }
@@ -360,22 +369,13 @@ export class Route {
           const regex = this.parameterNameRegex(isOpt ? 'optional' : 'required', name)
 
           const replace = isOpt
-            ? `\\?(${this.getRule(name, /\w*/)})\\/?`
+            ? `\\/?(${this.getRule(name, /\w*/)})\\/?`
             : `(${this.getRule(name)})`
 
           return prev.replace(regex, replace)
         }, `^${value}$`),
       flag
     )
-  }
-
-  #getDefaultMatchers () {
-    return [
-      new HostMatcher(),
-      new MethodMatcher(),
-      new ProtocolMatcher(),
-      new UriMatcher()
-    ]
   }
 
   #compileParameterNames () {
@@ -395,20 +395,12 @@ export class Route {
     return this.#callableDispatcher().dispatch(this, this.getCallable())
   }
 
-  #isCallable () {
-    return !this.#isControllerAction() && typeof this.#action === 'function'
-  }
-
   #callableDispatcher () {
     if (this.hasDispatcher('callable')) {
       return this.#container.make(this.getDispatcher('callable'))
     }
 
     throw new LogicException('No callable dispatcher provided')
-  }
-
-  #isControllerAction () {
-    return Array.isArray(this.#action)
   }
 
   #runController () {
@@ -432,7 +424,7 @@ export class Route {
       name: this.name ?? 'Empty',
       uri: this.uri ?? 'Empty',
       methods: this.getMethods(),
-      action: this.isControllerClass() ? this.#getControllerActionFullname() : this.getActionType(),
+      action: this.isControllerAction() ? this.#getControllerActionFullname() : this.getActionType(),
       rules: this.rules ?? 'Empty',
       defaults: this.defaults ?? 'Empty',
       domain: this.getDomain() ?? 'Empty',

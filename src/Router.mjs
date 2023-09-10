@@ -12,6 +12,10 @@ import { Routing } from './events/Routing.mjs'
 import { LogicException } from './exceptions/LogicException.mjs'
 import { ControllerLoader } from './loaders/ControllerLoader.mjs'
 import { DefinitionLoader } from './loaders/DefinitionLoader.mjs'
+import { HostMatcher } from './matchers/HostMatcher.mjs'
+import { MethodMatcher } from './matchers/MethodMatcher.mjs'
+import { ProtocolMatcher } from './matchers/ProtocolMatcher.mjs'
+import { UriMatcher } from './matchers/UriMatcher.mjs'
 
 export class Router {
   #rules
@@ -23,6 +27,7 @@ export class Router {
   #dispatchers
   #eventManager
   #currentRequest
+  #defaultMatchers
 
   constructor ({
     container,
@@ -41,7 +46,7 @@ export class Router {
     }
 
     if (!this.#eventManager) {
-      console.log('No Event manager provided. No events will be disptach.')
+      console.log('No Event manager provided. No events will be disptached.')
     }
   }
 
@@ -103,17 +108,12 @@ export class Router {
   }
 
   createRoute (routeDefinition) {
-    return Route
-      .fromRouteDefinition(routeDefinition)
-      .setRouter(this)
-      .setContainer(this.#container)
-      .setMatchers(this.getMatchers())
-      .setDispatchers(this.getDispatchers())
+    return this.#hydrateRoute(Route.fromRouteDefinition(routeDefinition))
   }
 
   async loadRoutes (routeLoader) {
     if (!routeLoader.load) {
-      throw new LogicException('Invalid value, parameter must have `load` method')
+      throw new LogicException('Invalid loader, routeLoader must have `load` method')
     }
 
     const routeDefinitions = await routeLoader.load()
@@ -146,15 +146,15 @@ export class Router {
       throw new LogicException(`No routes found for this name ${name}`)
     }
 
-    return this.#runRoute(this.#currentRequest, route.bind(this.#currentRequest))
+    return this.#runRoute(this.#currentRequest, route)
   }
 
   generate (nameOrPath, params, query, hash) {}
 
   findRoute (requestContext) {
     this.#eventManager?.notify(Routing, new Routing(requestContext))
+
     this.#current = this.#routes.match(requestContext)
-    this.#current.setContainer(this.#container).setRouter(this)
     this.#container.instance(Route, this.#current)
 
     return this.#current
@@ -234,13 +234,11 @@ export class Router {
 
   setRule (name, pattern) {
     this.#rules[name] = pattern
-
     return this
   }
 
   setRules (rules) {
-    Object.entries(rules).forEach(([name, pattern]) => this.rule(name, pattern))
-
+    Object.entries(rules).forEach(([name, pattern]) => this.setRule(name, pattern))
     return this
   }
 
@@ -277,14 +275,13 @@ export class Router {
   }
 
   currentRouteAction () {
-    return this.current()
-      ? (this.current().isControllerClass()
-        ? this.current().action[0]
-        : this.current().action)
-      : null
+    return this.current() ? this.current().action : null
   }
 
   isCurrentRouteAction (action) {
+    if (this.current()?.isControllerAction() && Array.isArray(action)) {
+      return this.currentRouteAction()[0] === action[0] && this.currentRouteAction()[1] === action[1]
+    }
     return this.currentRouteAction() === action
   }
 
@@ -298,17 +295,13 @@ export class Router {
     }
 
     for (const route of routeCollection) {
-      route.setRouter(this).setContainer(this.#container)
+      this.#hydrateRoute(route)
     }
 
     this.#routes = routeCollection
     this.#container.instance('routes', this.#routes)
 
     return this
-  }
-
-  dumpRoutes () {
-    return this.#routes.toJSON()
   }
 
   setContainer (container) {
@@ -321,17 +314,16 @@ export class Router {
     return this
   }
 
-  getMatchers () {
-    return this.#matchers
+  getMatchers (orDefault = true) {
+    return this.hasMatchers() ? this.#matchers : (orDefault ? this.#getDefaultMatchers() : [])
   }
 
-  setMatchers (matchers) {
-    this.#matchers = matchers
-    return this
+  hasMatchers () {
+    return this.#matchers?.length > 0
   }
 
-  addMatchers (matcher) {
-    this.#matchers.push(matcher)
+  setMatchers (matchers, mergeWithDefault = true) {
+    this.#matchers = [].concat(mergeWithDefault ? this.#getDefaultMatchers() : [], matchers)
     return this
   }
 
@@ -361,6 +353,23 @@ export class Router {
     return this
   }
 
+  dumpRoutes () {
+    return this.#routes.toJSON()
+  }
+
+  #getDefaultMatchers () {
+    if (!this.#defaultMatchers) {
+      this.#defaultMatchers = [
+        new HostMatcher(),
+        new MethodMatcher(),
+        new ProtocolMatcher(),
+        new UriMatcher()
+      ]
+    }
+
+    return this.#defaultMatchers
+  }
+
   #getDefaultDispatchers () {
     return {
       callable: CallableDispatcher,
@@ -368,20 +377,11 @@ export class Router {
     }
   }
 
-  #bindDispatchers () {
-    Object.values(this.getDispatchers())
-      .forEach(Class => {
-        this.#container.singleton(Class, container => new Class({ container: container, request: this.#currentRequest }))
-      })
-    return this
-  }
-
   #runRoute (requestContext, route) {
     requestContext.setRouteResolver(() => route)
 
     this.#currentRequest = requestContext
 
-    this.#bindDispatchers()
     this.#eventManager?.notify(RouteMatched, new RouteMatched(route, requestContext))
 
     return this.#runRouteWithMiddleware(requestContext, route)
@@ -403,6 +403,14 @@ export class Router {
     }
 
     return this.prepareResponse(requestContext, response)
+  }
+
+  #hydrateRoute (route) {
+    return route
+      .setRouter(this)
+      .setContainer(this.#container)
+      .setMatchers(this.getMatchers())
+      .setDispatchers(this.getDispatchers())
   }
 
   #mapRouteDefinition (routeDefinition, methods) {
