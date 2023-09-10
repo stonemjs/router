@@ -81,7 +81,6 @@ export class Route {
       }
       return await this.#runCallable()
     } catch (error) {
-      console.log('Route running error', error)
       if (!error.getResponse) {
         throw new LogicException("Controller or callable's Exception must contain a `getResponse` method.")
       }
@@ -169,9 +168,9 @@ export class Route {
 
   parameterNameRegex (type = 'default', value = '\\w+', flag = 'gm') {
     return {
-      required: new RegExp(`\\/(:(${value})|\\{(${value})\\})\\/`, flag),
-      optional: new RegExp(`\\/(:(${value})\\?|\\{(${value})\\?\\})\\/`, flag),
-      default: new RegExp(`\\/(:(${value})\\??|\\{(${value})\\??\\})`, flag)
+      required: new RegExp(`\\/(:(${value})|\\{(${value})\\})\\/?`, flag),
+      optional: new RegExp(`\\/(:(${value})\\?|\\{(${value})\\?\\})\\/?`, flag),
+      default: new RegExp(`\\/(:(${value})\\??|\\{(${value})\\??\\})\\/?`, flag)
     }[type]
   }
 
@@ -361,21 +360,20 @@ export class Route {
   }
 
   #regex (value, flag = 'gm') {
-    return new RegExp(
-      this
-        .parameterNames()
-        .reduce((prev, name) => {
-          const isOpt = this.isParameterNameOptional(name)
-          const regex = this.parameterNameRegex(isOpt ? 'optional' : 'required', name)
+    const pattern = this
+      .parameterNames()
+      .reduce((prev, name) => {
+        const isOpt = this.isParameterNameOptional(name)
+        const regex = this.parameterNameRegex(isOpt ? 'optional' : 'required', name)
 
-          const replace = isOpt
-            ? `\\/?(${this.getRule(name, /\w*/)})\\/?`
-            : `(${this.getRule(name)})`
+        const replace = isOpt
+          ? `\\/?(${this.getRule(name, /\w*/)})`
+          : `\\/?(${this.getRule(name)})`
 
-          return prev.replace(regex, replace)
-        }, `^${value}$`),
-      flag
-    )
+        return prev.replace(regex, replace)
+      }, value)
+
+    return new RegExp(`^${pattern}\\/?$`, flag)
   }
 
   #compileParameterNames () {
@@ -415,7 +413,7 @@ export class Route {
     throw new LogicException('No controller dispatcher provided')
   }
 
-  #getControllerActionFullname (separator = '@') {
+  getControllerActionFullname (separator = '@') {
     return [this.#action[0].name, this.#action[1]].join(separator)
   }
 
@@ -424,7 +422,7 @@ export class Route {
       name: this.name ?? 'Empty',
       uri: this.uri ?? 'Empty',
       methods: this.getMethods(),
-      action: this.isControllerAction() ? this.#getControllerActionFullname() : this.getActionType(),
+      action: this.isControllerAction() ? this.getControllerActionFullname() : this.getActionType(),
       rules: this.rules ?? 'Empty',
       defaults: this.defaults ?? 'Empty',
       domain: this.getDomain() ?? 'Empty',

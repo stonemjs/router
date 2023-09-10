@@ -187,7 +187,7 @@ export class Router {
   }
 
   static toResponse (requestContext, response) {
-    if (response === null) {
+    if (!response) {
       response = RouteResponse.empty()
     } else if (response instanceof MetaResponse) {
       response = RouteResponse.fromMetaResponse(response)

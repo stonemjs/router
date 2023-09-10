@@ -34,8 +34,7 @@ export class RouteCollection {
 
   getByMethod (method) {
     return Array
-      .from(this.#methodList.entries())
-      .filter(([key]) => key.toUpperCase().includes(`${method.toUpperCase()}.`))
+      .from(this.#methodList.get(method.toUpperCase())?.entries() ?? [])
       .map(([, value]) => value)
   }
 
@@ -64,11 +63,11 @@ export class RouteCollection {
   }
 
   #addToCollections (route) {
-    this.#routes.set(route.getFullUri(), route)
+    route.getMethods().forEach(method => this.#routes.set(`${method}.${route.getFullUri()}`, route))
   }
 
   #addToActionList (route) {
-    if (route.isControllerAction()) { this.#actionList.set(route.action[0], route) }
+    if (route.isControllerAction()) { this.#actionList.set(route.getControllerActionFullname(), route) }
   }
 
   #addToNameList (route) {
@@ -76,7 +75,12 @@ export class RouteCollection {
   }
 
   #addToMethodList (route) {
-    route.getMethods().forEach(method => this.#methodList.set(`${method}.${route.getFullUri()}`, route))
+    for (const method of route.getMethods()) {
+      if (!this.#methodList.has(method)) {
+        this.#methodList.set(method, new Map())
+      }
+      this.#methodList.get(method).set(route.getFullUri(), route)
+    }
   }
 
   #handleMatchedRoute (requestContext, route) {

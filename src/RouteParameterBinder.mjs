@@ -19,7 +19,7 @@ export class RouteParameterBinder {
 
     while ((matchers = regex.exec(value)) !== null) {
       if (matchers.index === regex.lastIndex) { regex.lastIndex++ } // This is necessary to avoid infinite loops with zero-width matches
-      matchers[0] && values.push(matchers[0].replace(/\//gm, ''))
+      (matchers[1] || matchers[0]) && values.push((matchers[1] ?? matchers[0]).replace(/\//gm, ''))
     }
 
     return this._matchToKeys(values)

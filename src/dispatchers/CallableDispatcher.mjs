@@ -12,6 +12,7 @@ export class CallableDispatcher {
       route,
       container: this.#container,
       request: this.#getRequest(),
+      params: route.parametersWithoutNulls(),
       parameters: route.parametersWithoutNulls()
     })
   }
