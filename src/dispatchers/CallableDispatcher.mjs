@@ -8,12 +8,17 @@ export class CallableDispatcher {
   }
 
   dispatch (route, callable) {
+    const request = this.#getRequest()
+    const params = route.parametersWithoutNulls() ?? {}
+
     return callable({
       route,
-      container: this.#container,
-      request: this.#getRequest(),
-      params: route.parametersWithoutNulls(),
-      parameters: route.parametersWithoutNulls()
+      params,
+      request,
+      parameters: params,
+      query: request.query ?? {},
+      payload: request.body ?? {},
+      container: this.#container
     })
   }
 

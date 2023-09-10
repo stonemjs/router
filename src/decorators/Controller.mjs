@@ -16,6 +16,8 @@ export const Controller = (definition) => {
       }
     }
 
+    Reflect.defineProperty(target.prototype, 'callAction', { value: function (method, context) { this[method](context) } })
+
     target.metadata = deepmerge(target.metadata ?? {}, metadata)
 
     return target

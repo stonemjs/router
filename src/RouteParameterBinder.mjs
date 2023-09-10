@@ -14,12 +14,13 @@ export class RouteParameterBinder {
   }
 
   #bindParameters (requestContext) {
-    const value = `${this.#route.hasDomain() ? requestContext.hostname : ''}${requestContext.decodedPath}`
-    const values = [
-      ...value.matchAll(this.#route.domainAndUriRegex())
-    ].reduce((prev, curr) => prev.concat(curr.filter((_v, i) => i > 0)), [])
+    const regex = this.#route.domainAndUriRegex()
+    const requestUri = requestContext.getUri(this.#route.hasDomain())
+    let matches = [...requestUri.matchAll(regex)]
 
-    return this.#matchToKeys(this.#parseMatches(values))
+    matches = matches.reduce((prev, match) => prev.concat(match.filter((_v, i) => i > 0)), [])
+
+    return this.#matchToKeys(this.#parseMatches(matches))
   }
 
   #matchToKeys (matches) {

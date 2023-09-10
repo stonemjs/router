@@ -8,19 +8,23 @@ export class ControllerDispatcher {
   }
 
   dispatch (route, controller, method) {
-    const params = {
+    const request = this.#getRequest()
+    const params = route.parametersWithoutNulls() ?? {}
+    const context = {
       route,
-      container: this.#container,
-      request: this.#getRequest(),
-      params: route.parametersWithoutNulls(),
-      parameters: route.parametersWithoutNulls()
+      params,
+      request,
+      parameters: params,
+      query: request.query ?? {},
+      payload: request.body ?? {},
+      container: this.#container
     }
 
     if (controller.callAction) {
-      return controller.callAction(method, params)
+      return controller.callAction(method, context)
     }
 
-    return controller[method](params)
+    return controller[method](context)
   }
 
   #getRequest () {

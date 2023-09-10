@@ -4,6 +4,7 @@ import { LogicException } from './exceptions/LogicException.mjs'
 import { MethodMatcher } from './matchers/MethodMatcher.mjs'
 
 export class Route {
+  #uri
   #router
   #action
   #methods
@@ -28,7 +29,7 @@ export class Route {
     middleware,
     excludeMiddleware
   }) {
-    this.uri = uri
+    this.#uri = uri
     this.name = name
     this.domain = domain
     this.rules = rules ?? {}
@@ -81,7 +82,6 @@ export class Route {
       }
       return await this.#runCallable()
     } catch (error) {
-      console.log('error--', error)
       if (!error.getResponse) {
         throw new LogicException("Controller or callable's Exception must contain a `getResponse` method.")
       }
@@ -129,12 +129,12 @@ export class Route {
 
   setParameter (name, value) {
     this.#parameters()[name] = value
-
     return this
   }
 
   deleteParameter (name) {
     delete this.#parameters()[name]
+    return this
   }
 
   parameters () {
@@ -196,7 +196,7 @@ export class Route {
   getRule (name, defaultRule = /\w+/) {
     const rule = this.rules[name] ?? defaultRule
     if (!(rule instanceof RegExp)) {
-      throw new LogicException(`This rule ${rule} must be a RegExp`)
+      throw new LogicException(`This rule ${rule} must be a regex`)
     }
     return rule.toString().replace(/^\/|\/$/g, '')
   }
@@ -344,6 +344,11 @@ export class Route {
     return this.getFullUri()
   }
 
+  get uri () {
+    const trimmedUri = this.#uri.trim()
+    return trimmedUri.startsWith('/') ? trimmedUri : `/${trimmedUri}`
+  }
+
   getFullUri () {
     return `${this.getDomain() ?? ''}${this.uri}`
   }
@@ -369,22 +374,19 @@ export class Route {
         const val2 = isOpt ? `{${name}?}` : `{${name}}`
         const replace = `(${this.getRule(name, isOpt ? /\w*/ : /\w+/)})`
         return prev.replaceAll(val, replace).replaceAll(val2, replace)
-      }, value.startsWith('/') ? value : `/${value}`)
+      }, value)
 
     return new RegExp(`^${pattern}\\/?$`, flag)
   }
 
   #compileParameterNames () {
-    let matchers
-    const names = []
-    const regex = this.parameterNameRegex()
-
-    while ((matchers = regex.exec(this.getFullUri())) !== null) {
-      if (matchers.index === regex.lastIndex) { regex.lastIndex++ } // This is necessary to avoid infinite loops with zero-width matches
-      matchers[0] && names.push(matchers[0].replace(/:|\{|\}|\?|\//gm, ''))
-    }
-
-    return names
+    return [...this.getFullUri().matchAll(this.parameterNameRegex())]
+      .reduce((prev, match) => prev.concat(match.filter((_v, i) => i > 0)), [])
+      .filter(v => !!v)
+      .reduce((prev, name) => {
+        name = name.replace(/:|\{|\}|\?|\//gm, '')
+        return prev.concat(prev.includes(name) ? [] : name)
+      }, [])
   }
 
   #runCallable () {

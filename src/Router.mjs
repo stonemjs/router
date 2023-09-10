@@ -353,6 +353,16 @@ export class Router {
     return this
   }
 
+  setCallableDispatcher (dispatcher) {
+    this.addDispatcher('callable', dispatcher)
+    return this
+  }
+
+  setControllerDispatcher (dispatcher) {
+    this.addDispatcher('controller', dispatcher)
+    return this
+  }
+
   dumpRoutes () {
     return this.#routes.dump()
   }

@@ -8,7 +8,8 @@ export class RouteDefinition {
     methods,
     fallback,
     defaults,
-    middleware
+    middleware,
+    excludeMiddleware
   }) {
     this.uri = uri
     this.name = name
@@ -19,5 +20,6 @@ export class RouteDefinition {
     this.fallback = fallback
     this.defaults = defaults
     this.middleware = middleware
+    this.excludeMiddleware = excludeMiddleware
   }
 }

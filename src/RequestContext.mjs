@@ -146,6 +146,10 @@ export class RequestContext {
     )
   }
 
+  getUri (withHostname = true) {
+    return withHostname ? this.hostname + this.decodedPath : this.decodedPath
+  }
+
   static #parseQuery (searchParams) {
     return Array
       .from(searchParams)
@@ -159,11 +163,6 @@ export class RequestContext {
     return this.method.toUpperCase() === name.toUpperCase()
   }
 
-  /**
-   * Is Secure
-   *
-   * @return {boolean}
-   */
   get isSecure () {
     return this.protocol === 'https'
   }
