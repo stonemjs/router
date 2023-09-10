@@ -17,8 +17,9 @@ const routeDefinition = new RouteDefinition({
 router.addRoute(routeDefinition)
 
 // Log route infos
-console.log('Routes count', router.getRoutes().size)
-console.table(router.dumpRoutes())
+const dumpRoutes = router.dumpRoutes()
+console.log('Routes count', dumpRoutes.length)
+console.table(dumpRoutes)
 
 http
   .createServer(async (req, res) => {

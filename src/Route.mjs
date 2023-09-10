@@ -169,9 +169,9 @@ export class Route {
 
   parameterNameRegex (type = 'default', value = '\\w+', flag = 'gi') {
     return {
-      required: new RegExp(`\\/(:(${value})|\\{(${value})\\})\\/?`, flag),
-      optional: new RegExp(`\\/(:(${value})\\?|\\{(${value})\\?\\})\\/?`, flag),
-      default: new RegExp(`\\/(:(${value})\\??|\\{(${value})\\??\\})\\/?`, flag)
+      required: new RegExp(`\\/?(:(${value})|\\{(${value})\\})\\/?`, flag),
+      optional: new RegExp(`\\/?(:(${value})\\?|\\{(${value})\\?\\})\\/?`, flag),
+      default: new RegExp(`\\/?(:(${value})\\??|\\{(${value})\\??\\})\\/?`, flag)
     }[type]
   }
 
@@ -420,6 +420,7 @@ export class Route {
       name: this.name ?? 'Empty',
       uri: this.uri ?? 'Empty',
       methods: this.getMethods(),
+      method: this.getMethods()[0],
       action: this.isControllerAction() ? this.getControllerActionFullname() : this.getActionType(),
       rules: this.rules ?? 'Empty',
       defaults: this.defaults ?? 'Empty',

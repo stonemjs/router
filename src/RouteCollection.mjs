@@ -54,6 +54,24 @@ export class RouteCollection {
     return this.#nameList
   }
 
+  dump () {
+    return Array
+      .from(this.#methodList.entries())
+      .reduce((prev, [method, routeMap]) => {
+        return prev.concat(
+          Array
+            .from(routeMap.values())
+            .filter(route => !(method === 'HEAD' && route.methods.includes('GET')))
+            .map(route => {
+              const json = { ...route.toJSON(), method }
+              Reflect.deleteProperty(json, 'methods')
+              return json
+            })
+        )
+      }, [])
+      .sort((a, b) => a.uri === b.uri ? 0 : (a.uri > b.uri ? 1 : -1))
+  }
+
   toJSON () {
     return this.getRoutes().map(route => route.toJSON())
   }

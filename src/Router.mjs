@@ -98,7 +98,7 @@ export class Router {
         action,
         fallback: true,
         uri: ':__fallback__',
-        rules: { __fallback__: /.*?/ }
+        rules: { __fallback__: /.*/ }
       }, ['GET', 'HEAD'])
     )
   }
@@ -354,7 +354,7 @@ export class Router {
   }
 
   dumpRoutes () {
-    return this.#routes.toJSON()
+    return this.#routes.dump()
   }
 
   #getDefaultMatchers () {
