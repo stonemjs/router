@@ -1,4 +1,4 @@
-// import "./routes.mjs"
+import "./routes.mjs"
 import http from 'http'
 import { container, router } from "./services.mjs"
 import { RouteDefinition, RequestContext } from "@noowow-community/router"
@@ -23,9 +23,10 @@ console.table(router.dumpRoutes())
 http
   .createServer(async (req, res) => {
     const request  = await RequestContext.fromNodeRequest(req, { httpPort: 4200 })
+    container.instance('request', request)
     const response = await router.dispatch(request)
-    res.writeHead(200, { 'Content-Type': 'application/json', 'Accept': 'application/json' })
-    res.end(JSON.stringify({ name: "Mr Stone" }))
+    res.writeHead(response.statusCode, response.headers)
+    res.end(JSON.stringify(response.content))
   })
   .listen(
     4200,
