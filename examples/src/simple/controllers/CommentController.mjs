@@ -7,6 +7,11 @@ import { Service } from "@noowow-community/service-container"
 })
 export class CommentController {
 
+  listOrShow ({ request, params }) {
+    console.log('List or show comment')
+    return params.id ? this.show({ request, params }) : this.list()
+  }
+
   list () {
     console.log('Get items')
     return comments
@@ -40,9 +45,9 @@ export class CommentController {
     return new RouteResponse({ statusCode: 201 })
   }
 
-  update ({ request, payload, params }) {
+  update ({ request, payload, params, query }) {
     console.log('Update item')
-    console.log('Request, params and payload', request, params, payload)
+    console.log('Request, params and payload', request, params, payload, query)
     comments = comments.map(v => v.id === params.id ? ({ ...v, ...payload, id: v.id }) : v)
     return new RouteResponse({ statusCode: 200, content: comments.find(v => v.id === params.id) })
   }

@@ -1,7 +1,7 @@
-import { RouteParameterBinder } from './RouteParameterBinder.mjs'
 import { RouteDefinition } from './RouteDefinition.mjs'
-import { LogicException } from './exceptions/LogicException.mjs'
 import { MethodMatcher } from './matchers/MethodMatcher.mjs'
+import { LogicException } from './exceptions/LogicException.mjs'
+import { RouteParameterBinder } from './RouteParameterBinder.mjs'
 
 export class Route {
   #uri
@@ -10,6 +10,7 @@ export class Route {
   #methods
   #matchers
   #protocol
+  #metadata
   #container
   #controller
   #parameters
@@ -28,7 +29,7 @@ export class Route {
     defaults,
     middleware,
     excludeMiddleware
-  }) {
+  }, metadata = {}) {
     this.#uri = uri
     this.name = name
     this.domain = domain
@@ -45,6 +46,7 @@ export class Route {
 
     this.#matchers = []
     this.#dispatchers = {}
+    this.#metadata = metadata
   }
 
   static fromRouteDefinition (routeDefinition) {

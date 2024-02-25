@@ -1,7 +1,7 @@
 import { Route } from './Route.mjs'
 import { Router } from './Router.mjs'
-import { MethodNotAllowedHttpException } from './exceptions/MethodNotAllowedHttpException.mjs'
 import { NotFoundHttpException } from './exceptions/NotFoundHttpException.mjs'
+import { MethodNotAllowedHttpException } from './exceptions/MethodNotAllowedHttpException.mjs'
 
 export class RouteCollection {
   #routes = new Map()

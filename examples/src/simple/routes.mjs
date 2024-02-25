@@ -91,6 +91,12 @@ export const routes = [
     action: [CommentController, 'list']
   }),
   router.get({
+    uri: '/comments/list-or-show/:id?',
+    name: 'comment.list',
+    middleware: [AuthMiddleware],
+    action: [CommentController, 'listOrShow']
+  }),
+  router.get({
     uri: '/users/:id/comments',
     name: 'user.comment.list',
     rules: { id: /\d+/ },

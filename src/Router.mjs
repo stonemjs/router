@@ -1,23 +1,26 @@
-import { MetaResponse } from './MetaResponse.mjs'
 import { Route } from './Route.mjs'
+import { METHODS } from './enums/index.mjs'
+import { Routing } from './events/Routing.mjs'
+import { MetaResponse } from './MetaResponse.mjs'
+import { RouteResponse } from './RouteResponse.mjs'
+import { UriMatcher } from './matchers/UriMatcher.mjs'
 import { RouteCollection } from './RouteCollection.mjs'
 import { RouteDefinition } from './RouteDefinition.mjs'
-import { RouteResponse } from './RouteResponse.mjs'
-import { CallableDispatcher } from './dispatchers/CallableDispatcher.mjs'
-import { ControllerDispatcher } from './dispatchers/ControllerDispatcher.mjs'
-import { PreparingResponse } from './events/PreparingResponse.mjs'
-import { ResponsePrepared } from './events/ResponsePrepared.mjs'
 import { RouteMatched } from './events/RouteMatched.mjs'
-import { Routing } from './events/Routing.mjs'
+import { HostMatcher } from './matchers/HostMatcher.mjs'
+import { MethodMatcher } from './matchers/MethodMatcher.mjs'
+import { ResponsePrepared } from './events/ResponsePrepared.mjs'
+import { ProtocolMatcher } from './matchers/ProtocolMatcher.mjs'
 import { LogicException } from './exceptions/LogicException.mjs'
 import { ControllerLoader } from './loaders/ControllerLoader.mjs'
 import { DefinitionLoader } from './loaders/DefinitionLoader.mjs'
-import { HostMatcher } from './matchers/HostMatcher.mjs'
-import { MethodMatcher } from './matchers/MethodMatcher.mjs'
-import { ProtocolMatcher } from './matchers/ProtocolMatcher.mjs'
-import { UriMatcher } from './matchers/UriMatcher.mjs'
+import { PreparingResponse } from './events/PreparingResponse.mjs'
+import { CallableDispatcher } from './dispatchers/CallableDispatcher.mjs'
+import { ControllerDispatcher } from './dispatchers/ControllerDispatcher.mjs'
 
 export class Router {
+  static METHODS = METHODS
+
   #rules
   #routes
   #current
@@ -50,16 +53,6 @@ export class Router {
     }
   }
 
-  static METHODS = [
-    'GET',
-    'POST',
-    'PUT',
-    'HEAD',
-    'PATCH',
-    'DELETE',
-    'OPTIONS'
-  ]
-
   get (routeDefinition) {
     return this.addRoute(this.#mapRouteDefinition(routeDefinition, ['GET', 'HEAD']))
   }
@@ -89,7 +82,7 @@ export class Router {
   }
 
   any (routeDefinition) {
-    return this.addRoute(this.#mapRouteDefinition(routeDefinition, Router.METHODS))
+    return this.addRoute(this.#mapRouteDefinition(routeDefinition, METHODS))
   }
 
   fallback (action) {
@@ -97,8 +90,7 @@ export class Router {
       this.#mapRouteDefinition({
         action,
         fallback: true,
-        uri: ':__fallback__',
-        rules: { __fallback__: /.*/ }
+        path: ':__fallback__(.*)*'
       }, ['GET', 'HEAD'])
     )
   }
@@ -424,6 +416,6 @@ export class Router {
   }
 
   #mapRouteDefinition (routeDefinition, methods) {
-    return new RouteDefinition({ ...routeDefinition, methods, method: undefined })
+    return new RouteDefinition({ ...routeDefinition, methods })
   }
 }

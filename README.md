@@ -1,4 +1,4 @@
-# Router
+# Stone.js universal Router
 Vanilla Javascript Backend and frontend Router with proposal decorator
 
 
@@ -251,3 +251,80 @@ console.log(regex('required'), regex('required').test(uri), getNames(regex('requ
 
 # Controller
 Should pass an application context to controller
+
+# Route definitions example
+`
+{
+  path: '/comments/:id', // required params
+  path: '/comments/:id?', // optional params
+  path: '/comments/list-or-show/:id(\\d+)', // With regex rule
+  path: '/users/:id/comments',
+  path: '/users/:id/comments/name-:nameSuffix(.*)', // Param suffix name with regex
+  path: '/:chapters+', // Repeatable params
+  path: '/:chapters*', // Repeatable params
+  path: '/:chapters(\\d+)+', // Repeatable params with regex
+  path: '/:chapters(\\d+)*', // Repeatable params with regex
+  path: '/posts/:post@slug(\\d+)', // Model binding field to resolve the model in db
+  method: 'GET',
+  throttle: [LoginRateLimiter], // Allow to define rate limiter for route
+  methods: ['GET'],
+  children: [], // If parent has
+  domain: 'domain',
+  fallback: true,
+  defaults: { post: null },
+  name: 'comment.list',
+  bindings: {
+    post: ArticlePost
+  },
+  middleware: [AuthMiddleware],
+  action: { listOrShow: CommentController },
+  actions: { default: HomeView, left: LeftView }, // Multiple render
+  rules: { id: /\d+/ },
+  redirect: '/items', // redirect to this route, { name: 'itemsView' }, (request) => ({ path: '/items', query: { it: request.params.item } })
+  redirect: 'items', // relative redirect
+  alias: '',
+  validators: [] // Custom route definition, defined by third party library to allow validatig request query and body
+}
+`
+## Path
+The path to match the user request and dispatch to controller
+
+## Rules
+Define regex for path params definition
+
+## Bindings (Implicit)
+Allow to resolve a model from the database, model must contains methods like, `getTableName`, `findOneBy`, `resolveRouteBinding`.
+Model can defined methods like: `getRouteKeyName`
+
+## Children
+Group routes or call many routes in frontend context.
+
+If parent has action and children at the same time(only for frontend), 
+create routes for both parent and children and resolve all routes and return value for all.
+
+If parent hasn't no action combine parent and children routes and select one route that matches the request.
+
+## Defaults
+Define default route params values: `{ post: null }`
+
+## Alias
+Allow to create an alias for routes, so for an alias `profile` to the internal route `user` request can be `user` or `profile`
+
+## Redirect
+Allow to redirect request from one route to another route
+
+# Throttle
+Allow to defined rate limiter for routes
+`
+class LoginRateLimiter {
+  handle (request) {
+    return Limit.perMinute(100)
+  }
+}
+`
+
+## Metadata
+It internal route props that allow adding custom props to route definition, ex: `validators` to validate request body and query
+
+
+segments
