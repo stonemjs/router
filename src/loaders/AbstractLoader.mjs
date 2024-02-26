@@ -8,8 +8,8 @@ export class AbstractLoader {
 
   _mapAndValidateDefinitions (definitions) {
     return definitions.reduce((prev, definition) => {
-      if (!definition.uri) {
-        throw new LogicException(`No Uri provided for this route definition ${JSON.stringify(definition)}`)
+      if (!definition.path) {
+        throw new LogicException(`No Path provided for this route definition ${JSON.stringify(definition)}`)
       } else if (!definition.method && !definition.methods) {
         throw new LogicException(`No Methods provided for this route definition ${JSON.stringify(definition)}`)
       } else if (!definition.action) {
@@ -22,10 +22,10 @@ export class AbstractLoader {
     }, [])
   }
 
-  _flattenUri (definition, parent) {
-    return (parent.uri && definition.uri)
-      ? `${parent.uri}${definition.uri}`
-      : (parent.uri ?? definition.uri)
+  _flattenPath (definition, parent) {
+    return (parent.path && definition.path)
+      ? `${parent.path}${definition.path}`
+      : (parent.path ?? definition.path)
   }
 
   _flattenDomain (definition, parent) {
@@ -56,8 +56,8 @@ export class AbstractLoader {
         if (!prev[key]) {
           if (
             definition.children ||
-            this._keyExistsInUri(parent.uri, key) ||
-            this._keyExistsInUri(definition.uri, key)
+            this._keyExistsInPath(parent.path, key) ||
+            this._keyExistsInPath(definition.path, key)
           ) {
             prev[key] = rule
           }
@@ -73,8 +73,8 @@ export class AbstractLoader {
         if (!prev[key]) {
           if (
             definition.children ||
-            this._keyExistsInUri(parent.uri, key) ||
-            this._keyExistsInUri(definition.uri, key)
+            this._keyExistsInPath(parent.path, key) ||
+            this._keyExistsInPath(definition.path, key)
           ) {
             prev[key] = value
           }
@@ -99,7 +99,7 @@ export class AbstractLoader {
     ].reduce((prev, middleware) => prev.includes(middleware) ? prev : prev.concat([middleware]), [])
   }
 
-  _keyExistsInUri (uri, key) {
-    return new RegExp(`\\/(:(${key})|\\{(${key})\\})`, 'gi').test(uri)
+  _keyExistsInPath (path, key) {
+    return new RegExp(`\\/(:(${key})|\\{(${key})\\})`, 'gi').test(path)
   }
 }

@@ -22,7 +22,7 @@ export class DefinitionLoader extends AbstractLoader {
 
   _flattenDefinition (definition, parent = null) {
     if (parent) {
-      definition.uri = this._flattenUri(definition, parent)
+      definition.path = this._flattenPath(definition, parent)
       definition.name = this._flattenName(definition, parent)
       definition.rules = this._flattenRules(definition, parent)
       definition.action = this._flattenAction(definition, parent)

@@ -19,15 +19,12 @@ To dispatch the current route to controller and check middleware
 RouteMatched
 
 ## Loaders
+Loaders allow to load route definition and mount the router with routes.
 To load routes from app
 Type of loaders
-1. Modules loader
-2. Decorator loader
-3. Directory loader
-4. File loader
-5. GlobFile loader
-6. Object loader
-7. Container loader
+1. ControllerLoader, from decorators. Controllers could be in modules, directory, file, globfile
+2. DefinitionLoader, from single file. Could be in file, object
+3. Container loader, from service container
 
 ## Matcher
 To match request to route
