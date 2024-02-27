@@ -1,8 +1,8 @@
 import { Route } from './Route.mjs'
 import { Event } from './Event.mjs'
+import { Response } from '@stone-js/http'
 import { METHODS } from './enums/index.mjs'
 import { MetaResponse } from '@stone-js/common'
-import { RouteResponse } from './RouteResponse.mjs'
 import { UriMatcher } from './matchers/UriMatcher.mjs'
 import { RouteCollection } from './RouteCollection.mjs'
 import { RouteDefinition } from './RouteDefinition.mjs'
@@ -177,22 +177,22 @@ export class Router {
 
   static toResponse (requestContext, response) {
     if (!response) {
-      response = RouteResponse.empty()
+      response = Response.empty()
     } else if (response instanceof MetaResponse) {
-      response = RouteResponse.fromMetaResponse(response)
+      response = Response.fromMetaResponse(response)
     } else if (typeof response === 'string') {
-      response = RouteResponse.fromString(response)
+      response = Response.fromString(response)
     } else if (response.toJson) {
-      response = RouteResponse.fromJson(response.toJson())
+      response = Response.fromJson(response.toJson())
     } else if (Array.isArray(response)) {
-      response = RouteResponse.fromJson(response)
+      response = Response.fromJson(response)
     } else if (typeof response === 'object') {
-      response = RouteResponse.fromJson(response)
+      response = Response.fromJson(response)
     } else if (response.toResponse) {
-      response = RouteResponse.fromResponse(response.toResponse())
+      response = Response.fromResponse(response.toResponse())
     }
 
-    if (response.statusCode === RouteResponse.HTTP_NOT_MODIFIED) {
+    if (response.statusCode === Response.HTTP_NOT_MODIFIED) {
       response.setNotModified()
     }
 
