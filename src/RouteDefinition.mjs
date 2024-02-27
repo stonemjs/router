@@ -1,4 +1,4 @@
-import { GET, METHODS } from "./enums/index.mjs"
+import { GET, HTTP_METHODS } from "@stone-js/http"
 
 export class RouteDefinition {
   constructor (definition) {
@@ -25,7 +25,7 @@ export class RouteDefinition {
   #getMethods (definition) {
     const methods = [definition.method]
       .concat(definition.methods)
-      .reduce((prev, curr) => METHODS.includes(curr) && !prev.includes(curr) ? prev.concat(curr) : prev, [])
+      .reduce((prev, curr) => HTTP_METHODS.includes(curr) && !prev.includes(curr) ? prev.concat(curr) : prev, [])
 
     return methods.length ? methods : [GET]
   }

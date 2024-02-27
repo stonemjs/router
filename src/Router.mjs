@@ -1,10 +1,9 @@
 import { Route } from './Route.mjs'
 import { Event } from './Event.mjs'
-import { Response } from '@stone-js/http'
-import { METHODS } from './enums/index.mjs'
 import { UriMatcher } from './matchers/UriMatcher.mjs'
 import { RouteCollection } from './RouteCollection.mjs'
 import { RouteDefinition } from './RouteDefinition.mjs'
+import { Response, HTTP_METHODS } from '@stone-js/http'
 import { HostMatcher } from './matchers/HostMatcher.mjs'
 import { MethodMatcher } from './matchers/MethodMatcher.mjs'
 import { MetaResponse, LogicException } from '@stone-js/common'
@@ -15,7 +14,7 @@ import { CallableDispatcher } from './dispatchers/CallableDispatcher.mjs'
 import { ControllerDispatcher } from './dispatchers/ControllerDispatcher.mjs'
 
 export class Router {
-  static METHODS = METHODS
+  static METHODS = HTTP_METHODS
 
   #rules
   #routes
@@ -78,7 +77,7 @@ export class Router {
   }
 
   any (routeDefinition) {
-    return this.addRoute(this.#mapRouteDefinition(routeDefinition, METHODS))
+    return this.addRoute(this.#mapRouteDefinition(routeDefinition, Router.METHODS))
   }
 
   fallback (action) {
