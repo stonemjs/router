@@ -4,7 +4,7 @@ import { RouteDefinitionParser } from '../parser/RouteDefinitionParser.mjs'
 export class AbstractLoader {
   #parser
 
-  constructor({ maxDepth = 5 }) {
+  constructor ({ maxDepth = 5 }) {
     this.#parser = new RouteDefinitionParser({ maxDepth })
   }
 

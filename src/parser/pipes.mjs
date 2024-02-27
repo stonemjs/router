@@ -1,4 +1,4 @@
-import { isString, isClass, HTTP_METHODS } from "@stone-js/common"
+import { isString, isClass, HTTP_METHODS } from '@stone-js/common'
 
 export const appendPath = (parent, child, next) => {
   child.path = `${parent.path ?? ''}/${child.path ?? ''}`.replace(/\/+/g, '/')
@@ -22,7 +22,7 @@ export const appendMethods = (parent, child, next) => {
   child.methods = []
     .concat(parent.methods, parent.method, child.methods, child.method)
     .reduce((prev, method) => !HTTP_METHODS.includes(method) || prev.includes(method) ? prev : prev.concat(method), [])
-  
+
   return next(parent, child)
 }
 
@@ -30,7 +30,7 @@ export const appendArrayProp = (parent, child, next) => { // For middleware, thr
   const props = []
     .concat(Object.keys(parent), Object.keys(child))
     .filter(v => !['methods', 'alias', 'children'].includes(v) && (Array.isArray(parent[v]) || Array.isArray(child[v])))
-  
+
   for (const prop of props) {
     child[prop] = []
       .concat(parent[prop], child[prop])
@@ -46,7 +46,7 @@ export const appendBindings = (parent, child, next) => {
   return next(parent, child)
 }
 
-export const appendRules= (parent, child, next) => {
+export const appendRules = (parent, child, next) => {
   child.rules = { ...parent.rules, ...child.rules }
 
   return next(parent, child)

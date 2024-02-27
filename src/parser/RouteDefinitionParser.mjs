@@ -1,16 +1,16 @@
-import * as pipes from "./pipes.mjs"
-import { Pipeline } from "@stone-js/pipeline"
-import { LogicException } from "@stone-js/common"
-import { RouteDefinition } from "../RouteDefinition.mjs"
+import * as pipes from './pipes.mjs'
+import { Pipeline } from '@stone-js/pipeline'
+import { LogicException } from '@stone-js/common'
+import { RouteDefinition } from '../RouteDefinition.mjs'
 
 export class RouteDefinitionParser {
   #maxDepth
 
-  constructor({ maxDepth = 5 }) {
+  constructor ({ maxDepth = 5 }) {
     this.#maxDepth = maxDepth ?? 5
   }
 
-  parse(definitions) {
+  parse (definitions) {
     return this.#validate(
       definitions.reduce((prev, definition) => this.#flatten(prev, definition, definition.children), [])
     )

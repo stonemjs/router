@@ -1,4 +1,4 @@
-import { GET, HTTP_METHODS } from "@stone-js/http"
+import { GET, HTTP_METHODS } from '@stone-js/http'
 
 export class RouteDefinition {
   constructor (definition) {

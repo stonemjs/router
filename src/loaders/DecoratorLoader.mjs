@@ -22,7 +22,7 @@ export class DecoratorLoader extends AbstractLoader {
     return this.#classes.reduce((prev, Class) => {
       const parent = this.#getParentDefinition(Class)
       const definitions = this.#getMethodDefinitions(Class)
-      
+
       if (parent) {
         parent.children = definitions
         return prev.concat(parent)
