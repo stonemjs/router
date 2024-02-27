@@ -7,7 +7,7 @@
 node_modules/
 dist/
 public/
-noowow-community-router-*
+stone-js-router-*
 
 # Compiled Java class files
 *.class

@@ -99,7 +99,7 @@ Route to do:
 
 
 Router deps
-1. Noowow Service container
+1. StoneJS Service container
 
 
 Router parametrable features
