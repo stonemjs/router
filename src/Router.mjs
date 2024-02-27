@@ -1,7 +1,7 @@
 import { Route } from './Route.mjs'
 import { Event } from './Event.mjs'
 import { METHODS } from './enums/index.mjs'
-import { MetaResponse } from './MetaResponse.mjs'
+import { MetaResponse } from '@stone-js/common'
 import { RouteResponse } from './RouteResponse.mjs'
 import { UriMatcher } from './matchers/UriMatcher.mjs'
 import { RouteCollection } from './RouteCollection.mjs'
