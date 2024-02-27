@@ -17,12 +17,12 @@ export class RouteDefinition {
     this.bindings = definition.bindings ?? {}
     this.redirect = definition.redirect ?? null
     this.middleware = definition.middleware ?? []
-    this.methods = this.#parseMethods(definition)
-    this.metadata = this.#parseMetadata(definition)
+    this.methods = this.#getMethods(definition)
+    this.metadata = this.#getMetadata(definition)
     this.excludeMiddleware = definition.excludeMiddleware ?? []
   }
 
-  #parseMethods (definition) {
+  #getMethods (definition) {
     const methods = [definition.method]
       .concat(definition.methods)
       .reduce((prev, curr) => METHODS.includes(curr) && !prev.includes(curr) ? prev.concat(curr) : prev, [])
@@ -30,7 +30,7 @@ export class RouteDefinition {
     return methods.length ? methods : [GET]
   }
 
-  #parseMetadata (metadata) {
+  #getMetadata (metadata) {
     return Object.fromEntries(
       Object.entries(metadata).filter(([key]) => !Object.hasOwn(this, key))
     )
