@@ -1,5 +1,4 @@
-import { MetaResponse } from '@stone-js/common'
-import { LogicException } from '../exceptions/LogicException.mjs'
+import { MetaResponse, LogicException } from '@stone-js/common'
 
 export const isClass = (value) => {
   return /^\s*class/.test(value.toString())

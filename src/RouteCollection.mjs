@@ -1,7 +1,6 @@
 import { Route } from './Route.mjs'
 import { Router } from './Router.mjs'
-import { NotFoundHttpException } from './exceptions/NotFoundHttpException.mjs'
-import { MethodNotAllowedHttpException } from './exceptions/MethodNotAllowedHttpException.mjs'
+import { HttpException } from '@stone-js/http'
 
 export class RouteCollection {
   #routes = new Map()
@@ -108,7 +107,7 @@ export class RouteCollection {
 
     if (others.length > 0) { return this.#getRouteForMethods(requestContext, others) }
 
-    throw new NotFoundHttpException(`The route ${requestContext.path} could not be found.`)
+    throw new HttpException(404, `The route ${requestContext.path} could not be found.`)
   }
 
   #checkForAlternateVerbs (requestContext) {
@@ -141,15 +140,15 @@ export class RouteCollection {
   }
 
   #requestMethodNotAllowed (request, others, method) {
-    throw new MethodNotAllowedHttpException(
-      others,
+    throw new HttpException(
+      405,
       `The ${method} method is not supported for route ${request.path}. Supported methods: ${others.join(', ')}.`
     )
   }
 
   #methodNotAllowed (others, method) {
-    throw new MethodNotAllowedHttpException(
-      others,
+    throw new HttpException(
+      405,
       `The ${method} method is not supported for this route. Supported methods: ${others.join(', ')}.`
     )
   }

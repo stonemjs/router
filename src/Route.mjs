@@ -1,6 +1,6 @@
+import { LogicException } from '@stone-js/common'
 import { RouteDefinition } from './RouteDefinition.mjs'
 import { MethodMatcher } from './matchers/MethodMatcher.mjs'
-import { LogicException } from './exceptions/LogicException.mjs'
 import { RouteParameterBinder } from './RouteParameterBinder.mjs'
 
 export class Route {
