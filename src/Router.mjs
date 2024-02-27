@@ -1,17 +1,18 @@
 import { Route } from './Route.mjs'
 import { Event } from './Event.mjs'
+import { Pipeline } from '@stone-js/pipeline'
+import { LogicException } from '@stone-js/common'
 import { UriMatcher } from './matchers/UriMatcher.mjs'
 import { RouteCollection } from './RouteCollection.mjs'
 import { RouteDefinition } from './RouteDefinition.mjs'
-import { Response, HTTP_METHODS } from '@stone-js/http'
 import { HostMatcher } from './matchers/HostMatcher.mjs'
 import { MethodMatcher } from './matchers/MethodMatcher.mjs'
-import { MetaResponse, LogicException } from '@stone-js/common'
+import { ExplicitLoader } from './loaders/ExplicitLoader.mjs'
+import { DecoratorLoader } from './loaders/DecoratorLoader.mjs'
 import { ProtocolMatcher } from './matchers/ProtocolMatcher.mjs'
-import { ControllerLoader } from './loaders/ControllerLoader.mjs'
-import { DefinitionLoader } from './loaders/DefinitionLoader.mjs'
 import { CallableDispatcher } from './dispatchers/CallableDispatcher.mjs'
 import { ControllerDispatcher } from './dispatchers/ControllerDispatcher.mjs'
+import { Request, Response, MetaResponse, HTTP_METHODS } from '@stone-js/http'
 
 export class Router {
   static METHODS = HTTP_METHODS
@@ -19,6 +20,7 @@ export class Router {
   #rules
   #routes
   #current
+  #maxDepth
   #matchers
   #container
   #middleware
@@ -32,6 +34,7 @@ export class Router {
     eventManager
   }) {
     this.#rules = {}
+    this.#maxDepth = 5
     this.#matchers = []
     this.#middleware = []
     this.#dispatchers = {}
@@ -40,11 +43,11 @@ export class Router {
     this.#routes = new RouteCollection()
 
     if (!this.#container) {
-      throw new LogicException('Must provice and instance of the service container.')
+      console.log('No service container instance provided.')
     }
 
     if (!this.#eventManager) {
-      console.log('No Event manager provided. No events will be disptached.')
+      console.log('No Event manager instance provided. No events will be disptached.')
     }
   }
 
@@ -110,20 +113,20 @@ export class Router {
     }
   }
 
-  loadRouteFromDefinitions (rawDefinitions) {
-    return this.loadRoutes(new DefinitionLoader(rawDefinitions))
+  loadRouteFromExplicitSource (definitions) {
+    return this.loadRoutes(new ExplicitLoader({ definitions, maxDepth: this.#maxDepth }))
   }
 
-  loadRouteFromControllers (controllers) {
-    return this.loadRoutes(new ControllerLoader(controllers))
+  loadRouteFromDecoratorSource (classes) {
+    return this.loadRoutes(new DecoratorLoader({ classes, maxDepth: this.#maxDepth }))
   }
 
-  dispatch (requestContext) {
-    return this.dispatchToRoute(requestContext)
+  dispatch (request) {
+    return this.dispatchToRoute(request)
   }
 
-  dispatchToRoute (requestContext) {
-    return this.#runRoute(requestContext, this.findRoute(requestContext))
+  dispatchToRoute (request) {
+    return this.#runRoute(request, this.findRoute(request))
   }
 
   respondWithRouteName (name) {
@@ -139,10 +142,12 @@ export class Router {
   generate (nameOrPath, params, query, hash) {}
 
   findRoute (request) {
-    this.#eventManager?.emit(Event.ROUTING, new Event(Event.ROUTING, this, { request }))
+    this
+      .#validateRequest(request)
+      .#eventManager?.emit(Event.ROUTING, new Event(Event.ROUTING, this, { request }))
 
     this.#current = this.#routes.match(request)
-    this.#container.instance(Route, this.#current).alias(Route, 'route')
+    this.#container?.instance(Route, this.#current)?.alias(Route, 'route')
 
     return this.#current
   }
@@ -150,17 +155,14 @@ export class Router {
   gatherRouteMiddlewareInstances (route) {
     return this
       .gatherRouteMiddleware(route)
-      .map(middleware => this.#container.make(middleware))
+      .map(Middleware => this.#container ? this.#container.make(Middleware) : new Middleware())
   }
 
   gatherRouteMiddleware (route) {
     return this.#middleware
-      .concat(route.middleware ?? [])
-      .filter(v => !route.excludeMiddleware?.includes(v))
-      .reduce((prev, curr) => {
-        if (!prev.includes(curr)) prev.push(curr)
-        return prev
-      }, [])
+      .concat(route.middleware)
+      .filter(v => v && !route.excludeMiddleware?.includes(v))
+      .reduce((prev, curr) => prev.includes(curr) ? prev : prev.concat(curr), [])
   }
 
   prepareResponse (request, response) {
@@ -173,7 +175,7 @@ export class Router {
     return response
   }
 
-  static toResponse (requestContext, response) {
+  static toResponse (request, response) {
     if (!response) {
       response = Response.empty()
     } else if (response instanceof MetaResponse) {
@@ -194,11 +196,19 @@ export class Router {
       response.setNotModified()
     }
 
-    return response.prepare(requestContext)
+    return response.prepare(request)
   }
 
   matched (callback) {
     this.#eventManager?.on(Event.ROUTE_MATCHED, callback)
+    
+    return this
+  }
+
+  setMaxDepth (value) {
+    this.#maxDepth = value
+    
+    return this
   }
 
   getMiddleware () {
@@ -206,11 +216,7 @@ export class Router {
   }
 
   setMiddleware (middleware) {
-    if (Array.isArray(middleware)) {
-      middleware.forEach(item => this.#middleware.push(item))
-    } else {
-      this.#middleware.push(middleware)
-    }
+    this.#middleware = this.#middleware.concat(middleware)
 
     return this
   }
@@ -221,20 +227,19 @@ export class Router {
 
   setRule (name, pattern) {
     this.#rules[name] = pattern
+
     return this
   }
 
   setRules (rules) {
-    Object.entries(rules).forEach(([name, pattern]) => this.setRule(name, pattern))
+    this.#rules = { ...this.#rules, ...rules }
+
     return this
   }
 
   has (name) {
     name = Array.isArray(name) ? name : [name]
-    return name.reduce((prev, curr) => {
-      if (!this.#routes.hasNamedRoute(curr)) return false
-      return prev
-    }, true)
+    return name.reduce((prev, curr) => !this.#routes.hasNamedRoute(curr) ? false : prev, true)
   }
 
   input (name, fallback = null) {
@@ -286,7 +291,7 @@ export class Router {
     }
 
     this.#routes = routeCollection
-    this.#container.instance('routes', this.#routes)
+    this.#container?.instance('routes', this.#routes)
 
     return this
   }
@@ -384,22 +389,16 @@ export class Router {
     return this.#runRouteWithMiddleware(request, route)
   }
 
-  async #runRouteWithMiddleware (requestContext, route) {
-    let response = null
-    const skip = this.#container.bound('configurations.middleware.disabled') && this.#container.make('configurations.middleware.disabled') === false
+  async #runRouteWithMiddleware (request, route) {
+    const skip = this.#container?.bound('configurations.middleware.disabled') && this.#container?.make('configurations.middleware.disabled') === false
     const middleware = skip ? [] : this.gatherRouteMiddlewareInstances(route)
 
-    for (const item of middleware) {
-      requestContext = (await item.handleRequest(requestContext)) ?? requestContext
-    }
+    const response = await Pipeline.create(this.#container)
+      .send(request)
+      .through(middleware)
+      .then(req => route.bind(req).run(req))
 
-    response = await route.bind(requestContext).run()
-
-    for (const item of middleware) {
-      response = (await item.handleResponse(requestContext, response)) ?? response
-    }
-
-    return this.prepareResponse(requestContext, response)
+    return this.prepareResponse(request, response)
   }
 
   #hydrateRoute (route) {
@@ -412,5 +411,13 @@ export class Router {
 
   #mapRouteDefinition (routeDefinition, methods) {
     return new RouteDefinition({ ...routeDefinition, methods })
+  }
+
+  #validateRequest (request) {
+    if (!(request instanceof Request)) {
+      throw new LogicException('Request must be an instance of Stone.js http/Request.')
+    }
+
+    return this
   }
 }

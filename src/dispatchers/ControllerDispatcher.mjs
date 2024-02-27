@@ -7,8 +7,7 @@ export class ControllerDispatcher {
     this.#container = container
   }
 
-  dispatch (route, controller, method) {
-    const request = this.#getRequest()
+  dispatch (request, route, controller, method) {
     const params = route.parametersWithoutNulls() ?? {}
     const context = {
       route,
@@ -25,9 +24,5 @@ export class ControllerDispatcher {
     }
 
     return controller[method](context)
-  }
-
-  #getRequest () {
-    return this.#container.make('request')
   }
 }

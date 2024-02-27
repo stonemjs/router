@@ -57,32 +57,32 @@ export class Route {
     throw new LogicException("This method's parameter must be an instance of `RouteDefinition`")
   }
 
-  bind (requestContext) {
-    this.#protocol = requestContext.protocol
-    this.#parameters = RouteParameterBinder.getParameters(this, requestContext)
+  bind (request) {
+    this.#protocol = request.protocol
+    this.#parameters = RouteParameterBinder.getParameters(this, request)
     return this
   }
 
-  matches (requestContext, includingMethod = true) {
+  matches (request, includingMethod = true) {
     const matchers = this.getMatchers().filter(matcher => !(!includingMethod && matcher instanceof MethodMatcher))
     for (const matcher of matchers) {
-      if (!matcher.matches(this, requestContext)) {
+      if (!matcher.matches(this, request)) {
         return false
       }
     }
     return true
   }
 
-  async run () {
+  async run (request) {
     if (!this.#container) {
-      throw new LogicException('No service container provided')
+      console.log('No service container provided')
     }
 
     try {
       if (this.isControllerAction()) {
-        return await this.#runController()
+        return await this.#runController(request)
       }
-      return await this.#runCallable()
+      return await this.#runCallable(request)
     } catch (error) {
       if (!error.getResponse) {
         throw new LogicException("Controller or callable's Exception must contain a `getResponse` method.")
@@ -256,7 +256,8 @@ export class Route {
   getController () {
     if (!this.#controller) {
       if (this.isControllerAction()) {
-        this.#controller = this.#container.make(this.#action[0])
+        const Class = this.#action[0]
+        this.#controller = this.#container ? this.#container.make(Class) : new Class()
       } else {
         throw new LogicException('First value of action must be a class')
       }
@@ -391,25 +392,27 @@ export class Route {
       }, [])
   }
 
-  #runCallable () {
-    return this.#callableDispatcher().dispatch(this, this.getCallable())
+  #runCallable (request) {
+    return this.#callableDispatcher().dispatch(request, this, this.getCallable())
   }
 
   #callableDispatcher () {
     if (this.hasDispatcher('callable')) {
-      return this.#container.make(this.getDispatcher('callable'))
+      const Class = this.getDispatcher('callable')
+      return this.#container ? this.#container.make(Class) : new Class()
     }
 
     throw new LogicException('No callable dispatcher provided')
   }
 
-  #runController () {
-    return this.#controllerDispatcher().dispatch(this, this.getController(), this.getControllerMethod())
+  #runController (request) {
+    return this.#controllerDispatcher().dispatch(request, this, this.getController(), this.getControllerMethod())
   }
 
   #controllerDispatcher () {
     if (this.hasDispatcher('controller')) {
-      return this.#container.make(this.getDispatcher('controller'))
+      const Class = this.getDispatcher('controller')
+      return this.#container ? this.#container.make(Class) : new Class()
     }
 
     throw new LogicException('No controller dispatcher provided')
