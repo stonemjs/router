@@ -1,20 +1,17 @@
 import { Route } from './Route.mjs'
+import { Event } from './Event.mjs'
 import { METHODS } from './enums/index.mjs'
-import { Routing } from './events/Routing.mjs'
 import { MetaResponse } from './MetaResponse.mjs'
 import { RouteResponse } from './RouteResponse.mjs'
 import { UriMatcher } from './matchers/UriMatcher.mjs'
 import { RouteCollection } from './RouteCollection.mjs'
 import { RouteDefinition } from './RouteDefinition.mjs'
-import { RouteMatched } from './events/RouteMatched.mjs'
 import { HostMatcher } from './matchers/HostMatcher.mjs'
 import { MethodMatcher } from './matchers/MethodMatcher.mjs'
-import { ResponsePrepared } from './events/ResponsePrepared.mjs'
 import { ProtocolMatcher } from './matchers/ProtocolMatcher.mjs'
 import { LogicException } from './exceptions/LogicException.mjs'
 import { ControllerLoader } from './loaders/ControllerLoader.mjs'
 import { DefinitionLoader } from './loaders/DefinitionLoader.mjs'
-import { PreparingResponse } from './events/PreparingResponse.mjs'
 import { CallableDispatcher } from './dispatchers/CallableDispatcher.mjs'
 import { ControllerDispatcher } from './dispatchers/ControllerDispatcher.mjs'
 
@@ -143,11 +140,11 @@ export class Router {
 
   generate (nameOrPath, params, query, hash) {}
 
-  findRoute (requestContext) {
-    this.#eventManager?.notify(Routing, new Routing(requestContext))
+  findRoute (request) {
+    this.#eventManager?.emit(Event.ROUTING, new Event(Event.ROUTING, this, { request }))
 
-    this.#current = this.#routes.match(requestContext)
-    this.#container.instance(Route, this.#current)
+    this.#current = this.#routes.match(request)
+    this.#container.instance(Route, this.#current).alias(Route, 'route')
 
     return this.#current
   }
@@ -168,12 +165,12 @@ export class Router {
       }, [])
   }
 
-  prepareResponse (requestContext, response) {
-    this.#eventManager?.notify(PreparingResponse, new PreparingResponse(requestContext, response))
+  prepareResponse (request, response) {
+    this.#eventManager?.emit(Event.PREPARING_RESPONSE, new Event(Event.PREPARING_RESPONSE, this, { request, response }))
 
-    response = Router.toResponse(requestContext, response)
+    response = Router.toResponse(request, response)
 
-    this.#eventManager?.notify(ResponsePrepared, new ResponsePrepared(requestContext, response))
+    this.#eventManager?.emit(Event.RESPONSE_PREPARED, new Event(Event.RESPONSE_PREPARED, this, { request, response }))
 
     return response
   }
@@ -203,7 +200,7 @@ export class Router {
   }
 
   matched (callback) {
-    this.#eventManager?.subscribe(RouteMatched, callback)
+    this.#eventManager?.on(Event.ROUTE_MATCHED, callback)
   }
 
   getMiddleware () {
@@ -379,14 +376,14 @@ export class Router {
     }
   }
 
-  #runRoute (requestContext, route) {
-    requestContext.setRouteResolver(() => route)
+  #runRoute (request, route) {
+    request.setRouteResolver(() => route)
 
-    this.#currentRequest = requestContext
+    this.#currentRequest = request
 
-    this.#eventManager?.notify(RouteMatched, new RouteMatched(route, requestContext))
+    this.#eventManager?.emit(Event.ROUTE_MATCHED, new Event(Event.ROUTE_MATCHED, this, { route, request }))
 
-    return this.#runRouteWithMiddleware(requestContext, route)
+    return this.#runRouteWithMiddleware(request, route)
   }
 
   async #runRouteWithMiddleware (requestContext, route) {
