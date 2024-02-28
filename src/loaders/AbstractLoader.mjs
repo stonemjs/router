@@ -8,7 +8,7 @@ export class AbstractLoader {
     this.#parser = new RouteDefinitionParser({ maxDepth })
   }
 
-  _parser (definitions) {
+  _parse (definitions) {
     return this.#parser.parse(definitions)
   }
 

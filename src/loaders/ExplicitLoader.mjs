@@ -15,6 +15,6 @@ export class ExplicitLoader extends AbstractLoader {
   }
 
   load () {
-    return this._parser(this.#definitions)
+    return this._parse(this.#definitions)
   }
 }

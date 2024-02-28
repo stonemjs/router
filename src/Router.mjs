@@ -1,11 +1,11 @@
 import { Route } from './Route.mjs'
 import { Event } from './Event.mjs'
 import { Pipeline } from '@stone-js/pipeline'
-import { LogicException } from '@stone-js/common'
 import { UriMatcher } from './matchers/UriMatcher.mjs'
 import { RouteCollection } from './RouteCollection.mjs'
 import { RouteDefinition } from './RouteDefinition.mjs'
 import { HostMatcher } from './matchers/HostMatcher.mjs'
+import { LogicException, isString } from '@stone-js/common'
 import { MethodMatcher } from './matchers/MethodMatcher.mjs'
 import { ExplicitLoader } from './loaders/ExplicitLoader.mjs'
 import { DecoratorLoader } from './loaders/DecoratorLoader.mjs'
@@ -49,43 +49,46 @@ export class Router {
     if (!this.#eventManager) {
       console.log('No Event manager instance provided. No events will be disptached.')
     }
+
+    this.#setOptions()
+    this.#container?.instance('routes', this.#routes)
   }
 
-  get (routeDefinition) {
-    return this.addRoute(this.#mapRouteDefinition(routeDefinition, ['GET', 'HEAD']))
+  get (definition) {
+    return this.addFromRouteDefinition(this.#createRouteDefinition(definition, ['GET', 'HEAD']))
   }
 
-  post (routeDefinition) {
-    return this.addRoute(this.#mapRouteDefinition(routeDefinition, ['POST']))
+  post (definition) {
+    return this.addFromRouteDefinition(this.#createRouteDefinition(definition, ['POST']))
   }
 
-  put (routeDefinition) {
-    return this.addRoute(this.#mapRouteDefinition(routeDefinition, ['PUT']))
+  put (definition) {
+    return this.addFromRouteDefinition(this.#createRouteDefinition(definition, ['PUT']))
   }
 
-  patch (routeDefinition) {
-    return this.addRoute(this.#mapRouteDefinition(routeDefinition, ['PATCH']))
+  patch (definition) {
+    return this.addFromRouteDefinition(this.#createRouteDefinition(definition, ['PATCH']))
   }
 
-  delete (routeDefinition) {
-    return this.addRoute(this.#mapRouteDefinition(routeDefinition, ['DELETE']))
+  delete (definition) {
+    return this.addFromRouteDefinition(this.#createRouteDefinition(definition, ['DELETE']))
   }
 
-  options (routeDefinition) {
-    return this.addRoute(this.#mapRouteDefinition(routeDefinition, ['OPTIONS']))
+  options (definition) {
+    return this.addFromRouteDefinition(this.#createRouteDefinition(definition, ['OPTIONS']))
   }
 
-  match (routeDefinition) {
-    return this.addRoute(this.#mapRouteDefinition(routeDefinition, routeDefinition.methods))
+  match (definition) {
+    return this.addFromRouteDefinition(this.#createRouteDefinition(definition, definition.methods))
   }
 
-  any (routeDefinition) {
-    return this.addRoute(this.#mapRouteDefinition(routeDefinition, Router.METHODS))
+  any (definition) {
+    return this.addFromRouteDefinition(this.#createRouteDefinition(definition, Router.METHODS))
   }
 
   fallback (action) {
-    return this.addRoute(
-      this.#mapRouteDefinition({
+    return this.addFromRouteDefinition(
+      this.#createRouteDefinition({
         action,
         fallback: true,
         path: ':__fallback__(.*)*'
@@ -93,11 +96,11 @@ export class Router {
     )
   }
 
-  addRoute (routeDefinition) {
-    return this.#routes.add(this.createRoute(routeDefinition))
+  addFromRouteDefinition (routeDefinition) {
+    return this.#routes.add(this.createFromRouteDefinition(routeDefinition))
   }
 
-  createRoute (routeDefinition) {
+  createFromRouteDefinition (routeDefinition) {
     return this.#hydrateRoute(Route.fromRouteDefinition(routeDefinition))
   }
 
@@ -108,8 +111,8 @@ export class Router {
 
     const routeDefinitions = await routeLoader.load()
 
-    for (const definition of routeDefinitions) {
-      this.addRoute(definition)
+    for (const routeDefinition of routeDefinitions) {
+      this.addFromRouteDefinition(routeDefinition)
     }
   }
 
@@ -129,14 +132,14 @@ export class Router {
     return this.#runRoute(request, this.findRoute(request))
   }
 
-  respondWithRouteName (name) {
+  respondWithRouteName (request, name) {
     const route = this.#routes.getByName(name)
 
     if (!route) {
       throw new LogicException(`No routes found for this name ${name}`)
     }
 
-    return this.#runRoute(this.#currentRequest, route)
+    return this.#runRoute(request, route)
   }
 
   generate (nameOrPath, params, query, hash) {}
@@ -168,7 +171,7 @@ export class Router {
   prepareResponse (request, response) {
     this.#eventManager?.emit(Event.PREPARING_RESPONSE, new Event(Event.PREPARING_RESPONSE, this, { request, response }))
 
-    response = Router.toResponse(request, response)
+    response = response.skipPreparing ? response : Router.toResponse(request, response) // Skip prepare for frontend context
 
     this.#eventManager?.emit(Event.RESPONSE_PREPARED, new Event(Event.RESPONSE_PREPARED, this, { request, response }))
 
@@ -176,20 +179,14 @@ export class Router {
   }
 
   static toResponse (request, response) {
-    if (!response) {
+    if ([null, undefined].includes(response)) {
       response = Response.empty()
     } else if (response instanceof MetaResponse) {
       response = Response.fromMetaResponse(response)
-    } else if (typeof response === 'string') {
+    } else if (isString(response)) {
       response = Response.fromString(response)
-    } else if (response.toJson) {
-      response = Response.fromJson(response.toJson())
-    } else if (Array.isArray(response)) {
-      response = Response.fromJson(response)
-    } else if (typeof response === 'object') {
-      response = Response.fromJson(response)
-    } else if (response.toResponse) {
-      response = Response.fromResponse(response.toResponse())
+    } else if (['object', 'number', 'boolean'].includes(typeof response)) {
+      response = Response.json(response)
     }
 
     if (response.statusCode === Response.HTTP_NOT_MODIFIED) {
@@ -216,6 +213,12 @@ export class Router {
   }
 
   setMiddleware (middleware) {
+    this.#middleware = middleware
+
+    return this
+  }
+
+  addMiddleware (middleware) {
     this.#middleware = this.#middleware.concat(middleware)
 
     return this
@@ -232,14 +235,15 @@ export class Router {
   }
 
   setRules (rules) {
-    this.#rules = { ...this.#rules, ...rules }
+    this.#rules = rules
 
     return this
   }
 
   has (name) {
-    name = Array.isArray(name) ? name : [name]
-    return name.reduce((prev, curr) => !this.#routes.hasNamedRoute(curr) ? false : prev, true)
+    return []
+      .concat(name)
+      .reduce((prev, curr) => !this.#routes.hasNamedRoute(curr) ? false : prev, true)
   }
 
   input (name, fallback = null) {
@@ -248,10 +252,6 @@ export class Router {
 
   getCurrentRequest () {
     return this.#currentRequest
-  }
-
-  getCurrentRoute () {
-    return this.current()
   }
 
   current () {
@@ -291,7 +291,6 @@ export class Router {
     }
 
     this.#routes = routeCollection
-    this.#container?.instance('routes', this.#routes)
 
     return this
   }
@@ -380,6 +379,8 @@ export class Router {
   }
 
   #runRoute (request, route) {
+    this.#validateRequest(request)
+
     request.setRouteResolver(() => route)
 
     this.#currentRequest = request
@@ -409,8 +410,8 @@ export class Router {
       .setDispatchers(this.getDispatchers())
   }
 
-  #mapRouteDefinition (routeDefinition, methods) {
-    return new RouteDefinition({ ...routeDefinition, methods })
+  #createRouteDefinition (definition, methods) {
+    return new RouteDefinition({ ...definition, methods })
   }
 
   #validateRequest (request) {
@@ -419,5 +420,17 @@ export class Router {
     }
 
     return this
+  }
+
+  #setOptions () {
+    if (this.#container?.bound('config')) {
+      const config = this.#container.make('config')
+      
+      this.#rules = config.get('router.rules', {})
+      this.#maxDepth = config.get('router.maxDepth', 5)
+      this.#matchers = config.get('router.matchers', [])
+      this.#middleware = config.get('router.middleware', [])
+      this.#dispatchers = config.get('router.dispatchers', {})
+    }
   }
 }

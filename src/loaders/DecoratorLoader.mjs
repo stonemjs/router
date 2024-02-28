@@ -15,7 +15,7 @@ export class DecoratorLoader extends AbstractLoader {
   }
 
   load () {
-    return this._parser(this.#getDefinitions())
+    return this._parse(this.#getDefinitions())
   }
 
   #getDefinitions () {
