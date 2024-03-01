@@ -1,19 +1,27 @@
 import { Route } from './Route.mjs'
 import { Event } from './Event.mjs'
 import { Pipeline } from '@stone-js/pipeline'
+import { LogicException } from '@stone-js/common'
 import { UriMatcher } from './matchers/UriMatcher.mjs'
+import { HTTP_METHODS } from './enums/http-methods.mjs'
 import { RouteCollection } from './RouteCollection.mjs'
 import { RouteDefinition } from './RouteDefinition.mjs'
 import { HostMatcher } from './matchers/HostMatcher.mjs'
-import { LogicException, isString } from '@stone-js/common'
 import { MethodMatcher } from './matchers/MethodMatcher.mjs'
 import { ExplicitLoader } from './loaders/ExplicitLoader.mjs'
 import { DecoratorLoader } from './loaders/DecoratorLoader.mjs'
 import { ProtocolMatcher } from './matchers/ProtocolMatcher.mjs'
 import { CallableDispatcher } from './dispatchers/CallableDispatcher.mjs'
 import { ControllerDispatcher } from './dispatchers/ControllerDispatcher.mjs'
-import { Request, Response, MetaResponse, HTTP_METHODS } from '@stone-js/http'
 
+/**
+ * Class representing a Router.
+ *
+ * @author Mr. Stone <pierre.evens16@gmail.com>
+ * 
+ * @external Container
+ * @see {@link https://github.com/stonemjs/service-container/blob/main/src/Container.mjs|Container}
+ */
 export class Router {
   static METHODS = HTTP_METHODS
 
@@ -26,9 +34,15 @@ export class Router {
   #middleware
   #dispatchers
   #eventManager
+  #skipMiddleware
   #currentRequest
   #defaultMatchers
 
+  /**
+   * Create a router.
+   *
+   * @param {Container} container
+   */
   constructor ({
     container,
     eventManager
@@ -39,6 +53,7 @@ export class Router {
     this.#middleware = []
     this.#dispatchers = {}
     this.#container = container
+    this.#skipMiddleware = false
     this.#eventManager = eventManager
     this.#routes = new RouteCollection()
 
@@ -145,9 +160,7 @@ export class Router {
   generate (nameOrPath, params, query, hash) {}
 
   findRoute (request) {
-    this
-      .#validateRequest(request)
-      .#eventManager?.emit(Event.ROUTING, new Event(Event.ROUTING, this, { request }))
+    this.#eventManager?.emit(Event.ROUTING, new Event(Event.ROUTING, this, { request }))
 
     this.#current = this.#routes.match(request)
     this.#container?.instance(Route, this.#current)?.alias(Route, 'route')
@@ -158,7 +171,7 @@ export class Router {
   gatherRouteMiddlewareInstances (route) {
     return this
       .gatherRouteMiddleware(route)
-      .map(Middleware => this.#container ? this.#container.make(Middleware) : new Middleware())
+      .map(Middleware => this.#container?.bound(Middleware) ? this.#container.make(Middleware) : new Middleware())
   }
 
   gatherRouteMiddleware (route) {
@@ -168,43 +181,13 @@ export class Router {
       .reduce((prev, curr) => prev.includes(curr) ? prev : prev.concat(curr), [])
   }
 
-  prepareResponse (request, response) {
-    this.#eventManager?.emit(Event.PREPARING_RESPONSE, new Event(Event.PREPARING_RESPONSE, this, { request, response }))
-
-    response = response.skipPreparing ? response : Router.toResponse(request, response) // Skip prepare for frontend context
-
-    this.#eventManager?.emit(Event.RESPONSE_PREPARED, new Event(Event.RESPONSE_PREPARED, this, { request, response }))
-
-    return response
-  }
-
-  static toResponse (request, response) {
-    if ([null, undefined].includes(response)) {
-      response = Response.empty()
-    } else if (response instanceof MetaResponse) {
-      response = Response.fromMetaResponse(response)
-    } else if (isString(response)) {
-      response = Response.fromString(response)
-    } else if (['object', 'number', 'boolean'].includes(typeof response)) {
-      response = Response.json(response)
-    }
-
-    if (response.statusCode === Response.HTTP_NOT_MODIFIED) {
-      response.setNotModified()
-    }
-
-    return response.prepare(request)
-  }
-
   matched (callback) {
     this.#eventManager?.on(Event.ROUTE_MATCHED, callback)
-    
     return this
   }
 
   setMaxDepth (value) {
     this.#maxDepth = value
-    
     return this
   }
 
@@ -214,29 +197,26 @@ export class Router {
 
   setMiddleware (middleware) {
     this.#middleware = middleware
-
     return this
   }
 
   addMiddleware (middleware) {
     this.#middleware = this.#middleware.concat(middleware)
-
     return this
-  }
-
-  getRules () {
-    return this.#rules
   }
 
   setRule (name, pattern) {
     this.#rules[name] = pattern
-
     return this
   }
 
   setRules (rules) {
     this.#rules = rules
+    return this
+  }
 
+  skipMiddleware (value = true) {
+    this.#skipMiddleware = value
     return this
   }
 
@@ -259,7 +239,7 @@ export class Router {
   }
 
   currentRouteName () {
-    return this.current() ? this.current().name : null
+    return this.current()?.name
   }
 
   isCurrentRouteNamed (name) {
@@ -267,13 +247,10 @@ export class Router {
   }
 
   currentRouteAction () {
-    return this.current() ? this.current().action : null
+    return this.current()?.action
   }
 
   isCurrentRouteAction (action) {
-    if (this.current()?.isControllerAction() && Array.isArray(action)) {
-      return this.currentRouteAction()[0] === action[0] && this.currentRouteAction()[1] === action[1]
-    }
     return this.currentRouteAction() === action
   }
 
@@ -359,14 +336,12 @@ export class Router {
   }
 
   #getDefaultMatchers () {
-    if (!this.#defaultMatchers) {
-      this.#defaultMatchers = [
-        new HostMatcher(),
-        new MethodMatcher(),
-        new ProtocolMatcher(),
-        new UriMatcher()
-      ]
-    }
+    this.#defaultMatchers ??= [
+      new HostMatcher(),
+      new MethodMatcher(),
+      new ProtocolMatcher(),
+      new UriMatcher()
+    ]
 
     return this.#defaultMatchers
   }
@@ -379,9 +354,7 @@ export class Router {
   }
 
   #runRoute (request, route) {
-    this.#validateRequest(request)
-
-    request.setRouteResolver(() => route)
+    request?.setRouteResolver(() => route)
 
     this.#currentRequest = request
 
@@ -390,16 +363,14 @@ export class Router {
     return this.#runRouteWithMiddleware(request, route)
   }
 
-  async #runRouteWithMiddleware (request, route) {
-    const skip = this.#container?.bound('configurations.middleware.disabled') && this.#container?.make('configurations.middleware.disabled') === false
-    const middleware = skip ? [] : this.gatherRouteMiddlewareInstances(route)
+  #runRouteWithMiddleware (request, route) {
+    const middleware = this.#skipMiddleware ? [] : this.gatherRouteMiddlewareInstances(route)
 
-    const response = await Pipeline.create(this.#container)
+    return Pipeline
+      .create(this.#container)
       .send(request)
       .through(middleware)
       .then(req => route.bind(req).run(req))
-
-    return this.prepareResponse(request, response)
   }
 
   #hydrateRoute (route) {
@@ -414,14 +385,6 @@ export class Router {
     return new RouteDefinition({ ...definition, methods })
   }
 
-  #validateRequest (request) {
-    if (!(request instanceof Request)) {
-      throw new LogicException('Request must be an instance of Stone.js http/Request.')
-    }
-
-    return this
-  }
-
   #setOptions () {
     if (this.#container?.bound('config')) {
       const config = this.#container.make('config')
@@ -431,6 +394,7 @@ export class Router {
       this.#matchers = config.get('router.matchers', [])
       this.#middleware = config.get('router.middleware', [])
       this.#dispatchers = config.get('router.dispatchers', {})
+      this.#skipMiddleware = config.get('router.middleware_disabled', false)
     }
   }
 }
