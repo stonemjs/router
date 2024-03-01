@@ -17,10 +17,10 @@ export class RouteCollection {
     return route
   }
 
-  match (requestContext, includingMethod = true) {
-    const routes = this.getByMethod(requestContext.method)
-    const route = this.#matchAgainstRoutes(routes, requestContext, includingMethod)
-    return this.#handleMatchedRoute(requestContext, route)
+  match (request, includingMethod = true) {
+    const routes = this.getByMethod(request.method)
+    const route = this.#matchAgainstRoutes(routes, request, includingMethod)
+    return this.#handleMatchedRoute(request, route)
   }
 
   hasNamedRoute (name) {
@@ -32,9 +32,7 @@ export class RouteCollection {
   }
 
   getByMethod (method) {
-    return Array
-      .from(this.#methodList.get(method.toUpperCase())?.entries() ?? [])
-      .map(([, value]) => value)
+    return Array.from(this.#methodList.get(method.toUpperCase())?.values() ?? [])
   }
 
   getByAction (action) {
@@ -100,56 +98,49 @@ export class RouteCollection {
     }
   }
 
-  #handleMatchedRoute (requestContext, route) {
-    if (route) { return route.bind(requestContext) }
-
-    const others = this.#checkForAlternateVerbs(requestContext)
-
-    if (others.length > 0) { return this.#getRouteForMethods(requestContext, others) }
-
-    throw new HttpException(404, `The route ${requestContext.path} could not be found.`)
-  }
-
-  #checkForAlternateVerbs (requestContext) {
-    return Router
-      .METHODS
-      .filter(method => method.toUpperCase() !== requestContext.method.toUpperCase())
-      .filter(method => !!this.#matchAgainstRoutes(this.getByMethod(method), requestContext, false))
-  }
-
-  #matchAgainstRoutes (routes, requestContext, includingMethod = true) {
+  #matchAgainstRoutes (routes, request, includingMethod = true) {
     return routes
       .sort((a, b) => Boolean(a.fallback) - Boolean(b.fallback))
-      .find(route => route.matches(requestContext, includingMethod))
+      .find(route => route.matches(request, includingMethod))
   }
 
-  #getRouteForMethods (requestContext, methods) {
-    if (requestContext.isMethod('OPTIONS')) {
+  #handleMatchedRoute (request, route) {
+    if (route) { return route.bind(request) }
+
+    const others = this.#checkForAlternateVerbs(request)
+
+    if (others.length > 0) { return this.#getRouteForMethods(request, others) }
+
+    throw new HttpException(404, `The route ${request.path} could not be found.`)
+  }
+
+  #checkForAlternateVerbs (request) {
+    return Router
+      .METHODS
+      .filter(method => method.toUpperCase() !== request.method?.toUpperCase())
+      .filter(method => !!this.#matchAgainstRoutes(this.getByMethod(method), request, false))
+  }
+
+  #getRouteForMethods (request, methods) {
+    if (request.isMethod?.('OPTIONS')) {
       return new Route({
         method: 'OPTIONS',
-        uri: requestContext.path,
+        uri: request.path,
         action: () => ({
           statusText: '',
           statusCode: 200,
           content: { Allow: methods.join(',') }
         })
-      }).bind(requestContext)
+      }).bind(request)
     }
 
-    this.#requestMethodNotAllowed(requestContext, methods, requestContext.method)
+    this.#requestMethodNotAllowed(request, methods, request.method)
   }
 
   #requestMethodNotAllowed (request, others, method) {
     throw new HttpException(
       405,
       `The ${method} method is not supported for route ${request.path}. Supported methods: ${others.join(', ')}.`
-    )
-  }
-
-  #methodNotAllowed (others, method) {
-    throw new HttpException(
-      405,
-      `The ${method} method is not supported for this route. Supported methods: ${others.join(', ')}.`
     )
   }
 

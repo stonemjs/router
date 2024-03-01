@@ -5,7 +5,7 @@ import { Service } from "@noowow-community/service-container"
 })
 export class AuthMiddleware {
   handleRequest(request) {
-    if (!request.headers.authorization) {
+    if (!request.headers?.authorization) {
       throw new Error(Response.HTTP_UNAUTHORIZED)
     }
   }
