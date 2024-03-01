@@ -11,6 +11,7 @@ import { MethodMatcher } from './matchers/MethodMatcher.mjs'
 import { ExplicitLoader } from './loaders/ExplicitLoader.mjs'
 import { DecoratorLoader } from './loaders/DecoratorLoader.mjs'
 import { ProtocolMatcher } from './matchers/ProtocolMatcher.mjs'
+import { DefaultDispatcher } from './dispatchers/DefaultDispatcher.mjs'
 import { CallableDispatcher } from './dispatchers/CallableDispatcher.mjs'
 import { ControllerDispatcher } from './dispatchers/ControllerDispatcher.mjs'
 
@@ -312,12 +313,17 @@ export class Router {
   }
 
   addDispatcher (type, dispatcher) {
-    if (!['callable', 'controller'].includes(type)) {
-      throw new LogicException(`Invalid dispatcher type ${type}. Valid types are 'callable' and 'controller'`)
+    if (!['default', 'callable', 'controller'].includes(type)) {
+      throw new LogicException(`Invalid dispatcher type ${type}. Valid types are ('default', 'callable', 'controller')`)
     }
 
     this.#dispatchers[type] = dispatcher
 
+    return this
+  }
+
+  setDefaultDispatcher (dispatcher) {
+    this.addDispatcher('default', dispatcher)
     return this
   }
 
@@ -348,6 +354,7 @@ export class Router {
 
   #getDefaultDispatchers () {
     return {
+      default: DefaultDispatcher,
       callable: CallableDispatcher,
       controller: ControllerDispatcher
     }

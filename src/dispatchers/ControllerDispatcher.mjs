@@ -34,8 +34,10 @@ export class ControllerDispatcher {
    * @return {any}
    */
   dispatch (request, route, controller, method) {
-    const params = route.parametersWithoutNulls() ?? {}
+    const entities = route.bindingEntities() ?? {}
+    const params   = route.parametersWithoutNulls() ?? {}
     const context = {
+      ...entities,
       route,
       params,
       request,
