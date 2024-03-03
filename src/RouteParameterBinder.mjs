@@ -5,17 +5,17 @@ export class RouteParameterBinder {
     this.#route = route
   }
 
-  static getParameters (route, requestContext) {
-    return new this({ route }).parameters(requestContext)
+  static getParameters (route, request) {
+    return new this({ route }).parameters(request)
   }
 
-  parameters (requestContext) {
-    return this.#replaceDefaults(this.#bindParameters(requestContext))
+  parameters (request) {
+    return this.#replaceDefaults(this.#bindParameters(request))
   }
 
-  #bindParameters (requestContext) {
+  #bindParameters (request) {
     const regex = this.#route.domainAndUriRegex()
-    const requestUri = requestContext.getUri(this.#route.hasDomain())
+    const requestUri = request.getUri(this.#route.hasDomain())
     let matches = [...requestUri.matchAll(regex)]
 
     matches = matches.reduce((prev, match) => prev.concat(match.filter((_v, i) => i > 0)), [])

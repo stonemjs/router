@@ -66,7 +66,7 @@ export class RouteCollection {
             })
         )
       }, [])
-      .sort((a, b) => a.uri === b.uri ? 0 : (a.uri > b.uri ? 1 : -1))
+      .sort((a, b) => a.path === b.path ? 0 : (a.path > b.path ? 1 : -1))
   }
 
   toJSON () {
@@ -125,7 +125,7 @@ export class RouteCollection {
     if (request.isMethod?.('OPTIONS')) {
       return new Route({
         method: 'OPTIONS',
-        uri: request.path,
+        path: request.path,
         action: () => ({
           statusText: '',
           statusCode: 200,

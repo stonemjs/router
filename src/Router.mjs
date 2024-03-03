@@ -116,6 +116,11 @@ export class Router {
     return this.#routes.add(this.createFromRouteDefinition(routeDefinition))
   }
 
+  addFromRouteDefinitions (routeDefinitions) {
+    routeDefinitions.forEach(this.addFromRouteDefinition)
+    return this
+  }
+
   createFromRouteDefinition (routeDefinition) {
     return this.#hydrateRoute(Route.fromRouteDefinition(routeDefinition))
   }
@@ -125,11 +130,7 @@ export class Router {
       throw new LogicException('Invalid loader, routeLoader must have `load` method')
     }
 
-    const routeDefinitions = await routeLoader.load()
-
-    for (const routeDefinition of routeDefinitions) {
-      this.addFromRouteDefinition(routeDefinition)
-    }
+    return this.addFromRouteDefinitions(await routeLoader.load())
   }
 
   loadRouteFromExplicitSource (definitions) {
@@ -383,6 +384,7 @@ export class Router {
   #hydrateRoute (route) {
     return route
       .setRouter(this)
+      .addRules(this.#rules)
       .setContainer(this.#container)
       .setMatchers(this.getMatchers())
       .setDispatchers(this.getDispatchers())
