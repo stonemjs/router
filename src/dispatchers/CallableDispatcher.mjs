@@ -33,8 +33,7 @@ export class CallableDispatcher {
    * @return {any}
    */
   dispatch (request, route, callable) {
-    const entities = route.bindingEntities() ?? {}
-    const params   = route.parametersWithoutNulls() ?? {}
+    const params = route.parametersWithoutNulls()
     const context = {
       ...entities,
       route,

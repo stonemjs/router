@@ -13,8 +13,7 @@ export class ComponentDispatcher {
    * @return {any}
    */
   dispatch (request, route) {
-    const entities = route.bindingEntities() ?? {}
-    const params   = route.parametersWithoutNulls() ?? {}
+    const params = route.parametersWithoutNulls()
     const context = {
       ...entities,
       route,

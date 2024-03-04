@@ -385,7 +385,12 @@ export class Router {
       .create(this.#container)
       .send(request)
       .through(middleware)
-      .then(req => route.bind(req).run(req))
+      .then(req => this.#bindAndRun(route, req))
+  }
+
+  async #bindAndRun (route, request) {
+    route = await route.bind(request)
+    return route.run(request)
   }
 
   #hydrateRoute (route) {

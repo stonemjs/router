@@ -76,12 +76,6 @@ export class Route {
     return this.#definition.get(key, fallback)
   }
 
-  bind (request) {
-    this.#protocol = request.protocol
-    this.#parameters = this.#bindParameters(request)
-    return this
-  }
-
   matches (request, includingMethod = true) {
     const matchers = this.getMatchers().filter(matcher => !(!includingMethod && matcher instanceof MethodMatcher))
     for (const matcher of matchers) {
@@ -90,6 +84,12 @@ export class Route {
       }
     }
     return true
+  }
+
+  async bind (request) {
+    this.#protocol = request.protocol
+    this.#parameters = await this.#bindParameters(request)
+    return this
   }
 
   run (request) {
@@ -160,7 +160,7 @@ export class Route {
   }
 
   getDefault (name) {
-    return this.#definition.get('defaults', {})[name]
+    return this.#definition.get('defaults', {})[name] ?? null
   }
 
   addRule (name, value) {
@@ -228,8 +228,7 @@ export class Route {
   getController () {
     if (!this._controller) {
       if (this.isControllerAction()) {
-        const Class = Object.values(this.action)[0]
-        this._controller = this.#container ? this.#container.make(Class) : new Class()
+        this._controller = this.#getInstance(Object.values(this.action)[0])
       } else {
         throw new LogicException('The controller must be a class')
       }
@@ -448,7 +447,7 @@ export class Route {
       .map(v => v.param)
   }
 
-  #bindParameters (request) {
+  async #bindParameters (request) {
     if (request.getUri) {
       throw new LogicException('Request must have a `getUri` method.')
     }
@@ -459,14 +458,47 @@ export class Route {
       .filter((_v, i) => i > 0)
       .map(v => isNumeric(v) ? parseFloat(v) : v)
     
-    const params = this
+    const params = await Promise.all(this
       .#uriConstraints()
       .filter(v => v.param)
-      .map((v, i) => ({ [v.param]: matches[i] ?? v.default }))
+      .map(async (v, i) => {
+        let value = matches[i]
+        
+        if (this.#hasEntityBinding(v.param)) {
+          value = await this.#bindEntity(v.alias ?? v.param, value, v.optional)
+        }
+
+        return { [v.param]: value ?? v.default }
+      }))
     
     return Object
       .entries(this.defaults)
       .reduce((prev, [name, value]) => prev[name] ? prev : { ...prev, [name]: value }, params)
+  }
+
+  #hasEntityBinding (field) {
+    return !!this.get('bindings', {})[field]
+  }
+
+  #bindEntity (field, value, isOptional = false) {
+    const Class = this.get('bindings', {})[field]
+
+    if (Class) {
+      if (isClass(Class)) {
+        if (Class.resolveRouteBinding) {
+          return Class.resolveRouteBinding(field, value, isOptional)
+        } else if (Class.prototype.resolveRouteBinding) {
+          const instance = this.#getInstance(Class)
+          return instance.resolveRouteBinding(field, value, isOptional)
+        } else {
+          throw new LogicException('Binding must have this `resolveRouteBinding` as class or instance method.')
+        }
+      } else {
+        throw new LogicException('Binding must be a class.')
+      }
+    }
+
+    return null
   }
 
   #runComponent (request) {
@@ -475,8 +507,7 @@ export class Route {
 
   #componentDispatcher () {
     if (this.hasDispatcher('component')) {
-      const Class = this.getDispatcher('component')
-      return this.#container ? this.#container.make(Class) : new Class()
+      return this.#getInstance(this.getDispatcher('component'))
     }
 
     throw new LogicException('No component dispatcher provided.')
@@ -489,7 +520,7 @@ export class Route {
   #callableDispatcher () {
     if (this.hasDispatcher('callable')) {
       const Class = this.getDispatcher('callable')
-      return this.#container ? this.#container.make(Class) : new Class()
+      return this.#getInstance(this.getDispatcher('callable'))
     }
 
     throw new LogicException('No callable dispatcher provided')
@@ -501,11 +532,14 @@ export class Route {
 
   #controllerDispatcher () {
     if (this.hasDispatcher('controller')) {
-      const Class = this.getDispatcher('controller')
-      return this.#container ? this.#container.make(Class) : new Class()
+      return this.#getInstance(this.getDispatcher('controller'))
     }
 
     throw new LogicException('No controller dispatcher provided')
+  }
+
+  #getInstance (Class) {
+    return this.#container ? this.#container.make(Class) : new Class()
   }
 
   toJSON () {
