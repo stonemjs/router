@@ -18,7 +18,7 @@ export const Match = (definition) => {
       return target
     }
 
-    metadata.decorators.route.action = [target.constructor, name]
+    metadata.decorators.route.action = { [name]: target.constructor }
 
     if (descriptor.value instanceof MetaResponse) {
       descriptor.value = new MetaResponse(

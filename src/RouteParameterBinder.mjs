@@ -1,8 +1,7 @@
+import { isNumeric } from '@stone-js/common'
+
 export class RouteParameterBinder {
   #route
-
-  #pathConstraintRegex = /^(.+?)?[:{](.+?)(?:@(.+?))?(?:\((.+?)\))?([?*+]?)\}?$/
-  #domainConstraintRegex = /^(?:\{(.+?)(?:@(.+?))?(?:\((.+?)\))?([?*+]?)\})?(.+)$/
 
   constructor ({ route }) {
     this.#route = route
@@ -14,54 +13,6 @@ export class RouteParameterBinder {
 
   parameters (request) {
     return this.#replaceDefaults(this.#bindParameters(request))
-  }
-
-  uriConstraints () {
-    return [].concat(this.domainConstraints(), this.pathConstraints())
-  }
-
-  domainConstraints () {
-    const keys = ['match', 'param', 'alias', 'rule', 'quantifier', 'suffix']
-    const domain = this
-      .#route
-      .getDomain()
-      ?.match(this.#domainConstraintRegex)
-      ?.filter((_, i) => i < 6)
-      ?.reduce((prev, curr) => ({ ...prev, [keys[i]]: curr }), {})
-    
-    if (domain.param) {
-      domain.rule ??= this.#route.getRule(domain.param)
-      domain.optional = /^[?*]$/.test(domain.quantifier)
-      domain.default ??= this.#route.getDefault(domain.param)
-    }
-
-    return domain
-  }
-
-  pathConstraints () {
-    return this
-      .#route
-      .path
-      .split('/')
-      .filter(segment => segment.trim().length)
-      .map(segment => {
-        if (segment.includes(':')) {
-          const keys = ['match', 'prefix', 'param', 'alias', 'rule', 'quantifier']
-          return segment
-            .match(this.#pathConstraintRegex)
-            .filter((_, i) => i < 6)
-            .reduce((prev, curr) => ({ ...prev, [keys[i]]: curr }), {})
-        }
-        return { match: segment }
-      })
-      .map(segment => {
-        if (segment.param) {
-          segment.rule ??= this.#route.getRule(segment.param)
-          segment.optional = /^[?*]$/.test(segment.quantifier)
-          segment.default ??= this.#route.getDefault(segment.param)
-        }
-        return segment
-      })
   }
 
   #bindParameters (request) {
@@ -89,10 +40,6 @@ export class RouteParameterBinder {
   }
 
   #parseMatches (matches) {
-    return matches.map(v => this.#isNumeric(v) ? parseFloat(v) : v)
-  }
-
-  #isNumeric (value) {
-    return !isNaN(parseFloat(value)) && isFinite(value)
+    return matches.map(v => isNumeric(v) ? parseFloat(v) : v)
   }
 }

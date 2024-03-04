@@ -1,5 +1,5 @@
 export class UriMatcher {
-  matches (route, requestContext) {
-    return route.uriRegex().test(requestContext.decodedPath)
+  matches (route, request) {
+    return route.uriRegex().test(request.decodedPath)
   }
 }

@@ -1,9 +1,9 @@
 export class ProtocolMatcher {
-  matches (route, requestContext) {
+  matches (route, request) {
     if (route.isHttpOnly()) {
-      return !requestContext.isSecure
-    } else if (requestContext.isSecure) {
-      return requestContext.isSecure
+      return !request.isSecure
+    } else if (request.isSecure) {
+      return request.isSecure
     } else {
       return true
     }

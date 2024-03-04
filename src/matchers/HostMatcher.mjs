@@ -1,6 +1,6 @@
 export class HostMatcher {
-  matches (route, requestContext) {
+  matches (route, request) {
     if (!route.domainRegex()) return true
-    return route.domainRegex().test(requestContext.host)
+    return route.domainRegex().test(request.host)
   }
 }
