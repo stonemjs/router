@@ -1,7 +1,6 @@
 import { RouteDefinition } from './RouteDefinition.mjs'
 import { MethodMatcher } from './matchers/MethodMatcher.mjs'
-import { RouteParameterBinder } from './RouteParameterBinder.mjs'
-import { LogicException, isPlainObject, isFunction, isClass } from '@stone-js/common'
+import { LogicException, isPlainObject, isFunction, isClass, isNumeric } from '@stone-js/common'
 
 export class Route {
   #router
@@ -79,7 +78,7 @@ export class Route {
 
   bind (request) {
     this.#protocol = request.protocol
-    this.#parameters = RouteParameterBinder.getParameters(this, request)
+    this.#parameters = this.#bindParameters(request)
     return this
   }
 
@@ -447,6 +446,27 @@ export class Route {
       #uriConstraints()
       .filter(v => v.param)
       .map(v => v.param)
+  }
+
+  #bindParameters (request) {
+    if (request.getUri) {
+      throw new LogicException('Request must have a `getUri` method.')
+    }
+
+    const matches = request
+      .getUri(this.hasDomain())
+      .match(this.domainAndUriRegex())
+      .filter((_v, i) => i > 0)
+      .map(v => isNumeric(v) ? parseFloat(v) : v)
+    
+    const params = this
+      .#uriConstraints()
+      .filter(v => v.param)
+      .map((v, i) => ({ [v.param]: matches[i] ?? v.default }))
+    
+    return Object
+      .entries(this.defaults)
+      .reduce((prev, [name, value]) => prev[name] ? prev : { ...prev, [name]: value }, params)
   }
 
   #runComponent (request) {
