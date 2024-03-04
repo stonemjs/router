@@ -2,10 +2,10 @@
  * Class representing a ControllerDispatcher.
  *
  * @author Mr. Stone <pierre.evens16@gmail.com>
- * 
+ *
  * @external Container
  * @see {@link https://github.com/stonemjs/service-container/blob/main/src/Container.mjs|Container}
- * 
+ *
  * @external Request
  * @see {@link https://github.com/stonemjs/http/blob/main/src/Request.mjs|Request}
  */
@@ -30,13 +30,12 @@ export class ControllerDispatcher {
    * @param {Route}   route
    * @param {any}     controller
    * @param {String}  method
-   * 
+   *
    * @return {any}
    */
   dispatch (request, route, controller, method) {
     const params = route.parametersWithoutNulls()
     const context = {
-      ...entities,
       route,
       params,
       request,

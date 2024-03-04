@@ -19,7 +19,7 @@ import { ControllerDispatcher } from './dispatchers/ControllerDispatcher.mjs'
  * Class representing a Router.
  *
  * @author Mr. Stone <pierre.evens16@gmail.com>
- * 
+ *
  * @external Container
  * @see {@link https://github.com/stonemjs/service-container/blob/main/src/Container.mjs|Container}
  */
@@ -409,7 +409,7 @@ export class Router {
   #setOptions () {
     if (this.#container?.bound('config')) {
       const config = this.#container.make('config')
-      
+
       this.#rules = config.get('router.rules', {})
       this.#maxDepth = config.get('router.maxDepth', 5)
       this.#matchers = config.get('router.matchers', [])

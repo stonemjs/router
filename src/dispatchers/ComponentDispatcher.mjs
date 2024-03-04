@@ -9,13 +9,12 @@ export class ComponentDispatcher {
    *
    * @param {Object} request
    * @param {Route}  route
-   * 
+   *
    * @return {any}
    */
   dispatch (request, route) {
     const params = route.parametersWithoutNulls()
     const context = {
-      ...entities,
       route,
       params,
       request,

@@ -253,9 +253,8 @@ export class Route {
   generate (params = {}, query = {}, hash = null, withDomain = true) {
     let path = this
       .#getPathConstraints()
-      .reduce((prev, curr) => `${prev}${curr.prefix ?? ''}${curr.param ? (params[curr.param] ?? curr.default) : curr.match}/` ,'/')
-    
-      
+      .reduce((prev, curr) => `${prev}${curr.prefix ?? ''}${curr.param ? (params[curr.param] ?? curr.default) : curr.match}/`, '/')
+
     if (withDomain) {
       const domainCons = this.#getDomainConstraints()
       if (domainCons.suffix) {
@@ -339,12 +338,12 @@ export class Route {
   uriRegex (flag = 'i') {
     const domain = this.domain ? this.#buildDomainRegex(this.#getDomainConstraints()) : ''
     const path = this.#getPathConstraints().reduce((prev, curr) => `${prev}${this.#buildSegmentRegex(curr)}`, '')
-    return new RegExp(`^${domain}${path.length ? path : '\/\/?'}$`, flag)
+    return new RegExp(`^${domain}${path.length ? path : '//?'}$`, flag)
   }
 
   pathRegex (flag = 'i') {
     const pattern = this.#getPathConstraints().reduce((prev, curr) => `${prev}${this.#buildSegmentRegex(curr)}`, '')
-    return new RegExp(`^${pattern.length ? pattern : '\/'}\/?$`, flag)
+    return new RegExp(`^${pattern.length ? pattern : '/'}/?$`, flag)
   }
 
   domainRegex (flag = 'i') {
@@ -361,35 +360,35 @@ export class Route {
 
   #buildSegmentRegex (value = null) {
     if (!value) {
-      return '\/'
+      return '/'
     }
 
     if (!value.param) {
-      return `\/${value.match}`
+      return `/${value.match}`
     }
 
     if (value.prefix) {
       switch (value.quantifier) {
         case '?':
-          return `\/${value.prefix}(${value.rule})?`
+          return `/${value.prefix}(${value.rule})?`
         case '+':
-          return `\/${value.prefix}((?:${value.rule})(?:\/(?:${value.rule}))*)`
+          return `/${value.prefix}((?:${value.rule})(?:/(?:${value.rule}))*)`
         case '*':
-          return `\/${value.prefix}((?:${value.rule})(?:\/(?:${value.rule}))*)?`
+          return `/${value.prefix}((?:${value.rule})(?:/(?:${value.rule}))*)?`
         default:
-          return `\/${value.prefix}(${value.rule})`
+          return `/${value.prefix}(${value.rule})`
       }
     }
 
     switch (value.quantifier) {
       case '?':
-        return `(?:\/(${value.rule}))?`
+        return `(?:/(${value.rule}))?`
       case '+':
-        return `\/((?:${value.rule})(?:\/(?:${value.rule}))*)`
+        return `/((?:${value.rule})(?:/(?:${value.rule}))*)`
       case '*':
-        return `(?:\/((?:${value.rule})(?:\/(?:${value.rule}))*))?`
+        return `(?:/((?:${value.rule})(?:/(?:${value.rule}))*))?`
       default:
-        return `\/(${value.rule})`
+        return `/(${value.rule})`
     }
   }
 
@@ -403,8 +402,8 @@ export class Route {
       .getDomain()
       ?.match(Route.domainConstraintRegex)
       ?.filter((_, i) => i < 6)
-      ?.reduce((prev, curr) => ({ ...prev, [keys[i]]: curr }), {})
-    
+      ?.reduce((prev, curr, i) => ({ ...prev, [keys[i]]: curr }), {})
+
     if (this._domainConstraints.param) {
       this._domainConstraints.rule ??= this.getRule(this._domainConstraints.param)
       this._domainConstraints.default ??= this.getDefault(this._domainConstraints.param)
@@ -425,7 +424,7 @@ export class Route {
           return segment
             .match(Route.pathConstraintRegex)
             .filter((_, i) => i < 6)
-            .reduce((prev, curr) => ({ ...prev, [keys[i]]: curr }), {})
+            .reduce((prev, curr, i) => ({ ...prev, [keys[i]]: curr }), {})
         }
         return { match: segment }
       })
@@ -441,8 +440,8 @@ export class Route {
   }
 
   #compileParameterNames () {
-    return this.
-      #uriConstraints()
+    return this
+      .#uriConstraints()
       .filter(v => v.param)
       .map(v => v.param)
   }
@@ -457,20 +456,20 @@ export class Route {
       .match(this.domainAndUriRegex())
       .filter((_v, i) => i > 0)
       .map(v => isNumeric(v) ? parseFloat(v) : v)
-    
+
     const params = await Promise.all(this
       .#uriConstraints()
       .filter(v => v.param)
       .map(async (v, i) => {
         let value = matches[i]
-        
+
         if (this.#hasEntityBinding(v.param)) {
           value = await this.#bindEntity(v.alias ?? v.param, value, v.optional)
         }
 
         return { [v.param]: value ?? v.default }
       }))
-    
+
     return Object
       .entries(this.defaults)
       .reduce((prev, [name, value]) => prev[name] ? prev : { ...prev, [name]: value }, params)
@@ -519,7 +518,6 @@ export class Route {
 
   #callableDispatcher () {
     if (this.hasDispatcher('callable')) {
-      const Class = this.getDispatcher('callable')
       return this.#getInstance(this.getDispatcher('callable'))
     }
 

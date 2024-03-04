@@ -1,5 +1,5 @@
 import { isString } from '@stone-js/common'
-import { GET, HEAD, HTTP_METHODS } from "./enums/http-methods.mjs"
+import { GET, HEAD, HTTP_METHODS } from './enums/http-methods.mjs'
 
 export class RouteDefinition {
   #definition
@@ -29,7 +29,7 @@ export class RouteDefinition {
   }
 
   has (key) {
-    return this.#definition[key] != undefined
+    return this.#definition[key] !== undefined
   }
 
   getMethods () {
@@ -38,7 +38,7 @@ export class RouteDefinition {
       .reduce((prev, curr) => HTTP_METHODS.includes(curr) && !prev.includes(curr) ? prev.concat(curr) : prev, [])
 
     if (methods.includes(GET)) { methods.push(HEAD) }
-    
+
     return methods.length ? methods : [GET]
   }
 
