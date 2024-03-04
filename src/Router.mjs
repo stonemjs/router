@@ -158,7 +158,15 @@ export class Router {
     return this.#runRoute(request, route)
   }
 
-  generate (nameOrPath, params, query, hash) {}
+  generate (name, params = {}, query = {}, hash = null) {
+    const route = this.#routes.getByName(name)
+
+    if (!route) {
+      throw new LogicException(`No routes found for this name ${name}`)
+    }
+
+    return route.generate(params, query, hash)
+  }
 
   findRoute (request) {
     this.#eventManager?.emit(Event.ROUTING, new Event(Event.ROUTING, this, { request }))

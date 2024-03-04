@@ -252,6 +252,31 @@ export class Route {
     return [entries[1].name, entries[0]].join(separator)
   }
 
+  generate (params = {}, query = {}, hash = null, withDomain = true) {
+    let path = this
+      .#getPathConstraints()
+      .reduce((prev, curr) => `${prev}${curr.prefix ?? ''}${curr.param ? (params[curr.param] ?? curr.default) : curr.match}/` ,'/')
+    
+      
+    if (withDomain) {
+      const domainCons = this.#getDomainConstraints()
+      if (domainCons.suffix) {
+        path = `${domainCons.param ? params[domainCons.param] : (domainCons.default ?? '')}${domainCons.suffix}${path}`
+      }
+    }
+
+    if (Object.keys(query).length) {
+      const queryString = new URLSearchParams(query).toString()
+      path = `${path}?${queryString}`
+    }
+
+    if (hash) {
+      path = `${path}#${hash}`
+    }
+
+    return path
+  }
+
   getRouter () {
     return this.#router
   }
