@@ -1,6 +1,6 @@
 import { Route } from './Route.mjs'
 import { Router } from './Router.mjs'
-import { HttpException } from '@stone-js/http'
+import { HttpException } from '@stone-js/common'
 
 export class RouteCollection {
   #routes = new Map()

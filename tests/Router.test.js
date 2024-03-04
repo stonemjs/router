@@ -1,5 +1,7 @@
+import { Router } from '../src/Router.mjs'
+
 describe('Router', () => {
   test('Init', () => {
-    expect(true).toEqual(true)
+    expect(Router.METHODS.length).toEqual(5)
   })
 })

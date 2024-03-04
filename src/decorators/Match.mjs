@@ -1,6 +1,5 @@
 import deepmerge from 'deepmerge'
-import { isClass } from '@stone-js/common'
-import { MetaResponse } from '@stone-js/http'
+import { MetaResponse, isClass } from '@stone-js/common'
 import { classAndMethodDecoratorException } from './utils.mjs'
 
 export const Match = (definition) => {

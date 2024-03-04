@@ -1,5 +1,4 @@
-import { MetaResponse } from '@stone-js/http'
-import { LogicException, isClass, isMethod } from '@stone-js/common'
+import { LogicException, isClass, isMethod, MetaResponse } from '@stone-js/common'
 
 export const classAndMethodDecoratorException = (Class, method) => {
   if (
