@@ -1,12 +1,5 @@
-import { MetaResponse, LogicException } from '@stone-js/common'
-
-export const isClass = (value) => {
-  return /^\s*class/.test(value.toString())
-}
-
-export const isMethod = (value) => {
-  return !isClass(value) && typeof value === 'function'
-}
+import { MetaResponse } from '@stone-js/http'
+import { LogicException, isClass, isMethod } from '@stone-js/common'
 
 export const classAndMethodDecoratorException = (Class, method) => {
   if (

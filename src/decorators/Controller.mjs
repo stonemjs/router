@@ -1,6 +1,6 @@
 import deepmerge from 'deepmerge'
-import { LogicException } from '@stone-js/common'
-import { filterByKeys, isClass } from './utils.mjs'
+import { filterByKeys } from './utils.mjs'
+import { LogicException, isClass } from '@stone-js/common'
 
 export const Controller = (definition) => {
   return (target) => {

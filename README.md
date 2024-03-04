@@ -266,16 +266,20 @@ Should pass an application context to controller
   throttle: [LoginRateLimiter], // Allow to define rate limiter for route
   methods: ['GET'],
   children: [], // If parent has
-  domain: 'domain',
+  domain: '{domain}.example.com',
   fallback: true,
   defaults: { post: null },
+  policies: [AdminPolicy], // Custom route definition
+
   name: 'comment.list',
   bindings: {
     post: ArticlePost
   },
   middleware: [AuthMiddleware],
+  excludeMiddleware: [],
   action: { listOrShow: CommentController },
-  actions: { default: HomeView, left: LeftView }, // Multiple render
+  component: UserComponent,
+  components: { default: HomeView, left: LeftView }, // For frontend
   rules: { id: /\d+/ },
   redirect: '/items', // redirect to this route, { name: 'itemsView' }, (request) => ({ path: '/items', query: { it: request.params.item } })
   redirect: 'items', // relative redirect
@@ -300,6 +304,12 @@ If parent has action and children at the same time(only for frontend),
 create routes for both parent and children and resolve all routes and return value for all.
 
 If parent hasn't no action combine parent and children routes and select one route that matches the request.
+
+## Component
+Frontend action equivalent
+
+## Components
+Return many components for route
 
 ## Defaults
 Define default route params values: `{ post: null }`

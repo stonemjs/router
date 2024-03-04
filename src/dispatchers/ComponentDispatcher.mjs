@@ -1,15 +1,14 @@
 /**
- * Class representing a DefaultDispatcher.
+ * Class representing a ComponentDispatcher.
  *
  * @author Mr. Stone <pierre.evens16@gmail.com>
  */
-export class DefaultDispatcher {
+export class ComponentDispatcher {
   /**
    * Dispatch.
    *
-   * @param {Object}   request
-   * @param {Route}    route
-   * @param {Function} callable
+   * @param {Object} request
+   * @param {Route}  route
    * 
    * @return {any}
    */

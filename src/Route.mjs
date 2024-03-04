@@ -1,83 +1,80 @@
 import { RouteDefinition } from './RouteDefinition.mjs'
-import { LogicException, isString } from '@stone-js/common'
 import { MethodMatcher } from './matchers/MethodMatcher.mjs'
 import { RouteParameterBinder } from './RouteParameterBinder.mjs'
+import { LogicException, isPlainObject, isFunction, isClass } from '@stone-js/common'
 
 export class Route {
-  #path
   #router
-  #action
-  #methods
   #matchers
   #protocol
-  #metadata
   #container
-  #controller
   #parameters
+  #definition
   #dispatchers
-  #parsedDomain
-  #parameterNames
-  #parsedSegments
 
-  static pathRegex = /^(.+?)?[:{](.+?)(?:@(.+?))?(?:\((.+?)\))?([?*+]?)\}?$/
-  static domainRegex = /^(?:\{(.+?)(?:@(.+?))?(?:\((.+?)\))?([?*+]?)\})?(.+)$/
+  static pathConstraintRegex = /^(.+?)?[:{](.+?)(?:@(.+?))?(?:\((.+?)\))?([?*+]?)\}?$/
+  static domainConstraintRegex = /^(?:\{(.+?)(?:@(.+?))?(?:\((.+?)\))?([?*+]?)\})?(.+)$/
 
-  static fromRouteDefinition (routeDefinition) {
-    if (routeDefinition instanceof RouteDefinition) {
-      return new this({ ...routeDefinition })
-    }
-
-    throw new LogicException("This method's parameter must be an instance of `RouteDefinition`")
+  static create (routeDefinition) {
+    return new this(routeDefinition)
   }
 
-  constructor ({
-    path,
-    name,
-    rules,
-    domain,
-    action,
-    method,
-    methods,
-    fallback,
-    defaults,
-    metadata,
-    middleware,
-    excludeMiddleware
-  }) {
-    this.name = name
-    this.#path = path
-    this.domain = domain
-    this.rules = rules ?? {}
-    this.defaults = defaults ?? {}
-    this.#metadata = metadata ?? {}
-    this.fallback = fallback ?? false
-    this.middleware = middleware ?? []
-    this.excludeMiddleware = excludeMiddleware ?? []
-
-    this
-      .setMethods(method)
-      .setMethods(methods)
-      .setAction(action)
+  constructor (routeDefinition) {
+    if (!(routeDefinition instanceof RouteDefinition)) {
+      throw new LogicException("This method's parameter must be an instance of `RouteDefinition`")
+    }
 
     this.#matchers = []
     this.#dispatchers = {}
+    this.#definition = routeDefinition
   }
 
-  get methods () {
-    return this.getMethods()
-  }
-
-  get action () {
-    return this.#action
-  }
-
-  get fullUri () {
-    return this.getFullUri()
+  get uri () {
+    return `${this.domain ?? ''}${this.path}`
   }
 
   get path () {
-    const trimmedUri = this.#path.trim()
-    return trimmedUri.startsWith('/') ? trimmedUri : `/${trimmedUri}`
+    return `/${this.get('path', '').trim()}`.replaceAll(/\/+/g, '/')
+  }
+
+  get domain () {
+    return this.get('domain')?.replace(/^https?:\/\//, '') ?? null
+  }
+
+  get methods () {
+    return this.#definition.getMethods()
+  }
+
+  get action () {
+    return this.get('action')
+  }
+
+  get name () {
+    return this.get('name')
+  }
+
+  get rules () {
+    return this.get('rules', {})
+  }
+
+  get defaults () {
+    return this.get('defaults', {})
+  }
+
+  get isFallback () {
+    return this.get('fallback', false)
+  }
+
+  get middleware () {
+    return this.get('middleware', [])
+  }
+
+  get excludeMiddleware () {
+    return this.get('excludeMiddleware', [])
+  }
+
+  get (key, fallback = null) {
+    return this.#definition.get(key, fallback)
   }
 
   bind (request) {
@@ -96,44 +93,16 @@ export class Route {
     return true
   }
 
-  async run (request) {
-    if (!this.#container) {
-      console.log('No service container provided')
-    }
-
-    try {
-      if (this.isControllerAction()) {
-        return await this.#runController(request)
-      }
-      return await this.#runCallable(request)
-    } catch (error) {
-      if (!error.getResponse) {
-        throw new LogicException("Controller or callable's Exception must contain a `getResponse` method.")
-      }
-      return error.getResponse()
-    }
-  }
-
-  getMethods () {
-    return this.#methods ?? []
-  }
-
-  setMethods (value) {
-    this.#methods ??= []
-
-    if (Array.isArray(value)) {
-      this.#methods = value
-    } else if (isString(value)) {
-      this.#methods.push(value)
+  run (request) {
+    if (this.isBrowser()) {
+      return this.#runComponent(request)
+    } else if (this.isControllerAction()) {
+      return this.#runController(request)
+    } else if (this.isCallableAction()) {
+      return this.#runCallable(request)
     } else {
-      this.#methods.push('GET')
+      throw new LogicException('Invalid action provided.')
     }
-
-    if (this.#methods.includes('GET')) { this.#methods.push('HEAD') }
-
-    this.#methods = this.#methods.reduce((prev, curr) => prev.concat(!prev.includes(curr) ? curr.toUpperCase() : []), [])
-
-    return this
   }
 
   hasParameters () {
@@ -167,56 +136,54 @@ export class Route {
   }
 
   parametersWithoutNulls () {
-    return Object.fromEntries(Object.entries(this.parameters()).filter(([, value]) => !!value))
+    return Object.fromEntries(Object.entries(this.parameters()).filter(([, value]) => value != null))
   }
 
   parameterNames () {
-    this.#parameterNames ??= this.#compileParameterNames()
-    return this.#parameterNames
+    this._parameterNames ??= this.#compileParameterNames()
+    return this._parameterNames
   }
 
   optionalParameterNames () {
-    const domainAndSegments = this.#getParsedDomainAndSegments()
+    const constraints = this.#uriConstraints()
     return this
       .parameterNames()
-      .filter(param => domainAndSegments.find(v => v.param === param)?.optional)
+      .filter(param => constraints.find(v => v.param === param)?.optional)
   }
 
   isParameterNameOptional (name) {
     return this.optionalParameterNames().includes(name)
   }
 
-  setDefault (name, value) {
-    this.defaults ??= {}
-    this.defaults[name] = value
+  addDefault (name, value) {
+    this.#definition.add('defaults', { [name]: value }, false)
     return this
   }
 
   getDefault (name) {
-    return this.defaults[name]
+    return this.#definition.get('defaults', {})[name]
   }
 
-  setRule (name, value) {
-    this.rules ??= {}
-    this.rules[name] = value
+  addRule (name, value) {
+    this.#definition.add('rules', { [name]: value }, false)
     return this
   }
 
   addRules (rules) {
-    Object.entries(rules).forEach(([name, rule]) => this.setRule(name, rule))
+    Object.entries(rules).forEach(([name, rule]) => this.addRule(name, rule))
     return this
   }
 
   getRule (name, fallback = '[^/]+?') {
-    return this.rules[name] ?? fallback
-  }
-
-  getDomain () {
-    return this.domain ? this.domain.replace(/^https?:\/\//, '') : null
+    return this.#definition.get('rules', {})[name] ?? fallback
   }
 
   hasDomain () {
-    return !!this.getDomain()
+    return !!this.domain
+  }
+
+  isSecure () {
+    return this.#protocol === 'https'
   }
 
   isHttpOnly () {
@@ -227,67 +194,62 @@ export class Route {
     return this.isSecure()
   }
 
-  isSecure () {
-    return this.#protocol === 'https'
+  getActionType () {
+    return isFunction(this.action) ? 'Closure' : 'Controller'
   }
 
-  getAction () {
-    return this.#action
+  isBrowser () {
+    return typeof window === 'object'
   }
 
-  setAction (action) {
-    this.#action = action
-
-    if (!(this.isControllerAction() || this.isCallableAction())) {
-      throw new LogicException(`Invalid action {${action}}. Must provide an action for route`)
+  getComponent () {
+    if (this.isBrowser()) {
+      return this.action
     }
 
-    return this
+    throw new LogicException('Component action must be called only on browser context.')
   }
 
-  getActionType () {
-    return Array.isArray(this.#action) ? 'Controller' : 'Closure'
+  isCallableAction () {
+    return isFunction(this.action)
   }
 
   getCallable () {
     if (this.isCallableAction()) {
-      return this.#action
+      return this.action
     }
 
     throw new LogicException('Callable action must be a function')
   }
 
-  isCallableAction () {
-    return typeof this.#action === 'function'
+  isControllerAction () {
+    return isPlainObject(this.action) && isClass(Object.values(this.action).pop())
   }
 
   getController () {
-    if (!this.#controller) {
+    if (!this._controller) {
       if (this.isControllerAction()) {
-        const Class = this.#action[0]
-        this.#controller = this.#container ? this.#container.make(Class) : new Class()
+        const Class = Object.values(this.action)[0]
+        this._controller = this.#container ? this.#container.make(Class) : new Class()
       } else {
-        throw new LogicException('First value of action must be a class')
+        throw new LogicException('The controller must be a class')
       }
     }
 
-    return this.#controller
+    return this._controller
   }
 
   getControllerMethod () {
-    if (this.isControllerAction() && typeof this.#action?.[1] === 'string') {
-      return this.#action[1]
+    if (this.isControllerAction()) {
+      return Object.keys(this.action)[0]
     } else {
-      throw new LogicException('Second value of action must be the controller method and must be as string')
+      throw new LogicException("The controller action must be a string, representing the controller's method.")
     }
   }
 
-  isControllerAction () {
-    return Array.isArray(this.#action) && /^\s*class/.test(this.#action[0]?.toString())
-  }
-
   getControllerActionFullname (separator = '@') {
-    return [this.#action[0].name, this.#action[1]].join(separator)
+    const entries = Object.entries(this.action)
+    return [entries[1].name, entries[0]].join(separator)
   }
 
   getRouter () {
@@ -307,7 +269,7 @@ export class Route {
   }
 
   hasMatchers () {
-    return this.#matchers.length > 0
+    return this.#matchers?.length > 0
   }
 
   getMatchers () {
@@ -320,20 +282,20 @@ export class Route {
   }
 
   addMatchers (matcher) {
-    this.#matchers.push(matcher)
+    this.#matchers?.push(matcher)
     return this
   }
 
-  hasDispatcher (type) {
-    return !!this.getDispatcher(type)
+  getDispatchers () {
+    return this.#dispatchers
   }
 
   getDispatcher (type) {
     return this.getDispatchers()[type]
   }
 
-  getDispatchers () {
-    return this.#dispatchers
+  hasDispatcher (type) {
+    return !!this.getDispatcher(type)
   }
 
   setDispatchers (dispatchers) {
@@ -344,121 +306,101 @@ export class Route {
   }
 
   addDispatcher (type, dispatcher) {
-    if (!['callable', 'controller'].includes(type)) {
-      throw new LogicException(`Invalid dispatcher type ${type}. Valid types are 'callable' and 'controller'`)
+    if (!['component', 'callable', 'controller'].includes(type)) {
+      throw new LogicException(`Invalid dispatcher type ${type}. Valid types are 'component', 'callable' and 'controller'`)
     }
     this.#dispatchers[type] = dispatcher
     return this
   }
 
-  getFullUri () {
-    return `${this.getDomain() ?? ''}${this.path}`
-  }
-
-  pathRegex (flag = 'gi') {
-    const pattern = this
-      .#getParsedSegments()
-      .reduce((prev, curr) => `${prev}${this.#getSegmentRegex(curr)}`, '')
-    return new RegExp(`^${pattern.length ? pattern : '\/\/?'}$`, flag)
-  }
-
-  domainRegex (flag = 'gi') {
-    const pattern = this.getDomain() ? this.#getDomainRegex(this.#getParsedDomain()) : null
-    return pattern ? new RegExp(`^${pattern}$`, flag) : null
-  }
-
-  domainAndUriRegex (flag = 'gi') {
-    const domain = this.getDomain() ? this.#getDomainRegex(this.#getParsedDomain()) : ''
-    const path = this
-      .#getParsedSegments()
-      .reduce((prev, curr) => `${prev}${this.#getSegmentRegex(curr)}`, '')
+  uriRegex (flag = 'i') {
+    const domain = this.domain ? this.#buildDomainRegex(this.#getDomainConstraints()) : ''
+    const path = this.#getPathConstraints().reduce((prev, curr) => `${prev}${this.#buildSegmentRegex(curr)}`, '')
     return new RegExp(`^${domain}${path.length ? path : '\/\/?'}$`, flag)
   }
 
-  #getDomainRegex (value) {
-    if (!value.param) {
-      return value.suffix
-    }
-
-    switch (value.quantifier) {
-      case '?':
-        return `(${value.rule})?${value.suffix}`
-      default:
-        return `(${value.rule})${value.suffix}`
-    }
+  pathRegex (flag = 'i') {
+    const pattern = this.#getPathConstraints().reduce((prev, curr) => `${prev}${this.#buildSegmentRegex(curr)}`, '')
+    return new RegExp(`^${pattern.length ? pattern : '\/'}\/?$`, flag)
   }
 
-  #getSegmentRegex (value = null) {
+  domainRegex (flag = 'i') {
+    const pattern = this.domain ? this.#buildDomainRegex(this.#getDomainConstraints()) : null
+    return pattern ? new RegExp(`^${pattern}$`, flag) : null
+  }
+
+  #buildDomainRegex (value) {
+    if (!value.param) { return value.suffix }
+    return value.optional
+      ? `(${value.rule})?${value.suffix}`
+      : `(${value.rule})${value.suffix}`
+  }
+
+  #buildSegmentRegex (value = null) {
     if (!value) {
-      return '\/\/?'
+      return '\/'
     }
 
     if (!value.param) {
-      return `\/${value.match}\/?`
+      return `\/${value.match}`
     }
 
     if (value.prefix) {
       switch (value.quantifier) {
         case '?':
-          return `\/${value.prefix}(${value.rule})?\/?`
+          return `\/${value.prefix}(${value.rule})?`
         case '+':
-          return `\/${value.prefix}((?:${value.rule})(?:\/(?:${value.rule}))*)\/?`
+          return `\/${value.prefix}((?:${value.rule})(?:\/(?:${value.rule}))*)`
         case '*':
-          return `\/${value.prefix}((?:${value.rule})(?:\/(?:${value.rule}))*)?\/?`
+          return `\/${value.prefix}((?:${value.rule})(?:\/(?:${value.rule}))*)?`
         default:
-          return `\/${value.prefix}(${value.rule})\/?`
+          return `\/${value.prefix}(${value.rule})`
       }
     }
 
     switch (value.quantifier) {
       case '?':
-        return `(?:\/(${value.rule}))?\/?`
+        return `(?:\/(${value.rule}))?`
       case '+':
-        return `\/((?:${value.rule})(?:\/(?:${value.rule}))*)\/?`
+        return `\/((?:${value.rule})(?:\/(?:${value.rule}))*)`
       case '*':
-        return `(?:\/((?:${value.rule})(?:\/(?:${value.rule}))*))?\/?`
+        return `(?:\/((?:${value.rule})(?:\/(?:${value.rule}))*))?`
       default:
-        return `\/(${value.rule})\/?`
+        return `\/(${value.rule})`
     }
   }
 
-  #compileParameterNames () {
-    return this.
-      #getParsedDomainAndSegments()
-      .filter(v => v.param)
-      .map(v => v.param)
+  #uriConstraints () {
+    return [].concat(this.#getDomainConstraints(), this.#getPathConstraints())
   }
 
-  #getParsedDomainAndSegments () {
-    return [].concat(this.#getParsedDomain(), this.#getParsedSegments())
-  }
-
-  #getParsedDomain () {
+  #getDomainConstraints () {
     const keys = ['match', 'param', 'alias', 'rule', 'quantifier', 'suffix']
-    this.#parsedDomain ??= this
+    this._domainConstraints ??= this
       .getDomain()
-      ?.match(Route.domainRegex)
-      ?.reduce((prev, curr, i) => i < 6 ? { ...prev, [keys[i]]: curr } : prev, {})
+      ?.match(Route.domainConstraintRegex)
+      ?.filter((_, i) => i < 6)
+      ?.reduce((prev, curr) => ({ ...prev, [keys[i]]: curr }), {})
     
-    if (this.#parsedDomain.param) {
-      this.#parsedDomain.rule ??= this.getRule(this.#parsedDomain.param)
-      this.#parsedDomain.default ??= this.getDefault(this.#parsedDomain.param)
-      this.#parsedDomain.optional = /^[?*]$/.test(this.#parsedDomain.quantifier)
+    if (this._domainConstraints.param) {
+      this._domainConstraints.rule ??= this.getRule(this._domainConstraints.param)
+      this._domainConstraints.default ??= this.getDefault(this._domainConstraints.param)
+      this._domainConstraints.optional = /^[?*]$/.test(this._domainConstraints.quantifier)
     }
 
-    return this.#parsedDomain
+    return this._domainConstraints
   }
 
-  #getParsedSegments () {
-    this.#parsedSegments ??= this
-      .#path
+  #getPathConstraints () {
+    this._pathConstraints ??= this
+      .path
       .split('/')
       .filter(segment => segment.trim().length)
       .map(segment => {
         if (segment.includes(':')) {
           const keys = ['match', 'prefix', 'param', 'alias', 'rule', 'quantifier']
           return segment
-            .match(Route.pathRegex)
+            .match(Route.pathConstraintRegex)
             .filter((_, i) => i < 6)
             .reduce((prev, curr) => ({ ...prev, [keys[i]]: curr }), {})
         }
@@ -472,7 +414,27 @@ export class Route {
         }
         return segment
       })
-    return this.#parsedSegments
+    return this._pathConstraints
+  }
+
+  #compileParameterNames () {
+    return this.
+      #uriConstraints()
+      .filter(v => v.param)
+      .map(v => v.param)
+  }
+
+  #runComponent (request) {
+    return this.#componentDispatcher().dispatch(request, this, this.getComponent())
+  }
+
+  #componentDispatcher () {
+    if (this.hasDispatcher('component')) {
+      const Class = this.getDispatcher('component')
+      return this.#container ? this.#container.make(Class) : new Class()
+    }
+
+    throw new LogicException('No component dispatcher provided.')
   }
 
   #runCallable (request) {
@@ -505,12 +467,11 @@ export class Route {
     return {
       name: this.name ?? 'Empty',
       path: this.path ?? 'Empty',
-      methods: this.getMethods(),
-      method: this.getMethods()[0],
+      methods: this.methods,
       action: this.isControllerAction() ? this.getControllerActionFullname() : this.getActionType(),
       rules: this.rules ?? 'Empty',
       defaults: this.defaults ?? 'Empty',
-      domain: this.getDomain() ?? 'Empty',
+      domain: this.domain ?? 'Empty',
       fallback: this.fallback ?? false,
       middleware: this.middleware?.map(v => v.name) ?? 'Empty',
       excludeMiddleware: this.excludeMiddleware?.map(v => v.name) ?? 'Empty'

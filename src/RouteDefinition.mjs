@@ -1,38 +1,58 @@
-import { GET, HTTP_METHODS } from '@stone-js/http'
+import { isString } from '@stone-js/common'
+import { GET, HEAD, HTTP_METHODS } from "./enums/http-methods.mjs"
 
 export class RouteDefinition {
+  #definition
+
   constructor (definition) {
-    this.path = definition.path
-    this.name = definition.name ?? null
-    this.rules = definition.rules ?? {}
-    this.alias = definition.alias ?? null
-    this.action = definition.action
-    this.domain = definition.domain ?? null
-    this.method = definition.method
-    this.actions = definition.actions ?? {}
-    this.throttle = definition.throttle ?? []
-    this.fallback = definition.fallback ?? false
-    this.defaults = definition.defaults ?? {}
-    this.children = definition.children ?? []
-    this.bindings = definition.bindings ?? {}
-    this.redirect = definition.redirect ?? null
-    this.middleware = definition.middleware ?? []
-    this.methods = this.#getMethods(definition)
-    this.metadata = this.#getMetadata(definition)
-    this.excludeMiddleware = definition.excludeMiddleware ?? []
+    this.#definition = definition ?? {}
   }
 
-  #getMethods (definition) {
-    const methods = [definition.method]
-      .concat(definition.methods)
+  get (key, fallback = null) {
+    return this.#definition[key] ?? fallback
+  }
+
+  set (key, value) {
+    this.#definition[key] = value
+    return this
+  }
+
+  add (key, value, isArray = true) {
+    if (isArray) {
+      this.#definition[key] ??= []
+      this.#definition[key].push(value)
+    } else {
+      this.#definition[key] ??= {}
+      this.#definition[key] = { ...this.#definition[key], ...value }
+    }
+    return this
+  }
+
+  has (key) {
+    return this.#definition[key] != undefined
+  }
+
+  getMethods () {
+    const methods = []
+      .concat(this.#definition.method, this.#definition.methods)
       .reduce((prev, curr) => HTTP_METHODS.includes(curr) && !prev.includes(curr) ? prev.concat(curr) : prev, [])
 
+    if (methods.includes(GET)) { methods.push(HEAD) }
+    
     return methods.length ? methods : [GET]
   }
 
-  #getMetadata (metadata) {
-    return Object.fromEntries(
-      Object.entries(metadata).filter(([key]) => !Object.hasOwn(this, key))
-    )
+  setMethods (value) {
+    this.#definition.methods ??= []
+
+    if (Array.isArray(value)) {
+      this.#definition.methods = value
+    } else if (isString(value)) {
+      this.#definition.methods.push(value)
+    } else {
+      this.#definition.methods.push(GET)
+    }
+
+    return this
   }
 }

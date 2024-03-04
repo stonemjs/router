@@ -11,8 +11,8 @@ import { MethodMatcher } from './matchers/MethodMatcher.mjs'
 import { ExplicitLoader } from './loaders/ExplicitLoader.mjs'
 import { DecoratorLoader } from './loaders/DecoratorLoader.mjs'
 import { ProtocolMatcher } from './matchers/ProtocolMatcher.mjs'
-import { DefaultDispatcher } from './dispatchers/DefaultDispatcher.mjs'
 import { CallableDispatcher } from './dispatchers/CallableDispatcher.mjs'
+import { ComponentDispatcher } from './dispatchers/ComponentDispatcher.mjs'
 import { ControllerDispatcher } from './dispatchers/ControllerDispatcher.mjs'
 
 /**
@@ -37,7 +37,6 @@ export class Router {
   #eventManager
   #skipMiddleware
   #currentRequest
-  #defaultMatchers
 
   /**
    * Create a router.
@@ -207,7 +206,7 @@ export class Router {
     return this
   }
 
-  setRule (name, pattern) {
+  addRule (name, pattern) {
     this.#rules[name] = pattern
     return this
   }
@@ -314,8 +313,8 @@ export class Router {
   }
 
   addDispatcher (type, dispatcher) {
-    if (!['default', 'callable', 'controller'].includes(type)) {
-      throw new LogicException(`Invalid dispatcher type ${type}. Valid types are ('default', 'callable', 'controller')`)
+    if (!['component', 'callable', 'controller'].includes(type)) {
+      throw new LogicException(`Invalid dispatcher type ${type}. Valid types are ('component', 'callable', 'controller')`)
     }
 
     this.#dispatchers[type] = dispatcher
@@ -323,13 +322,13 @@ export class Router {
     return this
   }
 
-  setDefaultDispatcher (dispatcher) {
-    this.addDispatcher('default', dispatcher)
+  setCallableDispatcher (dispatcher) {
+    this.addDispatcher('callable', dispatcher)
     return this
   }
 
-  setCallableDispatcher (dispatcher) {
-    this.addDispatcher('callable', dispatcher)
+  setComponentDispatcher (dispatcher) {
+    this.addDispatcher('component', dispatcher)
     return this
   }
 
@@ -343,20 +342,20 @@ export class Router {
   }
 
   #getDefaultMatchers () {
-    this.#defaultMatchers ??= [
+    this._defaultMatchers ??= [
       new HostMatcher(),
       new MethodMatcher(),
       new ProtocolMatcher(),
       new UriMatcher()
     ]
 
-    return this.#defaultMatchers
+    return this._defaultMatchers
   }
 
   #getDefaultDispatchers () {
     return {
-      default: DefaultDispatcher,
       callable: CallableDispatcher,
+      component: ComponentDispatcher,
       controller: ControllerDispatcher
     }
   }
