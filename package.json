@@ -34,7 +34,7 @@
       },
       "require": {
         "types": "./types/index.d.mts",
-        "default": "./src/index.mjs"
+        "default": "./test/index.js"
       }
     }
   },
@@ -82,9 +82,11 @@
     "parser": "@babel/eslint-parser",
     "globals": [
       "it",
+      "jest",
       "test",
       "expect",
-      "describe"
+      "describe",
+      "beforeEach"
     ]
   }
 }

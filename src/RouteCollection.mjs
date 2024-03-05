@@ -78,7 +78,7 @@ export class RouteCollection {
   }
 
   #addToCollections (route) {
-    route.getMethods().forEach(method => this.#routes.set(`${method}.${route.getFullUri()}`, route))
+    route.methods.forEach(method => this.#routes.set(`${method}.${route.uri}`, route))
   }
 
   #addToActionList (route) {
@@ -90,11 +90,11 @@ export class RouteCollection {
   }
 
   #addToMethodList (route) {
-    for (const method of route.getMethods()) {
+    for (const method of route.methods) {
       if (!this.#methodList.has(method)) {
         this.#methodList.set(method, new Map())
       }
-      this.#methodList.get(method).set(route.getFullUri(), route)
+      this.#methodList.get(method).set(route.uri, route)
     }
   }
 

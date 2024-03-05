@@ -6,4 +6,4 @@ export const PATCH = 'PATCH'
 export const DELETE = 'DELETE'
 export const OPTIONS = 'OPTIONS'
 
-export const HTTP_METHODS = [GET, PUT, POST, PATCH, DELETE]
+export const HTTP_METHODS = [GET, PUT, POST, PATCH, DELETE, OPTIONS]

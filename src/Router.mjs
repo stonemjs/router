@@ -3,7 +3,6 @@ import { Event } from './Event.mjs'
 import { Pipeline } from '@stone-js/pipeline'
 import { LogicException } from '@stone-js/common'
 import { UriMatcher } from './matchers/UriMatcher.mjs'
-import { HTTP_METHODS } from './enums/http-methods.mjs'
 import { RouteCollection } from './RouteCollection.mjs'
 import { RouteDefinition } from './RouteDefinition.mjs'
 import { HostMatcher } from './matchers/HostMatcher.mjs'
@@ -14,6 +13,7 @@ import { ProtocolMatcher } from './matchers/ProtocolMatcher.mjs'
 import { CallableDispatcher } from './dispatchers/CallableDispatcher.mjs'
 import { ComponentDispatcher } from './dispatchers/ComponentDispatcher.mjs'
 import { ControllerDispatcher } from './dispatchers/ControllerDispatcher.mjs'
+import { DELETE, GET, HTTP_METHODS, OPTIONS, PATCH, POST, PUT } from './enums/http-methods.mjs'
 
 /**
  * Class representing a Router.
@@ -70,58 +70,53 @@ export class Router {
   }
 
   get (definition) {
-    return this.addFromRouteDefinition(this.#createRouteDefinition(definition, ['GET', 'HEAD']))
+    return this.match({ ...definition, methods: [GET] })
   }
 
   post (definition) {
-    return this.addFromRouteDefinition(this.#createRouteDefinition(definition, ['POST']))
+    return this.match({ ...definition, methods: [POST] })
   }
 
   put (definition) {
-    return this.addFromRouteDefinition(this.#createRouteDefinition(definition, ['PUT']))
+    return this.match({ ...definition, methods: [PUT] })
   }
 
   patch (definition) {
-    return this.addFromRouteDefinition(this.#createRouteDefinition(definition, ['PATCH']))
+    return this.match({ ...definition, methods: [PATCH] })
   }
 
   delete (definition) {
-    return this.addFromRouteDefinition(this.#createRouteDefinition(definition, ['DELETE']))
+    return this.match({ ...definition, methods: [DELETE] })
   }
 
   options (definition) {
-    return this.addFromRouteDefinition(this.#createRouteDefinition(definition, ['OPTIONS']))
-  }
-
-  match (definition) {
-    return this.addFromRouteDefinition(this.#createRouteDefinition(definition, definition.methods))
+    return this.match({ ...definition, methods: [OPTIONS] })
   }
 
   any (definition) {
-    return this.addFromRouteDefinition(this.#createRouteDefinition(definition, Router.METHODS))
+    return this.match({ ...definition, methods: HTTP_METHODS })
   }
 
   fallback (action) {
-    return this.addFromRouteDefinition(
-      this.#createRouteDefinition({
-        action,
-        fallback: true,
-        path: ':__fallback__(.*)*'
-      }, ['GET', 'HEAD'])
-    )
+    return this.match({ action, fallback: true, methods: [GET], path: '/:__fallback__(.*)*' })
+  }
+
+  match (definition) {
+    return this.addFromRouteDefinition(new RouteDefinition(definition))
   }
 
   addFromRouteDefinition (routeDefinition) {
-    return this.#routes.add(this.createFromRouteDefinition(routeDefinition))
+    this.#routes.add(this.createFromRouteDefinition(routeDefinition))
+    return this
   }
 
   addFromRouteDefinitions (routeDefinitions) {
-    routeDefinitions.forEach(this.addFromRouteDefinition)
+    routeDefinitions.forEach(v => this.addFromRouteDefinition(v))
     return this
   }
 
   createFromRouteDefinition (routeDefinition) {
-    return this.#hydrateRoute(Route.fromRouteDefinition(routeDefinition))
+    return this.#hydrateRoute(Route.create(routeDefinition))
   }
 
   async loadRoutes (routeLoader) {
@@ -400,10 +395,6 @@ export class Router {
       .setContainer(this.#container)
       .setMatchers(this.getMatchers())
       .setDispatchers(this.getDispatchers())
-  }
-
-  #createRouteDefinition (definition, methods) {
-    return new RouteDefinition({ ...definition, methods })
   }
 
   #setOptions () {
