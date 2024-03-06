@@ -1,7 +1,6 @@
 import { Route } from './Route.mjs'
 import { Event } from './Event.mjs'
 import { Pipeline } from '@stone-js/pipeline'
-import { LogicException } from '@stone-js/common'
 import { UriMatcher } from './matchers/UriMatcher.mjs'
 import { RouteCollection } from './RouteCollection.mjs'
 import { RouteDefinition } from './RouteDefinition.mjs'
@@ -10,6 +9,7 @@ import { MethodMatcher } from './matchers/MethodMatcher.mjs'
 import { ExplicitLoader } from './loaders/ExplicitLoader.mjs'
 import { DecoratorLoader } from './loaders/DecoratorLoader.mjs'
 import { ProtocolMatcher } from './matchers/ProtocolMatcher.mjs'
+import { LogicException, HttpException } from '@stone-js/common'
 import { CallableDispatcher } from './dispatchers/CallableDispatcher.mjs'
 import { ComponentDispatcher } from './dispatchers/ComponentDispatcher.mjs'
 import { ControllerDispatcher } from './dispatchers/ControllerDispatcher.mjs'
@@ -147,7 +147,7 @@ export class Router {
     const route = this.#routes.getByName(name)
 
     if (!route) {
-      throw new LogicException(`No routes found for this name ${name}`)
+      throw new HttpException(`No routes found for this name ${name}`)
     }
 
     return this.#runRoute(request, route)

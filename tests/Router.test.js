@@ -76,6 +76,7 @@ describe('Router', () => {
       const fallbackRoute = routes.getByMethod(GET).find(route => route.isFallback)
 
       // Assert
+      expect(routes.size).toEqual(16)
       expect(putRoute.methods).toEqual([PUT])
       expect(postRoute.methods).toEqual([POST])
       expect(patchRoute.methods).toEqual([PATCH])
@@ -122,6 +123,61 @@ describe('Router', () => {
       expect(getRoute.methods).toEqual([GET, HEAD])
       expect(getRoute.action()).toEqual('Stone.js')
       expect(postRoute.action()).toEqual('Stone.js')
+    })
+  })
+
+  describe('#generate', () => {
+    test('Must generate route with provided params and without domain', async () => {
+      // Arrange
+      const definitions = [
+        { path: '/users/:id/profile', action: () => 'Stone.js', name: 'users.get', method: GET },
+        { path: '/users/:id/profile', action: () => 'Stone.js', name: 'users.post', method: POST, defaults: { id: 11 } }
+      ]
+      await router.loadRouteFromExplicitSource(definitions)
+
+      // Act
+      const postUrl = router.generate('users.post')
+      const getUrl = router.generate('users.get', { id: 22 }, { name: 'Stone' }, 'title')
+
+      // Assert
+      expect(postUrl).toEqual('/users/11/profile/')
+      expect(getUrl).toEqual('/users/22/profile/?name=Stone#title')
+    })
+
+    test('Must generate route with provided params and with domain', async () => {
+      // Arrange
+      const definitions = [
+        { domain: '{subDomain}.example.com', path: '/users/:id/profile', action: () => 'Stone.js', name: 'users.get', method: GET },
+        { domain: '{subDomain}.example.com', path: '/users/:id/profile', action: () => 'Stone.js', name: 'users.put', method: PUT },
+        { domain: '{subDomain}.example.com', path: '/users/:id/profile', action: () => 'Stone.js', name: 'users.post', method: POST, defaults: { subDomain: 'your' } }
+      ]
+      await router.loadRouteFromExplicitSource(definitions)
+
+      // Act
+      const getUrl = router.generate('users.get', { subDomain: 'my', id: 22 }, { name: 'Stone' }, 'title')
+      const postUrl = router.generate('users.post', { id: 11 }, { name: 'Stone' }, 'title')
+      const putUrl = router.generate('users.put', { id: 11 }, { name: 'Stone' }, 'title')
+
+      // Assert
+      expect(getUrl).toEqual('my.example.com/users/22/profile/?name=Stone#title')
+      expect(postUrl).toEqual('your.example.com/users/11/profile/?name=Stone#title')
+      expect(putUrl).toEqual('.example.com/users/11/profile/?name=Stone#title')
+    })
+
+    test('Must throw LogicException when load method not present in loader', async () => {
+      // Arrange
+      const definitions = [
+        { path: '/users/:id/profile', action: () => 'Stone.js', name: 'users.get', method: GET }
+      ]
+      await router.loadRouteFromExplicitSource(definitions)
+
+      // Act
+      try {
+        router.generate('users.post', { id: 22 }, { name: 'Stone' }, 'title')
+      } catch (error) {
+        // Assert
+        expect(error.message).toEqual('No routes found for this name users.post')
+      }
     })
   })
 })

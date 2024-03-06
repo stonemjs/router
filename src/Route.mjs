@@ -257,8 +257,8 @@ export class Route {
 
     if (withDomain) {
       const domainCons = this.#getDomainConstraints()
-      if (domainCons.suffix) {
-        path = `${domainCons.param ? params[domainCons.param] : (domainCons.default ?? '')}${domainCons.suffix}${path}`
+      if (domainCons?.suffix) {
+        path = `${params[domainCons.param] ?? domainCons.default ?? ''}${domainCons.suffix}${path}`
       }
     }
 
@@ -336,7 +336,7 @@ export class Route {
   }
 
   uriRegex (flag = 'i') {
-    const domain = this.domain ? this.#buildDomainRegex(this.#getDomainConstraints()) : ''
+    const domain = this.domain ? (this.#buildDomainRegex(this.#getDomainConstraints()) ?? '') : ''
     const path = this.#getPathConstraints().reduce((prev, curr) => `${prev}${this.#buildSegmentRegex(curr)}`, '')
     return new RegExp(`^${domain}${path.length ? path : '//?'}$`, flag)
   }
@@ -352,7 +352,7 @@ export class Route {
   }
 
   #buildDomainRegex (value) {
-    if (!value.param) { return value.suffix }
+    if (!value?.param) { return value?.suffix }
     return value.optional
       ? `(${value.rule})?${value.suffix}`
       : `(${value.rule})${value.suffix}`
@@ -393,18 +393,18 @@ export class Route {
   }
 
   #uriConstraints () {
-    return [].concat(this.#getDomainConstraints(), this.#getPathConstraints())
+    return [].concat(this.#getDomainConstraints(), this.#getPathConstraints()).filter(v => !!v)
   }
 
   #getDomainConstraints () {
     const keys = ['match', 'param', 'alias', 'rule', 'quantifier', 'suffix']
     this._domainConstraints ??= this
-      .getDomain()
+      .domain
       ?.match(Route.domainConstraintRegex)
       ?.filter((_, i) => i < 6)
       ?.reduce((prev, curr, i) => ({ ...prev, [keys[i]]: curr }), {})
 
-    if (this._domainConstraints.param) {
+    if (this._domainConstraints?.param) {
       this._domainConstraints.rule ??= this.getRule(this._domainConstraints.param)
       this._domainConstraints.default ??= this.getDefault(this._domainConstraints.param)
       this._domainConstraints.optional = /^[?*]$/.test(this._domainConstraints.quantifier)
