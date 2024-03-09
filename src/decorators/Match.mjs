@@ -1,10 +1,13 @@
 import deepmerge from 'deepmerge'
-import { MetaResponse, isClass } from '@stone-js/common'
-import { classAndMethodDecoratorException } from './utils.mjs'
+import { MetaProperty } from './MetaProperty.mjs'
+import { LogicException, isClass, isMethod } from '@stone-js/common'
 
 export const Match = (definition) => {
   return (target, name, descriptor) => {
-    classAndMethodDecoratorException(target, descriptor.value)
+    
+    if (!isClass(target) && !isMethod(descriptor.value)) {
+      throw new LogicException('This decorator can only be applied at method level')
+    }
 
     const metadata = {
       decorators: {
@@ -12,20 +15,16 @@ export const Match = (definition) => {
       }
     }
 
-    if (isClass(target)) {
-      target.metadata = deepmerge(target.metadata ?? {}, metadata)
-      return target
-    }
+    const originalMethod = descriptor.value
+    metadata.decorators.route.action = { [name]: target }
 
-    metadata.decorators.route.action = { [name]: target.constructor }
-
-    if (descriptor.value instanceof MetaResponse) {
-      descriptor.value = new MetaResponse(
-        descriptor.value.getResponse(),
-        deepmerge(descriptor.value.getMetadata(), metadata)
+    if (originalMethod instanceof MetaProperty) {
+      descriptor.value = new MetaProperty(
+        originalMethod.getAction(),
+        deepmerge(originalMethod.getMetadata(), metadata)
       )
     } else {
-      descriptor.value = new MetaResponse(descriptor.value, metadata)
+      descriptor.value = new MetaProperty(originalMethod, metadata)
     }
 
     return descriptor

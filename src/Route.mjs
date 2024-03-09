@@ -1,6 +1,6 @@
 import { RouteDefinition } from './RouteDefinition.mjs'
 import { MethodMatcher } from './matchers/MethodMatcher.mjs'
-import { LogicException, isPlainObject, isFunction, isClass, isNumeric } from '@stone-js/common'
+import { LogicException, isPlainObject, isFunction, isClass, isNumeric, isBrowser } from '@stone-js/common'
 
 export class Route {
   #router
@@ -93,7 +93,7 @@ export class Route {
   }
 
   run (request) {
-    if (this.isBrowser()) {
+    if (isBrowser()) {
       return this.#runComponent(request)
     } else if (this.isControllerAction()) {
       return this.#runController(request)
@@ -197,12 +197,8 @@ export class Route {
     return isFunction(this.action) ? 'Closure' : 'Controller'
   }
 
-  isBrowser () {
-    return typeof window === 'object'
-  }
-
   getComponent () {
-    if (this.isBrowser()) {
+    if (isBrowser()) {
       return this.action
     }
 
@@ -246,8 +242,8 @@ export class Route {
   }
 
   getControllerActionFullname (separator = '@') {
-    const entries = Object.entries(this.action)
-    return [entries[1].name, entries[0]].join(separator)
+    const [action, Class] = Object.entries(this.action).pop()
+    return [Class.metadata?.name ?? Class.name ?? 'Unknown', action].join(separator)
   }
 
   generate (params = {}, query = {}, hash = null, withDomain = true) {

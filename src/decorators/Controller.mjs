@@ -1,5 +1,5 @@
 import deepmerge from 'deepmerge'
-import { filterByKeys } from './utils.mjs'
+import { MetaProperty } from './MetaProperty.mjs'
 import { LogicException, isClass } from '@stone-js/common'
 
 export const Controller = (definition) => {
@@ -9,14 +9,23 @@ export const Controller = (definition) => {
     }
 
     const metadata = {
+      ...definition,
       type: 'service',
-      isController: true,
-      decorators: {
-        route: filterByKeys(definition, ['uri', 'name', 'rules', 'domain', 'methods', 'defaults', 'middleware'])
-      }
+      isController: true
     }
 
-    Reflect.defineProperty(target.prototype, 'callAction', { value: function (method, context) { this[method](context) } })
+    if (!target.prototype.callAction) {
+      Reflect.defineProperty(
+        target.prototype,
+        'callAction', {
+          value (method, context) {
+            return this[method] instanceof MetaProperty
+              ? this[method].invokeAction(context)
+              : this[method](context)
+          }
+        }
+      )
+    }
 
     target.metadata = deepmerge(target.metadata ?? {}, metadata)
 

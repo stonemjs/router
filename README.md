@@ -278,8 +278,7 @@ Should pass an application context to controller
   middleware: [AuthMiddleware],
   excludeMiddleware: [],
   action: { listOrShow: CommentController },
-  component: UserComponent,
-  components: { default: HomeView, left: LeftView }, // For frontend
+  actions: { default: HomeView, left: LeftView }, // For frontend
   rules: { id: /\d+/ },
   redirect: '/items', // redirect to this route, { name: 'itemsView' }, (request) => ({ path: '/items', query: { it: request.params.item } })
   redirect: 'items', // relative redirect
@@ -334,4 +333,21 @@ class LoginRateLimiter {
 It internal route props that allow adding custom props to route definition, ex: `validators` to validate request body and query
 
 
-segments
+# Important
+Controller method decorate with Http verb will always return a MetaProperty instead of function
+
+# Group level Props
+`{
+  name: 'users',
+  path: '/users',
+  mathods: [GET],
+  defaults: { id: 12 },
+  rules: { id: '\\d+' },
+  throttle: ['throttle'],
+  action: UserController,
+  bindings: { id: 'binding' },
+  middleware: ['middleware'],
+  domain: '{domain}.example.com',
+  excludeMiddleware: ['middleware'],
+  actions: { home: HomeComponent }
+}`

@@ -1,21 +1,22 @@
+import { LogicException } from '@stone-js/common'
 import { AbstractLoader } from './AbstractLoader.mjs'
-import { MetaResponse, LogicException } from '@stone-js/common'
+import { MetaProperty } from '../decorators/MetaProperty.mjs'
 
 export class DecoratorLoader extends AbstractLoader {
   #classes
 
-  constructor ({ classes, maxDepth = 5 }) {
-    super({ maxDepth })
+  constructor (mapper, classes) {
+    super(mapper)
 
     if (!Array.isArray(classes)) {
-      throw LogicException('classes must be an array of class.')
+      throw new LogicException('classes must be an array of class.')
     }
 
     this.#classes = classes
   }
 
   load () {
-    return this._parse(this.#getDefinitions())
+    return this._flattenMap(this.#getDefinitions())
   }
 
   #getDefinitions () {
@@ -33,13 +34,13 @@ export class DecoratorLoader extends AbstractLoader {
   }
 
   #getParentDefinition (Class) {
-    return (Class.metadata ?? Class.prototype.metadata ?? {}).route
+    return (Class.metadata?.decorators ?? Class.prototype.metadata?.decorators ?? {}).route
   }
 
   #getMethodDefinitions (Class) {
     return Object
       .getOwnPropertyNames(Class.prototype)
-      .filter(method => Class.prototype[method] instanceof MetaResponse)
-      .map(meta => meta.getRouteDecorator())
+      .filter(method => Class.prototype[method] instanceof MetaProperty)
+      .map(method => Class.prototype[method].getRouteDecorator())
   }
 }

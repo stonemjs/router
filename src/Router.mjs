@@ -14,6 +14,7 @@ import { CallableDispatcher } from './dispatchers/CallableDispatcher.mjs'
 import { ComponentDispatcher } from './dispatchers/ComponentDispatcher.mjs'
 import { ControllerDispatcher } from './dispatchers/ControllerDispatcher.mjs'
 import { DELETE, GET, HTTP_METHODS, OPTIONS, PATCH, POST, PUT } from './enums/http-methods.mjs'
+import { FlattenMapper } from './mapper/FlattenMapper.mjs'
 
 /**
  * Class representing a Router.
@@ -119,20 +120,20 @@ export class Router {
     return this.#hydrateRoute(Route.create(routeDefinition))
   }
 
-  async loadRoutes (routeLoader) {
+  loadRoutes (routeLoader) {
     if (!routeLoader.load) {
       throw new LogicException('Invalid loader, routeLoader must have `load` method')
     }
 
-    return this.addFromRouteDefinitions(await routeLoader.load())
+    return this.addFromRouteDefinitions(routeLoader.load())
   }
 
   loadRouteFromExplicitSource (definitions) {
-    return this.loadRoutes(new ExplicitLoader({ definitions, maxDepth: this.#maxDepth }))
+    return this.loadRoutes(new ExplicitLoader(new FlattenMapper({ maxDepth: this.#maxDepth }), definitions))
   }
 
   loadRouteFromDecoratorSource (classes) {
-    return this.loadRoutes(new DecoratorLoader({ classes, maxDepth: this.#maxDepth }))
+    return this.loadRoutes(new DecoratorLoader(new FlattenMapper({ maxDepth: this.#maxDepth }), classes))
   }
 
   dispatch (request) {

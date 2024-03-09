@@ -4,17 +4,17 @@ import { AbstractLoader } from './AbstractLoader.mjs'
 export class ExplicitLoader extends AbstractLoader {
   #definitions
 
-  constructor ({ definitions, maxDepth = 5 }) {
-    super({ maxDepth })
+  constructor (mapper, definitions) {
+    super(mapper)
 
     if (!Array.isArray(definitions)) {
-      throw LogicException('definitions must be an array of object.')
+      throw new LogicException('definitions must be an array of object.')
     }
 
     this.#definitions = definitions
   }
 
   load () {
-    return this._parse(this.#definitions)
+    return this._flattenMap(this.#definitions)
   }
 }

@@ -1,22 +1,27 @@
 import * as pipes from './pipes.mjs'
 import { Pipeline } from '@stone-js/pipeline'
-import { LogicException } from '@stone-js/common'
 import { RouteDefinition } from '../RouteDefinition.mjs'
+import { LogicException, isBrowser } from '@stone-js/common'
 
-export class RouteDefinitionParser {
+export class FlattenMapper {
   #maxDepth
 
-  constructor ({ maxDepth = 5 }) {
+  constructor ({ maxDepth } = {}) {
     this.#maxDepth = maxDepth ?? 5
   }
 
-  parse (definitions) {
-    return this.#validate(
-      definitions.reduce((prev, definition) => this.#flatten(prev, definition, definition.children), [])
+  setMaxDepth (value) {
+    this.#maxDepth = value
+    return this
+  }
+
+  flattenMap (definitions) {
+    return this._validate(
+      definitions.reduce((prev, definition) => this._flatten(prev, definition, definition.children), [])
     )
   }
 
-  #validate (definitions) {
+  _validate (definitions) {
     return definitions.reduce((prev, definition) => {
       if (!definition.path) {
         throw new LogicException(`No Path provided for this route definition ${JSON.stringify(definition)}`)
@@ -30,27 +35,28 @@ export class RouteDefinitionParser {
     }, [])
   }
 
-  #flatten (flattened, definition, children = null, depth = 0) {
-    if (definition.action || definition.actions) {
+  _flatten (flattened, definition, children = null, depth = 0) {
+    if ((definition.action || definition.actions) && (!children || isBrowser())) {
       flattened.push(definition)
     }
 
     if (Array.isArray(children)) {
+      depth++
       for (const child of children) {
         if (depth >= this.#maxDepth) {
-          throw LogicException(`Route definition depth exeeceded the limit value (${this.#maxDepth})`)
+          throw new LogicException(`Route definition depth exeeceded the limit value (${this.#maxDepth})`)
         }
-
-        flattened = flattened.concat(this.#flatten(flattened, this.#append(definition, child), child.children, ++depth))
+        this._flatten(flattened, this._prepend(definition, child), child.children, depth)
       }
     }
 
     return flattened
   }
 
-  #append (parent, child) {
+  _prepend (parent, child) {
     return Pipeline
       .create()
+      .sync()
       .send(parent, child)
       .through(Object.values(pipes))
       .then((_, definition) => definition)

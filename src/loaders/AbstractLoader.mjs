@@ -1,18 +1,17 @@
 import { LogicException } from '@stone-js/common'
-import { RouteDefinitionParser } from '../parser/RouteDefinitionParser.mjs'
 
 export class AbstractLoader {
-  #parser
+  #mapper
 
-  constructor ({ maxDepth = 5 }) {
-    this.#parser = new RouteDefinitionParser({ maxDepth })
+  constructor (mapper) {
+    this.#mapper = mapper
   }
 
-  _parse (definitions) {
-    return this.#parser.parse(definitions)
+  _flattenMap (definitions) {
+    return this.#mapper.flattenMap(definitions)
   }
 
   load () {
-    throw LogicException('Cannot call this abstract method.')
+    throw new LogicException('Cannot call this abstract method.')
   }
 }

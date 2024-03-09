@@ -1,5 +1,9 @@
 import { Router } from '../src/Router.mjs'
+import { Get } from '../src/decorators/Get.mjs'
+import { Post } from '../src/decorators/Post.mjs'
+import { Group } from '../src/decorators/Group.mjs'
 import { RouteCollection } from '../src/RouteCollection.mjs'
+import { Controller } from '../src/decorators/Controller.mjs'
 import { DELETE, GET, HEAD, HTTP_METHODS, OPTIONS, PATCH, POST, PUT } from '../src/enums/http-methods.mjs'
 
 describe('Router', () => {
@@ -104,7 +108,7 @@ describe('Router', () => {
   })
 
   describe('#loadRouteFromExplicitSource', () => {
-    test('Must load routes from explicit defition source', async () => {
+    test('Must load routes from explicit definition source', () => {
       // Arrange
       const definitions = [
         { path: '/users', action: () => 'Stone.js', name: 'users.get', method: GET },
@@ -112,7 +116,7 @@ describe('Router', () => {
       ]
 
       // Act
-      await router.loadRouteFromExplicitSource(definitions)
+      router.loadRouteFromExplicitSource(definitions)
 
       const routes = router.getRoutes()
       const getRoute = routes.getByName('users.get')
@@ -126,14 +130,56 @@ describe('Router', () => {
     })
   })
 
+  describe('#loadRouteFromDecoratorSource', () => {
+    test('Must load routes from decorator definition source', async () => {
+      // Arrange
+      let UserController = Controller({ name: 'UserController' })(class {
+        getUsers () {
+          return 'Get users'
+        }
+
+        saveUser () {
+          return 'Save user'
+        }
+      })
+      UserController = Group({ path: '/users', name: 'users' })(UserController)
+      const getDescriptor = Get({
+        name: 'get',
+        path: '/'
+      })(UserController, 'getUsers', Object.getOwnPropertyDescriptor(UserController.prototype, 'getUsers'))
+      const postDescriptor = Post({
+        name: 'post',
+        path: '/'
+      })(UserController, 'saveUser', Object.getOwnPropertyDescriptor(UserController.prototype, 'saveUser'))
+
+      Object.defineProperty(UserController.prototype, 'getUsers', getDescriptor)
+      Object.defineProperty(UserController.prototype, 'saveUser', postDescriptor)
+
+      const definitions = [UserController]
+
+      // Act
+      await router.loadRouteFromDecoratorSource(definitions)
+
+      const routes = router.getRoutes()
+      const getRoute = routes.getByName('users.get')
+      const postRoute = routes.getByName('users.post')
+
+      // Assert
+      expect(postRoute.methods).toEqual([POST])
+      expect(getRoute.methods).toEqual([GET, HEAD])
+      expect(getRoute.action).toEqual({ getUsers: UserController })
+      expect(postRoute.action).toEqual({ saveUser: UserController })
+    })
+  })
+
   describe('#generate', () => {
-    test('Must generate route with provided params and without domain', async () => {
+    test('Must generate route with provided params and without domain', () => {
       // Arrange
       const definitions = [
         { path: '/users/:id/profile', action: () => 'Stone.js', name: 'users.get', method: GET },
         { path: '/users/:id/profile', action: () => 'Stone.js', name: 'users.post', method: POST, defaults: { id: 11 } }
       ]
-      await router.loadRouteFromExplicitSource(definitions)
+      router.loadRouteFromExplicitSource(definitions)
 
       // Act
       const postUrl = router.generate('users.post')
@@ -144,14 +190,14 @@ describe('Router', () => {
       expect(getUrl).toEqual('/users/22/profile/?name=Stone#title')
     })
 
-    test('Must generate route with provided params and with domain', async () => {
+    test('Must generate route with provided params and with domain', () => {
       // Arrange
       const definitions = [
         { domain: '{subDomain}.example.com', path: '/users/:id/profile', action: () => 'Stone.js', name: 'users.get', method: GET },
         { domain: '{subDomain}.example.com', path: '/users/:id/profile', action: () => 'Stone.js', name: 'users.put', method: PUT },
         { domain: '{subDomain}.example.com', path: '/users/:id/profile', action: () => 'Stone.js', name: 'users.post', method: POST, defaults: { subDomain: 'your' } }
       ]
-      await router.loadRouteFromExplicitSource(definitions)
+      router.loadRouteFromExplicitSource(definitions)
 
       // Act
       const getUrl = router.generate('users.get', { subDomain: 'my', id: 22 }, { name: 'Stone' }, 'title')
@@ -164,12 +210,12 @@ describe('Router', () => {
       expect(putUrl).toEqual('.example.com/users/11/profile/?name=Stone#title')
     })
 
-    test('Must throw LogicException when load method not present in loader', async () => {
+    test('Must throw LogicException when load method not present in loader', () => {
       // Arrange
       const definitions = [
         { path: '/users/:id/profile', action: () => 'Stone.js', name: 'users.get', method: GET }
       ]
-      await router.loadRouteFromExplicitSource(definitions)
+      router.loadRouteFromExplicitSource(definitions)
 
       // Act
       try {
