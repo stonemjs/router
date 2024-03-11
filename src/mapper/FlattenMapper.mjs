@@ -1,7 +1,7 @@
 import * as pipes from './pipes.mjs'
 import { Pipeline } from '@stone-js/pipeline'
+import { LogicException } from '@stone-js/common'
 import { RouteDefinition } from '../RouteDefinition.mjs'
-import { LogicException, isBrowser } from '@stone-js/common'
 
 export class FlattenMapper {
   #maxDepth
@@ -36,7 +36,7 @@ export class FlattenMapper {
   }
 
   _flatten (flattened, definition, children = null, depth = 0) {
-    if ((definition.action || definition.actions) && (!children || isBrowser())) {
+    if ((definition.action || definition.actions) && (!children || this._isBrowser())) {
       flattened.push(definition)
     }
 
@@ -60,5 +60,9 @@ export class FlattenMapper {
       .send(parent, child)
       .through(Object.values(pipes))
       .then((_, definition) => definition)
+  }
+
+  _isBrowser () {
+    return typeof window === 'object'
   }
 }

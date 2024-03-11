@@ -1,6 +1,5 @@
 import deepmerge from 'deepmerge'
-import { MetaProperty } from './MetaProperty.mjs'
-import { LogicException, isClass } from '@stone-js/common'
+import { LogicException, isClass, MetaProperty } from '@stone-js/common'
 
 export const Controller = (definition) => {
   return (target) => {
@@ -20,7 +19,7 @@ export const Controller = (definition) => {
         'callAction', {
           value (method, context) {
             return this[method] instanceof MetaProperty
-              ? this[method].invokeAction(context)
+              ? this[method].invoke(context)
               : this[method](context)
           }
         }

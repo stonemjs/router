@@ -1,6 +1,5 @@
-import { LogicException } from '@stone-js/common'
 import { AbstractLoader } from './AbstractLoader.mjs'
-import { MetaProperty } from '../decorators/MetaProperty.mjs'
+import { LogicException, MetaProperty } from '@stone-js/common'
 
 export class DecoratorLoader extends AbstractLoader {
   #classes
@@ -42,5 +41,6 @@ export class DecoratorLoader extends AbstractLoader {
       .getOwnPropertyNames(Class.prototype)
       .filter(method => Class.prototype[method] instanceof MetaProperty)
       .map(method => Class.prototype[method].getRouteDecorator())
+      .filter(decorator => !!decorator)
   }
 }

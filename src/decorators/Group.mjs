@@ -11,8 +11,8 @@ export const Group = (definition) => {
       decorators: {
         route: {
           ...definition,
-          actions: null,
-          action: null
+          action: undefined,
+          actions: undefined
         }
       }
     }

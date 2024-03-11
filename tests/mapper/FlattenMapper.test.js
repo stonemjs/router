@@ -1,6 +1,6 @@
 import { cloneDeep } from 'lodash'
-import { GET, HEAD, POST, PUT } from '../../src/enums/http-methods.mjs'
 import { FlattenMapper } from '../../src/mapper/FlattenMapper.mjs'
+import { GET, HEAD, POST, PUT } from '../../src/enums/http-methods.mjs'
 
 const Controller = class {}
 
@@ -168,6 +168,29 @@ describe('FlattenMapper', () => {
 
       expect(definitions[3].path).toBe('/users/')
       expect(definitions[3].action).toEqual({ fallback: Controller })
+    })
+
+    it('Must add parent and child controller to an array when in browser context', () => {
+      // Arrange
+      mapper._isBrowser = jest.fn(() => true)
+      const parentDefinition = { path: '/users', name: 'users', action: { template: 'parent' } }
+      const childDefinition = { path: '/:id', method: GET, name: 'get', action: { template: 'child get' } }
+
+      // Act
+      const definitions = mapper._flatten([], parentDefinition, [childDefinition])
+
+      // Assert
+      expect(definitions.length).toBe(2)
+      expect(definitions[0].path).toBe('/users')
+      expect(definitions[0].name).toBe('users')
+      expect(definitions[0].action).toEqual({ template: 'parent' })
+      expect(definitions[1].path).toBe('/users/:id')
+      expect(definitions[1].name).toBe('users.get')
+      expect(definitions[1].methods).toEqual([GET])
+      expect(definitions[1].action).toEqual([{ template: 'parent' }, { template: 'child get' }])
+
+      // Restore
+      mapper._isBrowser.mockRestore()
     })
 
     it('Must throw an exception when depth exceed max depth', () => {
