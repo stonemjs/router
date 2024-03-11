@@ -5,7 +5,6 @@ import { LogicException, isPlainObject, isFunction, isClass, isNumeric, isBrowse
 export class Route {
   #router
   #matchers
-  #protocol
   #container
   #parameters
   #definition
@@ -60,6 +59,10 @@ export class Route {
     return this.get('defaults', {})
   }
 
+  get protocol () {
+    return this.get('protocol')
+  }
+
   get isFallback () {
     return this.get('fallback', false)
   }
@@ -87,7 +90,6 @@ export class Route {
   }
 
   async bind (request) {
-    this.#protocol = request.protocol
     this.#parameters = await this.#bindParameters(request)
     return this
   }
@@ -182,15 +184,15 @@ export class Route {
   }
 
   isSecure () {
-    return this.#protocol === 'https'
+    return this.isHttpsOnly()
   }
 
   isHttpOnly () {
-    return this.#protocol === 'http'
+    return this.protocol === 'http'
   }
 
   isHttpsOnly () {
-    return this.isSecure()
+    return this.protocol === 'https'
   }
 
   getActionType () {
