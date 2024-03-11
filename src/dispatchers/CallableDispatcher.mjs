@@ -3,26 +3,10 @@
  *
  * @author Mr. Stone <pierre.evens16@gmail.com>
  *
- * @external Container
- * @see {@link https://github.com/stonemjs/service-container/blob/main/src/Container.mjs|Container}
- *
  * @external Request
  * @see {@link https://github.com/stonemjs/http/blob/main/src/Request.mjs|Request}
  */
 export class CallableDispatcher {
-  #container
-
-  /**
-   * Create a callableDispatcher.
-   *
-   * @param {Container} container
-   */
-  constructor ({
-    container
-  }) {
-    this.#container = container
-  }
-
   /**
    * Dispatch.
    *
@@ -40,8 +24,7 @@ export class CallableDispatcher {
       request,
       parameters: params,
       query: request.query ?? {},
-      payload: request.body ?? {},
-      container: this.#container
+      payload: request.body ?? {}
     }
 
     return callable(context)
