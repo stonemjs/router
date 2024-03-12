@@ -1,4 +1,5 @@
 import { Route } from './Route.mjs'
+import { RouteDefinition } from './RouteDefinition.mjs'
 import { Router } from './Router.mjs'
 import { HttpException } from '@stone-js/common'
 
@@ -98,14 +99,14 @@ export class RouteCollection {
     }
   }
 
-  #matchAgainstRoutes (routes, request, includingMethod = true) {
+  #matchAgainstRoutes (routes, request, includingMethod) {
     return routes
       .sort((a, b) => Boolean(a.fallback) - Boolean(b.fallback))
       .find(route => route.matches(request, includingMethod))
   }
 
   #handleMatchedRoute (request, route) {
-    if (route) { return route.bind(request) }
+    if (route) { return route }
 
     const others = this.#checkForAlternateVerbs(request)
 
@@ -123,7 +124,7 @@ export class RouteCollection {
 
   #getRouteForMethods (request, methods) {
     if (request.isMethod?.('OPTIONS')) {
-      return new Route({
+      return new Route(new RouteDefinition({
         method: 'OPTIONS',
         path: request.path,
         action: () => ({
@@ -131,7 +132,7 @@ export class RouteCollection {
           statusCode: 200,
           content: { Allow: methods.join(',') }
         })
-      }).bind(request)
+      }))
     }
 
     this.#requestMethodNotAllowed(request, methods, request.method)
