@@ -1,6 +1,6 @@
 import { RouteDefinition } from './RouteDefinition.mjs'
 import { MethodMatcher } from './matchers/MethodMatcher.mjs'
-import { LogicException, isPlainObject, isFunction, isClass, isNumeric, isBrowser } from '@stone-js/common'
+import { LogicException, isPlainObject, isFunction, isClass, isNumeric } from '@stone-js/common'
 
 export class Route {
   #router
@@ -9,6 +9,10 @@ export class Route {
   #parameters
   #definition
   #dispatchers
+
+  #parameterNames
+  #domainConstraints
+  #segmentConstraints
 
   static pathConstraintRegex = /^(.+?)?[:{](.+?)(?:@(.+?))?(?:\((.+?)\))?([?*+]?)\}?$/
   static domainConstraintRegex = /^(?:\{(.+?)(?:@(.+?))?(?:\((.+?)\))?([?*+]?)\})?(.+)$/
@@ -95,7 +99,7 @@ export class Route {
   }
 
   run (request) {
-    if (isBrowser()) {
+    if (this._isBrowser()) {
       return this.#runComponent(request)
     } else if (this.isControllerAction()) {
       return this.#runController(request)
@@ -141,12 +145,12 @@ export class Route {
   }
 
   parameterNames () {
-    this._parameterNames ??= this.#compileParameterNames()
-    return this._parameterNames
+    this.#parameterNames ??= Object.keys(this.parameters())
+    return this.#parameterNames
   }
 
   optionalParameterNames () {
-    const constraints = this.#uriConstraints()
+    const constraints = this._uriConstraints()
     return this
       .parameterNames()
       .filter(param => constraints.find(v => v.param === param)?.optional)
@@ -196,11 +200,11 @@ export class Route {
   }
 
   getActionType () {
-    return isFunction(this.action) ? 'Closure' : 'Controller'
+    return this._isBrowser() ? 'Component' : (isFunction(this.action) ? 'Closure' : 'Controller')
   }
 
   getComponent () {
-    if (isBrowser()) {
+    if (this._isBrowser()) {
       return this.action
     }
 
@@ -250,11 +254,11 @@ export class Route {
 
   generate (params = {}, query = {}, hash = null, withDomain = true) {
     let path = this
-      .#getPathConstraints()
+      ._getSegmentsConstraints()
       .reduce((prev, curr) => `${prev}${curr.prefix ?? ''}${curr.param ? (params[curr.param] ?? curr.default) : curr.match}/`, '/')
 
     if (withDomain) {
-      const domainCons = this.#getDomainConstraints()
+      const domainCons = this._getDomainConstraints()
       if (domainCons?.suffix) {
         path = `${params[domainCons.param] ?? domainCons.default ?? ''}${domainCons.suffix}${path}`
       }
@@ -301,11 +305,6 @@ export class Route {
     return this
   }
 
-  addMatchers (matcher) {
-    this.#matchers?.push(matcher)
-    return this
-  }
-
   getDispatchers () {
     return this.#dispatchers
   }
@@ -334,29 +333,29 @@ export class Route {
   }
 
   uriRegex (flag = 'i') {
-    const domain = this.domain ? (this.#buildDomainRegex(this.#getDomainConstraints()) ?? '') : ''
-    const path = this.#getPathConstraints().reduce((prev, curr) => `${prev}${this.#buildSegmentRegex(curr)}`, '')
-    return new RegExp(`^${domain}${path.length ? path : '//?'}$`, flag)
+    const domain = this.domain ? this._buildDomainPattern(this._getDomainConstraints()) : ''
+    const path = this._getSegmentsConstraints().reduce((prev, curr) => `${prev}${this._buildSegmentPattern(curr)}`, '')
+    return new RegExp(`^${domain}${path.length ? path : '/'}/?$`, flag)
   }
 
   pathRegex (flag = 'i') {
-    const pattern = this.#getPathConstraints().reduce((prev, curr) => `${prev}${this.#buildSegmentRegex(curr)}`, '')
+    const pattern = this._getSegmentsConstraints().reduce((prev, curr) => `${prev}${this._buildSegmentPattern(curr)}`, '')
     return new RegExp(`^${pattern.length ? pattern : '/'}/?$`, flag)
   }
 
   domainRegex (flag = 'i') {
-    const pattern = this.domain ? this.#buildDomainRegex(this.#getDomainConstraints()) : null
+    const pattern = this.domain ? this._buildDomainPattern(this._getDomainConstraints()) : null
     return pattern ? new RegExp(`^${pattern}$`, flag) : null
   }
 
-  #buildDomainRegex (value) {
+  _buildDomainPattern (value) {
     if (!value?.param) { return value?.suffix }
     return value.optional
       ? `(${value.rule})?${value.suffix}`
       : `(${value.rule})${value.suffix}`
   }
 
-  #buildSegmentRegex (value = null) {
+  _buildSegmentPattern (value = null) {
     if (!value) {
       return '/'
     }
@@ -390,39 +389,69 @@ export class Route {
     }
   }
 
-  #uriConstraints () {
-    return [].concat(this.#getDomainConstraints(), this.#getPathConstraints()).filter(v => !!v)
+  /**
+   * SegmentConstraint
+   * 
+   * @typedef  {Object}  SegmentConstraint
+   * @property {string}  match - The domain real value.
+   * @property {string}  prefix - The segment prefix value.
+   * @property {string}  suffix - The domain suffix value.
+   * @property {string}  param - The domain param name.
+   * @property {string}  alias - The value defined as alias.
+   * @property {string}  rule - The domain regex rule.
+   * @property {string}  quantifier - The domain regex quantifier.
+   * @property {string}  default - The default value when there is no values.
+   * @property {boolean} optional - Is this domain is optional.
+   */
+
+  /**
+   * Get uri constraints.
+   *
+   * @return {SegmentConstraint[]}
+   */
+  _uriConstraints () {
+    return [].concat(this._getDomainConstraints(), this._getSegmentsConstraints()).filter(v => !!v)
   }
 
-  #getDomainConstraints () {
+  /**
+   * Get domain constraints.
+   *
+   * @return {SegmentConstraint}
+   */
+  _getDomainConstraints () {
     const keys = ['match', 'param', 'alias', 'rule', 'quantifier', 'suffix']
-    this._domainConstraints ??= this
+    this.#domainConstraints ??= this
       .domain
       ?.match(Route.domainConstraintRegex)
       ?.filter((_, i) => i < 6)
       ?.reduce((prev, curr, i) => ({ ...prev, [keys[i]]: curr }), {})
 
-    if (this._domainConstraints?.param) {
-      this._domainConstraints.rule ??= this.getRule(this._domainConstraints.param)
-      this._domainConstraints.default ??= this.getDefault(this._domainConstraints.param)
-      this._domainConstraints.optional = /^[?*]$/.test(this._domainConstraints.quantifier)
+    if (this.#domainConstraints?.param) {
+      this.#domainConstraints.rule ??= this.getRule(this.#domainConstraints.param)
+      this.#domainConstraints.default ??= this.getDefault(this.#domainConstraints.param)
+      this.#domainConstraints.optional = /^[?*]$/.test(this.#domainConstraints.quantifier)
     }
 
-    return this._domainConstraints
+    return this.#domainConstraints
   }
 
-  #getPathConstraints () {
-    this._pathConstraints ??= this
+  /**
+   * Get path segments constraints.
+   *
+   * @return {SegmentConstraint[]}
+   */
+  _getSegmentsConstraints () {
+    this.#segmentConstraints ??= this
       .path
       .split('/')
       .filter(segment => segment.trim().length)
       .map(segment => {
-        if (segment.includes(':')) {
+        if (/[:}]/.test(segment)) {
           const keys = ['match', 'prefix', 'param', 'alias', 'rule', 'quantifier']
           return segment
             .match(Route.pathConstraintRegex)
-            .filter((_, i) => i < 6)
-            .reduce((prev, curr, i) => ({ ...prev, [keys[i]]: curr }), {})
+            ?.filter((_, i) => i < 6)
+            ?.reduce((prev, curr, i) => ({ ...prev, [keys[i]]: curr }), {})
         }
         return { match: segment }
       })
@@ -434,43 +463,39 @@ export class Route {
         }
         return segment
       })
-    return this._pathConstraints
-  }
-
-  #compileParameterNames () {
-    return this
-      .#uriConstraints()
-      .filter(v => v.param)
-      .map(v => v.param)
+    return this.#segmentConstraints
   }
 
   async #bindParameters (request) {
-    if (request.getUri) {
+    if (!Object.hasOwn(request, 'getUri')) {
       throw new LogicException('Request must have a `getUri` method.')
     }
 
+    const params = {}
+    const constraints = this._uriConstraints().filter(v => v.param)
     const matches = request
       .getUri(this.hasDomain())
-      .match(this.domainAndUriRegex())
-      .filter((_v, i) => i > 0)
-      .map(v => isNumeric(v) ? parseFloat(v) : v)
+      .match(this.uriRegex())
+      ?.filter((_v, i) => i > 0)
+      ?.map(v => isNumeric(v) ? parseFloat(v) : v) ?? []
 
-    const params = await Promise.all(this
-      .#uriConstraints()
-      .filter(v => v.param)
-      .map(async (v, i) => {
-        let value = matches[i]
 
-        if (this.#hasEntityBinding(v.param)) {
-          value = await this.#bindEntity(v.alias ?? v.param, value, v.optional)
-        }
-
-        return { [v.param]: value ?? v.default }
-      }))
+    for (const i in constraints) {
+      let v = constraints[i]
+      let value = matches[i]
+      if (this.#hasEntityBinding(v.param)) {
+        value = await this.#bindEntity(v.alias ?? v.param, value, v.optional)
+      }
+      params[v.param] = value ?? v.default
+    }
 
     return Object
       .entries(this.defaults)
       .reduce((prev, [name, value]) => prev[name] ? prev : { ...prev, [name]: value }, params)
+  }
+
+  _isBrowser () {
+    return typeof window === 'object'
   }
 
   #hasEntityBinding (field) {
