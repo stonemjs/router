@@ -15,7 +15,8 @@
     "browser",
     "Stone.js",
     "router",
-    "serverless"
+    "serverless",
+    "universal router"
   ],
   "main": "./src/index.mjs",
   "module": "./src/index.mjs",

@@ -5,6 +5,7 @@ import { UriMatcher } from './matchers/UriMatcher.mjs'
 import { RouteCollection } from './RouteCollection.mjs'
 import { RouteDefinition } from './RouteDefinition.mjs'
 import { HostMatcher } from './matchers/HostMatcher.mjs'
+import { FlattenMapper } from './mapper/FlattenMapper.mjs'
 import { MethodMatcher } from './matchers/MethodMatcher.mjs'
 import { ExplicitLoader } from './loaders/ExplicitLoader.mjs'
 import { DecoratorLoader } from './loaders/DecoratorLoader.mjs'
@@ -14,7 +15,6 @@ import { CallableDispatcher } from './dispatchers/CallableDispatcher.mjs'
 import { ComponentDispatcher } from './dispatchers/ComponentDispatcher.mjs'
 import { ControllerDispatcher } from './dispatchers/ControllerDispatcher.mjs'
 import { DELETE, GET, HTTP_METHODS, OPTIONS, PATCH, POST, PUT } from './enums/http-methods.mjs'
-import { FlattenMapper } from './mapper/FlattenMapper.mjs'
 
 /**
  * Class representing a Router.
@@ -148,7 +148,7 @@ export class Router {
     const route = this.#routes.getByName(name)
 
     if (!route) {
-      throw new HttpException(`No routes found for this name ${name}`)
+      throw new HttpException(404, 'Not Found', [], `No routes found for this name ${name}`)
     }
 
     return this.#runRoute(request, route)
@@ -171,12 +171,6 @@ export class Router {
     this.#container?.instance(Route, this.#current)?.alias(Route, 'route')
 
     return this.#current
-  }
-
-  gatherRouteMiddlewareInstances (route) {
-    return this
-      .gatherRouteMiddleware(route)
-      .map(Middleware => this.#container?.bound(Middleware) ? this.#container.make(Middleware) : new Middleware())
   }
 
   gatherRouteMiddleware (route) {
@@ -253,10 +247,6 @@ export class Router {
 
   currentRouteAction () {
     return this.current()?.action
-  }
-
-  isCurrentRouteAction (action) {
-    return this.currentRouteAction() === action
   }
 
   getRoutes () {
@@ -375,7 +365,7 @@ export class Router {
   }
 
   #runRouteWithMiddleware (request, route) {
-    const middleware = this.#skipMiddleware ? [] : this.gatherRouteMiddlewareInstances(route)
+    const middleware = this.#skipMiddleware ? [] : this.gatherRouteMiddleware(route)
 
     return Pipeline
       .create(this.#container)

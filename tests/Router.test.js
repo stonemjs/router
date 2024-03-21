@@ -2,9 +2,15 @@ import { Router } from '../src/Router.mjs'
 import { Get } from '../src/decorators/Get.mjs'
 import { Post } from '../src/decorators/Post.mjs'
 import { Group } from '../src/decorators/Group.mjs'
+import { UriMatcher } from '../src/matchers/UriMatcher.mjs'
 import { RouteCollection } from '../src/RouteCollection.mjs'
 import { Controller } from '../src/decorators/Controller.mjs'
+import { MethodMatcher } from '../src/matchers/MethodMatcher.mjs'
+import { CallableDispatcher } from '../src/dispatchers/CallableDispatcher.mjs'
+import { ComponentDispatcher } from '../src/dispatchers/ComponentDispatcher.mjs'
+import { ControllerDispatcher } from '../src/dispatchers/ControllerDispatcher.mjs'
 import { DELETE, GET, HEAD, HTTP_METHODS, OPTIONS, PATCH, POST, PUT } from '../src/enums/http-methods.mjs'
+import { Route } from '../src/Route.mjs'
 
 describe('Router', () => {
   let router
@@ -26,14 +32,14 @@ describe('Router', () => {
   })
 
   describe('#constructor', () => {
-    test('Must create a Router instance with service container and eventManager provided', () => {
+    it('Must create a Router instance with service container and eventManager provided', () => {
       // Assert
       expect(config.get).toHaveBeenCalled()
       expect(container.instance).toHaveBeenCalled()
       expect(router.getRoutes()).toBeInstanceOf(RouteCollection)
     })
 
-    test('Must create a Router and must log container and eventManager message when not present', () => {
+    it('Must create a Router and must log container and eventManager message when not present', () => {
       // Arrange
       console.log = jest.fn()
 
@@ -47,8 +53,109 @@ describe('Router', () => {
     })
   })
 
+  describe('#dispatch', () => {
+    const SimpleMiddleware = class {
+      handle (request, next) {
+        request.custom = 'Stone.js'
+        return next(request)
+      }
+    }
+    const request = {
+      decodedPath: '/users/jonhy-doe',
+      method: GET,
+      getUri () { return this.decodedPath },
+      setRouteResolver (resolver) {
+        this.resolver = resolver
+      }
+    }
+
+    it('Dispatch request to route and execute callable route action', async () => {
+      // Arrange
+      request.method = GET
+      request.custom = null
+      const definitions = [
+        { path: '/users/:username', action: () => Promise.resolve('Get users'), name: 'users.get', method: GET, middleware: [SimpleMiddleware] },
+        { path: '/users/:username', action: () => Promise.resolve('Save user'), name: 'users.post', method: POST, middleware: [SimpleMiddleware] }
+      ]
+      router
+        .addMiddleware(SimpleMiddleware)
+        .loadRouteFromExplicitSource(definitions)
+
+      // Act
+      const response = await router.dispatch(request)
+
+      // Assert
+      expect(response).toBe('Get users')
+      expect(router.getCurrentRequest().custom).toBe('Stone.js')
+    })
+
+    it('Dispatch request to route and execute controller route action', async () => {
+      // Arrange
+      request.method = POST
+      request.custom = null
+      const router = new Router({})
+      const Controller = class {
+        getUsers () { return Promise.resolve('Get users') }
+        saveUser ({ params }) { return Promise.resolve(`Save user ${params.username}`) }
+      }
+      const definitions = [
+        { path: '/users/{username}', action: { getUsers: Controller }, name: 'users.get', method: GET },
+        { path: '/users/{username}', action: { saveUser: Controller }, name: 'users.post', method: POST }
+      ]
+
+      router
+        .addMiddleware(SimpleMiddleware)
+        .skipMiddleware()
+        .loadRouteFromExplicitSource(definitions)
+
+      // Act
+      const response = await router.dispatch(request)
+
+      // Assert
+      expect(response).toBe('Save user jonhy-doe')
+      expect(router.getCurrentRequest().custom).toBe(null)
+
+      try {
+        await router.respondWithRouteName(request, 'users.put')
+      } catch (error) {
+        // Assert
+        expect(error.message).toBe('Not Found')
+        expect(error.body).toBe('No routes found for this name users.put')
+      }
+    })
+
+    it('Dispatch request to route and execute component route action', async () => {
+      // Arrange
+      request.method = GET
+      request.custom = null
+      const definitions = [
+        { path: '/users/{username}', action: { template: 'Get users' }, name: 'users.get', method: GET, excludeMiddleware: [SimpleMiddleware] },
+        { path: '/users/{username}', action: { template: 'Save user' }, name: 'users.post', method: POST, excludeMiddleware: [SimpleMiddleware] }
+      ]
+
+      router
+        .addMiddleware(SimpleMiddleware)
+        .loadRouteFromExplicitSource(definitions)
+
+      Route.prototype._isBrowser = jest.fn(() => true)
+
+      // Act
+      const response = await router.dispatch(request)
+      const response2 = await router.respondWithRouteName(request, 'users.post')
+
+      // Assert
+      expect(response.action.template).toBe('Get users')
+      expect(response.context.params.username).toBe('jonhy-doe')
+      expect(response2.action.template).toBe('Save user')
+      expect(response2.context.params.username).toBe('jonhy-doe')
+      expect(router.getCurrentRequest().custom).toBe(null)
+
+      Route.prototype._isBrowser.mockRestore()
+    })
+  })
+
   describe('#get, #post, #put, #path, #delete, #options, #any, #fallback', () => {
-    test('Must add new routes with all supported http verbs to collection', () => {
+    it('Must add new routes with all supported http verbs to collection', () => {
       // Arrange
       const getDef = { path: '/users', action: () => 'Stone.js', name: 'users.get' }
       const postDef = { path: '/users', action: () => 'Stone.js', name: 'users.post' }
@@ -95,8 +202,20 @@ describe('Router', () => {
     })
   })
 
+  describe('#setDispatchers', () => {
+    it('Must throw LogicException when setting an invalid dispatcher', () => {
+      // Act
+      try {
+        router.setDispatchers({ patate: class {} })
+      } catch (error) {
+        // Assert
+        expect(error.message).toEqual("Invalid dispatcher type patate. Valid types are ('component', 'callable', 'controller')")
+      }
+    })
+  })
+
   describe('#loadRoutes', () => {
-    test('Must throw LogicException when load method not present in loader', async () => {
+    it('Must throw LogicException when load method not present in loader', async () => {
       // Act
       try {
         await router.loadRoutes({})
@@ -108,7 +227,7 @@ describe('Router', () => {
   })
 
   describe('#loadRouteFromExplicitSource', () => {
-    test('Must load routes from explicit definition source', () => {
+    it('Must load routes from explicit definition source', () => {
       // Arrange
       const definitions = [
         { path: '/users', action: () => 'Stone.js', name: 'users.get', method: GET },
@@ -131,7 +250,7 @@ describe('Router', () => {
   })
 
   describe('#loadRouteFromDecoratorSource', () => {
-    test('Must load routes from decorator definition source', async () => {
+    it('Must load routes from decorator definition source', async () => {
       // Arrange
       let UserController = Controller({ name: 'UserController' })(class {
         getUsers () {
@@ -173,7 +292,7 @@ describe('Router', () => {
   })
 
   describe('#generate', () => {
-    test('Must generate route with provided params and without domain', () => {
+    it('Must generate route with provided params and without domain', () => {
       // Arrange
       const definitions = [
         { path: '/users/:id/profile', action: () => 'Stone.js', name: 'users.get', method: GET },
@@ -190,7 +309,7 @@ describe('Router', () => {
       expect(getUrl).toEqual('/users/22/profile/?name=Stone#title')
     })
 
-    test('Must generate route with provided params and with domain', () => {
+    it('Must generate route with provided params and with domain', () => {
       // Arrange
       const definitions = [
         { domain: '{subDomain}.example.com', path: '/users/:id/profile', action: () => 'Stone.js', name: 'users.get', method: GET },
@@ -210,7 +329,7 @@ describe('Router', () => {
       expect(putUrl).toEqual('.example.com/users/11/profile/?name=Stone#title')
     })
 
-    test('Must throw LogicException when load method not present in loader', () => {
+    it('Must throw LogicException when no such route is defined', () => {
       // Arrange
       const definitions = [
         { path: '/users/:id/profile', action: () => 'Stone.js', name: 'users.get', method: GET }
@@ -224,6 +343,54 @@ describe('Router', () => {
         // Assert
         expect(error.message).toEqual('No routes found for this name users.post')
       }
+    })
+  })
+
+  describe('#setters && #getters', () => {
+    it('Must set and get values from router', () => {
+      // Arrange
+      const router = new Router({})
+      const definitions = [
+        { path: '/users', action: () => 'Get users', name: 'users.get', method: GET },
+        { path: '/users', action: () => 'Save user', name: 'users.post', method: POST }
+      ]
+      const SimpleMiddleware = class {
+        handle (request, next) {
+          return next(request)
+        }
+      }
+      const request = { decodedPath: '/users/', method: GET, getUri () { return this.decodedPath } }
+
+      // Act
+      router
+        .setMaxDepth(5)
+        .setRules({ id: /\d+/ })
+        .addRule('name', /.+/g)
+        .setMiddleware([])
+        .addMiddleware(SimpleMiddleware)
+        .skipMiddleware()
+        .setRoutes(new RouteCollection())
+        .setContainer(container)
+        .setEventManager(eventManager)
+        .setMatchers([new MethodMatcher(), new UriMatcher()], false)
+        .setMatchers([new MethodMatcher(), new UriMatcher()])
+        .setDispatchers({})
+        .addDispatcher('component', ComponentDispatcher)
+        .setCallableDispatcher(CallableDispatcher)
+        .setComponentDispatcher(ComponentDispatcher)
+        .setControllerDispatcher(ControllerDispatcher)
+        .matched(() => 'Route matched')
+        .loadRouteFromExplicitSource(definitions)
+
+      // Assert
+      expect(router.has('users.get')).toBe(true)
+      expect(router.getMiddleware()).toEqual([SimpleMiddleware])
+      expect(router.findRoute(request).action()).toBe('Get users')
+      // expect(router.getCurrentRequest().method).toBe(GET)
+      expect(router.currentRouteName()).toBe('users.get')
+      expect(router.isCurrentRouteNamed('users.get')).toBe(true)
+      expect(router.currentRouteAction()()).toBe('Get users')
+      expect(router.dumpRoutes()).toBeTruthy()
     })
   })
 })
