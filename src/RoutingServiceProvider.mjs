@@ -15,7 +15,7 @@ export class RoutingServiceProvider {
 
   /**
    * Create a new instance of RoutingServiceProvider.
-   * 
+   *
    * @param  {Container} container
    */
   constructor (container) {
