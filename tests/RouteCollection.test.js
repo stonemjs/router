@@ -89,7 +89,8 @@ describe('RouteCollection', () => {
         routes.match(request)
       } catch (error) {
         // Assert
-        expect(error.message).toBe('The POST method is not supported for route /users. Supported methods: GET.')
+        expect(error.message).toBe('Not Found')
+        expect(error.body).toBe('The POST method is not supported for route /users. Supported methods: GET.')
       }
     })
 
@@ -103,7 +104,8 @@ describe('RouteCollection', () => {
         routes.match(request)
       } catch (error) {
         // Assert
-        expect(error.message).toBe('The route /articles could not be found.')
+        expect(error.message).toBe('Not Found')
+        expect(error.body).toBe('The route /articles could not be found.')
       }
     })
   })

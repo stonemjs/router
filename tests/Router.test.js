@@ -1,3 +1,4 @@
+import { Route } from '../src/Route.mjs'
 import { Router } from '../src/Router.mjs'
 import { Get } from '../src/decorators/Get.mjs'
 import { Post } from '../src/decorators/Post.mjs'
@@ -10,7 +11,7 @@ import { CallableDispatcher } from '../src/dispatchers/CallableDispatcher.mjs'
 import { ComponentDispatcher } from '../src/dispatchers/ComponentDispatcher.mjs'
 import { ControllerDispatcher } from '../src/dispatchers/ControllerDispatcher.mjs'
 import { DELETE, GET, HEAD, HTTP_METHODS, OPTIONS, PATCH, POST, PUT } from '../src/enums/http-methods.mjs'
-import { Route } from '../src/Route.mjs'
+import { RouteDefinition } from '../src/RouteDefinition.mjs'
 
 describe('Router', () => {
   let router
@@ -61,11 +62,15 @@ describe('Router', () => {
       }
     }
     const request = {
+      resolver: () => null,
       decodedPath: '/users/jonhy-doe',
       method: GET,
       getUri () { return this.decodedPath },
       setRouteResolver (resolver) {
         this.resolver = resolver
+      },
+      route () {
+        return this.resolver()
       }
     }
 
@@ -86,6 +91,7 @@ describe('Router', () => {
 
       // Assert
       expect(response).toBe('Get users')
+      expect(router.input('username')).toBe('jonhy-doe')
       expect(router.getCurrentRequest().custom).toBe('Stone.js')
     })
 
@@ -113,6 +119,7 @@ describe('Router', () => {
 
       // Assert
       expect(response).toBe('Save user jonhy-doe')
+      expect(request.route().name).toBe('users.post')
       expect(router.getCurrentRequest().custom).toBe(null)
 
       try {
@@ -351,15 +358,20 @@ describe('Router', () => {
       // Arrange
       const router = new Router({})
       const definitions = [
-        { path: '/users', action: () => 'Get users', name: 'users.get', method: GET },
-        { path: '/users', action: () => 'Save user', name: 'users.post', method: POST }
+        { path: '/users/', action: () => 'Get users', name: 'users.get', method: GET },
+        { path: '/users/', action: () => 'Save user', name: 'users.post', method: POST }
       ]
       const SimpleMiddleware = class {
         handle (request, next) {
           return next(request)
         }
       }
-      const request = { decodedPath: '/users/', method: GET, getUri () { return this.decodedPath } }
+      const route = new Route(new RouteDefinition({ path: '/users/profile', method: GET, action: () => 'Get user profile' }))
+      const routeCollection = new RouteCollection().add(route)
+
+      const request = { decodedPath: '/users', method: GET, getUri () { return this.decodedPath } }
+      const emptyMatchers = router.getMatchers(false)
+      const emptyDispatchers = router.getDispatchers(false)
 
       // Act
       router
@@ -369,7 +381,7 @@ describe('Router', () => {
         .setMiddleware([])
         .addMiddleware(SimpleMiddleware)
         .skipMiddleware()
-        .setRoutes(new RouteCollection())
+        .setRoutes(routeCollection)
         .setContainer(container)
         .setEventManager(eventManager)
         .setMatchers([new MethodMatcher(), new UriMatcher()], false)
@@ -382,11 +394,21 @@ describe('Router', () => {
         .matched(() => 'Route matched')
         .loadRouteFromExplicitSource(definitions)
 
+      try {
+        // Act
+        router.setRoutes(new SimpleMiddleware())
+      } catch (error) {
+        // Assert
+        expect(error.message).toBe('Parameter must be an instance of RouteCollection')
+      }
+
       // Assert
+      expect(emptyMatchers).toEqual([])
+      expect(emptyDispatchers).toEqual({})
       expect(router.has('users.get')).toBe(true)
+      expect(router.has(['users.get', 'user.put'])).toBe(false)
       expect(router.getMiddleware()).toEqual([SimpleMiddleware])
       expect(router.findRoute(request).action()).toBe('Get users')
-      // expect(router.getCurrentRequest().method).toBe(GET)
       expect(router.currentRouteName()).toBe('users.get')
       expect(router.isCurrentRouteNamed('users.get')).toBe(true)
       expect(router.currentRouteAction()()).toBe('Get users')

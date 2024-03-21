@@ -10,12 +10,11 @@ export class RouteCollection {
   #methodList = new Map()
 
   add (route) {
-    this.#addToCollections(route)
-    this.#addToActionList(route)
-    this.#addToMethodList(route)
-    this.#addToNameList(route)
-
-    return route
+    return this
+      .#addToCollections(route)
+      .#addToActionList(route)
+      .#addToMethodList(route)
+      .#addToNameList(route)
   }
 
   match (request, includingMethod = true) {
@@ -80,14 +79,20 @@ export class RouteCollection {
 
   #addToCollections (route) {
     route.methods.forEach(method => this.#routes.set(`${method}.${route.uri}`, route))
+
+    return this
   }
 
   #addToActionList (route) {
     if (route.isControllerAction()) { this.#actionList.set(route.getControllerActionFullname(), route) }
+
+    return this
   }
 
   #addToNameList (route) {
     if (route.name) { this.#nameList.set(route.name, route) }
+
+    return this
   }
 
   #addToMethodList (route) {
@@ -97,6 +102,8 @@ export class RouteCollection {
       }
       this.#methodList.get(method).set(route.uri, route)
     }
+
+    return this
   }
 
   #matchAgainstRoutes (routes, request, includingMethod) {
@@ -112,7 +119,7 @@ export class RouteCollection {
 
     if (others.length > 0) { return this.#getRouteForMethods(request, others) }
 
-    throw new HttpException(404, `The route ${request.path} could not be found.`)
+    throw new HttpException(404, 'Not Found', [], `The route ${request.path} could not be found.`)
   }
 
   #checkForAlternateVerbs (request) {
@@ -141,6 +148,8 @@ export class RouteCollection {
   #requestMethodNotAllowed (request, others, method) {
     throw new HttpException(
       405,
+      'Not Found',
+      [],
       `The ${method} method is not supported for route ${request.path}. Supported methods: ${others.join(', ')}.`
     )
   }
