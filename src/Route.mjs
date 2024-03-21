@@ -165,6 +165,11 @@ export class Route {
     return this
   }
 
+  addDefaults (defaults) {
+    Object.entries(defaults).forEach(([name, value]) => this.addDefault(name, value))
+    return this
+  }
+
   getDefault (name) {
     return this.#definition.get('defaults', {})[name] ?? null
   }

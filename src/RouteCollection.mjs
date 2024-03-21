@@ -119,7 +119,7 @@ export class RouteCollection {
 
     if (others.length > 0) { return this.#getRouteForMethods(request, others) }
 
-    throw new HttpException(404, 'Not Found', [], `The route ${request.path} could not be found.`)
+    throw new HttpException(404, 'Not Found', [], `The route ${request.decodedPath} could not be found.`)
   }
 
   #checkForAlternateVerbs (request) {
@@ -133,7 +133,7 @@ export class RouteCollection {
     if (request.isMethod?.('OPTIONS')) {
       return new Route(new RouteDefinition({
         method: 'OPTIONS',
-        path: request.path,
+        path: request.decodedPath,
         action: () => ({
           statusText: '',
           statusCode: 200,
@@ -150,7 +150,7 @@ export class RouteCollection {
       405,
       'Not Found',
       [],
-      `The ${method} method is not supported for route ${request.path}. Supported methods: ${others.join(', ')}.`
+      `The ${method} method is not supported for route ${request.decodedPath}. Supported methods: ${others.join(', ')}.`
     )
   }
 

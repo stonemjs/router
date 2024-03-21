@@ -1,6 +1,8 @@
 import { Route } from '../src/Route.mjs'
+import { UriMatcher } from '../src/matchers/UriMatcher.mjs'
 import { RouteCollection } from '../src/RouteCollection.mjs'
 import { RouteDefinition } from '../src/RouteDefinition.mjs'
+import { MethodMatcher } from '../src/matchers/MethodMatcher.mjs'
 import { GET, OPTIONS, PATCH, POST, PUT } from '../src/enums/http-methods.mjs'
 
 describe('RouteCollection', () => {
@@ -38,19 +40,22 @@ describe('RouteCollection', () => {
   })
 
   describe('#match', () => {
-    it('Check the matching and return a matched route', () => {
+    const matchers = [new MethodMatcher(), new UriMatcher()]
+
+    it('Check the matching and return a matched route', async () => {
       // Arrange
       const routes = new RouteCollection()
-      const request = { method: GET, path: '/users', decodedPath: '/users', isSecure: false, getUri () { return this.decodedPath } }
+      const request = { method: GET, decodedPath: '/users/12', isSecure: false, getUri () { return this.decodedPath } }
 
-      routes.add(Route.create(new RouteDefinition({ name: 'users', path: '/users', method: GET, action: () => 'get users' })))
-      routes.add(Route.create(new RouteDefinition({ path: '/:any(.*)*', fallback: true, method: GET, action: () => 'fallback' })))
+      routes.add(Route.create(new RouteDefinition({ name: 'users', path: '/users/:id(\\d+)', method: GET, action: () => 'get users' })).setMatchers(matchers))
+      routes.add(Route.create(new RouteDefinition({ path: '/:any(.*)*', fallback: true, method: GET, action: () => 'fallback' })).setMatchers(matchers))
 
       // Act
-      const route = routes.match(request)
+      const route = await routes.match(request).bind(request)
 
       // Assert
-      expect(route.path).toBe('/users')
+      expect(route.parameter('id')).toBe(12)
+      expect(route.path).toBe('/users/:id(\\d+)')
       expect(route.action()).toBe('get users')
     })
 
@@ -58,7 +63,6 @@ describe('RouteCollection', () => {
       // Arrange
       const routes = new RouteCollection()
       const request = {
-        path: '/users',
         method: OPTIONS,
         isSecure: false,
         decodedPath: '/users',
@@ -66,7 +70,7 @@ describe('RouteCollection', () => {
         isMethod (v) { return v === this.method }
       }
 
-      routes.add(Route.create(new RouteDefinition({ name: 'users', path: '/users', method: GET, action: () => 'get users' })))
+      routes.add(Route.create(new RouteDefinition({ name: 'users', path: '/users', method: POST, action: () => 'save users' })).setMatchers(matchers))
 
       // Act
       const route = routes.match(request)
@@ -74,19 +78,20 @@ describe('RouteCollection', () => {
       // Assert
       expect(route.path).toBe('/users')
       expect(route.action().statusCode).toBe(200)
-      expect(route.action().content).toEqual({ Allow: GET })
+      expect(route.action().content).toEqual({ Allow: POST })
     })
 
     it('Check the matching and throw exception when match found with different method', () => {
       // Arrange
       const routes = new RouteCollection()
-      const request = { method: POST, path: '/users', decodedPath: '/users', isSecure: false, getUri () { return this.decodedPath } }
+      const request = { method: POST, decodedPath: '/users', isSecure: false, getUri () { return this.decodedPath } }
 
-      routes.add(Route.create(new RouteDefinition({ name: 'users', path: '/users', method: GET, action: () => 'get users' })))
+      routes.add(Route.create(new RouteDefinition({ name: 'users', path: '/users', method: GET, action: () => 'get users' })).setMatchers(matchers))
 
       try {
         // Act
-        routes.match(request)
+        const route = routes.match(request)
+        expect(route).toBe('') // Confirm exception has thrown
       } catch (error) {
         // Assert
         expect(error.message).toBe('Not Found')
@@ -97,15 +102,18 @@ describe('RouteCollection', () => {
     it('Check the matching and throw exception when no matches found', () => {
       // Arrange
       const routes = new RouteCollection()
-      const request = { method: GET, path: '/articles', decodedPath: '/articles', isSecure: false, getUri () { return this.decodedPath } }
+      const request = { method: GET, decodedPath: '/users/doe', isSecure: false, getUri () { return this.decodedPath } }
+
+      routes.add(Route.create(new RouteDefinition({ name: 'users', path: '/users/:id(\\d+)', method: GET, action: () => 'get users' })).setMatchers(matchers))
 
       try {
         // Act
-        routes.match(request)
+        const route = routes.match(request)
+        expect(route).toBe('') // Confirm exception has thrown
       } catch (error) {
         // Assert
         expect(error.message).toBe('Not Found')
-        expect(error.body).toBe('The route /articles could not be found.')
+        expect(error.body).toBe('The route /users/doe could not be found.')
       }
     })
   })

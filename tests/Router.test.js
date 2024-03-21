@@ -5,13 +5,13 @@ import { Post } from '../src/decorators/Post.mjs'
 import { Group } from '../src/decorators/Group.mjs'
 import { UriMatcher } from '../src/matchers/UriMatcher.mjs'
 import { RouteCollection } from '../src/RouteCollection.mjs'
+import { RouteDefinition } from '../src/RouteDefinition.mjs'
 import { Controller } from '../src/decorators/Controller.mjs'
 import { MethodMatcher } from '../src/matchers/MethodMatcher.mjs'
 import { CallableDispatcher } from '../src/dispatchers/CallableDispatcher.mjs'
 import { ComponentDispatcher } from '../src/dispatchers/ComponentDispatcher.mjs'
 import { ControllerDispatcher } from '../src/dispatchers/ControllerDispatcher.mjs'
 import { DELETE, GET, HEAD, HTTP_METHODS, OPTIONS, PATCH, POST, PUT } from '../src/enums/http-methods.mjs'
-import { RouteDefinition } from '../src/RouteDefinition.mjs'
 
 describe('Router', () => {
   let router
@@ -45,7 +45,7 @@ describe('Router', () => {
       console.log = jest.fn()
 
       // Act
-      const router = new Router({})
+      const router = new Router()
 
       // Assert
       expect(router.getRoutes()).toBeInstanceOf(RouteCollection)
@@ -76,15 +76,18 @@ describe('Router', () => {
 
     it('Dispatch request to route and execute callable route action', async () => {
       // Arrange
-      request.method = GET
-      request.custom = null
       const definitions = [
         { path: '/users/:username', action: () => Promise.resolve('Get users'), name: 'users.get', method: GET, middleware: [SimpleMiddleware] },
         { path: '/users/:username', action: () => Promise.resolve('Save user'), name: 'users.post', method: POST, middleware: [SimpleMiddleware] }
       ]
+
+      request.method = GET
+      request.custom = null
+
       router
         .addMiddleware(SimpleMiddleware)
-        .loadRouteFromExplicitSource(definitions)
+        .addMiddleware(SimpleMiddleware)
+        .loadRoutesFromExplicitSource(definitions)
 
       // Act
       const response = await router.dispatch(request)
@@ -93,26 +96,35 @@ describe('Router', () => {
       expect(response).toBe('Get users')
       expect(router.input('username')).toBe('jonhy-doe')
       expect(router.getCurrentRequest().custom).toBe('Stone.js')
+      expect(router.gatherRouteMiddleware(router.current()).length).toBe(1)
     })
 
     it('Dispatch request to route and execute controller route action', async () => {
       // Arrange
-      request.method = POST
-      request.custom = null
-      const router = new Router({})
+      const router = new Router()
       const Controller = class {
         getUsers () { return Promise.resolve('Get users') }
         saveUser ({ params }) { return Promise.resolve(`Save user ${params.username}`) }
       }
       const definitions = [
-        { path: '/users/{username}', action: { getUsers: Controller }, name: 'users.get', method: GET },
-        { path: '/users/{username}', action: { saveUser: Controller }, name: 'users.post', method: POST }
+        {
+          name: 'users',
+          path: '/users/{username}',
+          action: Controller,
+          children: [
+            { action: 'getUsers', name: 'get', method: GET },
+            { action: 'saveUser', name: 'post', method: POST }
+          ]
+        }
       ]
+
+      request.method = POST
+      request.custom = null
 
       router
         .addMiddleware(SimpleMiddleware)
         .skipMiddleware()
-        .loadRouteFromExplicitSource(definitions)
+        .loadRoutesFromExplicitSource(definitions)
 
       // Act
       const response = await router.dispatch(request)
@@ -133,16 +145,17 @@ describe('Router', () => {
 
     it('Dispatch request to route and execute component route action', async () => {
       // Arrange
-      request.method = GET
-      request.custom = null
       const definitions = [
         { path: '/users/{username}', action: { template: 'Get users' }, name: 'users.get', method: GET, excludeMiddleware: [SimpleMiddleware] },
         { path: '/users/{username}', action: { template: 'Save user' }, name: 'users.post', method: POST, excludeMiddleware: [SimpleMiddleware] }
       ]
 
+      request.method = GET
+      request.custom = null
+
       router
         .addMiddleware(SimpleMiddleware)
-        .loadRouteFromExplicitSource(definitions)
+        .loadRoutesFromExplicitSource(definitions)
 
       Route.prototype._isBrowser = jest.fn(() => true)
 
@@ -156,6 +169,7 @@ describe('Router', () => {
       expect(response2.action.template).toBe('Save user')
       expect(response2.context.params.username).toBe('jonhy-doe')
       expect(router.getCurrentRequest().custom).toBe(null)
+      expect(router.gatherRouteMiddleware(router.current()).length).toBe(0)
 
       Route.prototype._isBrowser.mockRestore()
     })
@@ -233,7 +247,7 @@ describe('Router', () => {
     })
   })
 
-  describe('#loadRouteFromExplicitSource', () => {
+  describe('#loadRoutesFromExplicitSource', () => {
     it('Must load routes from explicit definition source', () => {
       // Arrange
       const definitions = [
@@ -242,7 +256,7 @@ describe('Router', () => {
       ]
 
       // Act
-      router.loadRouteFromExplicitSource(definitions)
+      router.loadRoutesFromExplicitSource(definitions)
 
       const routes = router.getRoutes()
       const getRoute = routes.getByName('users.get')
@@ -256,7 +270,7 @@ describe('Router', () => {
     })
   })
 
-  describe('#loadRouteFromDecoratorSource', () => {
+  describe('#loadRoutesFromDecoratorSource', () => {
     it('Must load routes from decorator definition source', async () => {
       // Arrange
       let UserController = Controller({ name: 'UserController' })(class {
@@ -284,7 +298,7 @@ describe('Router', () => {
       const definitions = [UserController]
 
       // Act
-      await router.loadRouteFromDecoratorSource(definitions)
+      await router.loadRoutesFromDecoratorSource(definitions)
 
       const routes = router.getRoutes()
       const getRoute = routes.getByName('users.get')
@@ -305,7 +319,7 @@ describe('Router', () => {
         { path: '/users/:id/profile', action: () => 'Stone.js', name: 'users.get', method: GET },
         { path: '/users/:id/profile', action: () => 'Stone.js', name: 'users.post', method: POST, defaults: { id: 11 } }
       ]
-      router.loadRouteFromExplicitSource(definitions)
+      router.loadRoutesFromExplicitSource(definitions)
 
       // Act
       const postUrl = router.generate('users.post')
@@ -321,19 +335,24 @@ describe('Router', () => {
       const definitions = [
         { domain: '{subDomain}.example.com', path: '/users/:id/profile', action: () => 'Stone.js', name: 'users.get', method: GET },
         { domain: '{subDomain}.example.com', path: '/users/:id/profile', action: () => 'Stone.js', name: 'users.put', method: PUT },
+        { domain: '{mydomain}.example.com', path: '/users/:id/profile', action: () => 'Stone.js', name: 'users.delete', method: DELETE },
         { domain: '{subDomain}.example.com', path: '/users/:id/profile', action: () => 'Stone.js', name: 'users.post', method: POST, defaults: { subDomain: 'your' } }
       ]
-      router.loadRouteFromExplicitSource(definitions)
+      router
+        .addDefault('mydomain', 'stone')
+        .loadRoutesFromExplicitSource(definitions)
 
       // Act
       const getUrl = router.generate('users.get', { subDomain: 'my', id: 22 }, { name: 'Stone' }, 'title')
       const postUrl = router.generate('users.post', { id: 11 }, { name: 'Stone' }, 'title')
       const putUrl = router.generate('users.put', { id: 11 }, { name: 'Stone' }, 'title')
+      const deleteUrl = router.generate('users.delete', { id: 11 }, { name: 'Stone' }, 'title')
 
       // Assert
       expect(getUrl).toEqual('my.example.com/users/22/profile/?name=Stone#title')
       expect(postUrl).toEqual('your.example.com/users/11/profile/?name=Stone#title')
       expect(putUrl).toEqual('.example.com/users/11/profile/?name=Stone#title')
+      expect(deleteUrl).toEqual('stone.example.com/users/11/profile/?name=Stone#title')
     })
 
     it('Must throw LogicException when no such route is defined', () => {
@@ -341,7 +360,7 @@ describe('Router', () => {
       const definitions = [
         { path: '/users/:id/profile', action: () => 'Stone.js', name: 'users.get', method: GET }
       ]
-      router.loadRouteFromExplicitSource(definitions)
+      router.loadRoutesFromExplicitSource(definitions)
 
       // Act
       try {
@@ -356,7 +375,7 @@ describe('Router', () => {
   describe('#setters && #getters', () => {
     it('Must set and get values from router', () => {
       // Arrange
-      const router = new Router({})
+      const router = new Router()
       const definitions = [
         { path: '/users/', action: () => 'Get users', name: 'users.get', method: GET },
         { path: '/users/', action: () => 'Save user', name: 'users.post', method: POST }
@@ -379,6 +398,7 @@ describe('Router', () => {
         .setRules({ id: /\d+/ })
         .addRule('name', /.+/g)
         .setMiddleware([])
+        .setDefaults({ domain: 'stone' })
         .addMiddleware(SimpleMiddleware)
         .skipMiddleware()
         .setRoutes(routeCollection)
@@ -392,7 +412,7 @@ describe('Router', () => {
         .setComponentDispatcher(ComponentDispatcher)
         .setControllerDispatcher(ControllerDispatcher)
         .matched(() => 'Route matched')
-        .loadRouteFromExplicitSource(definitions)
+        .loadRoutesFromExplicitSource(definitions)
 
       try {
         // Act

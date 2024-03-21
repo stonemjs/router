@@ -32,6 +32,7 @@ export class Router {
   #current
   #maxDepth
   #matchers
+  #defaults
   #container
   #middleware
   #dispatchers
@@ -47,10 +48,11 @@ export class Router {
   constructor ({
     container,
     eventManager
-  }) {
+  } = {}) {
     this.#rules = {}
     this.#maxDepth = 5
     this.#matchers = []
+    this.#defaults = {}
     this.#middleware = []
     this.#dispatchers = {}
     this.#container = container
@@ -128,11 +130,11 @@ export class Router {
     return this.addFromRouteDefinitions(routeLoader.load())
   }
 
-  loadRouteFromExplicitSource (definitions) {
+  loadRoutesFromExplicitSource (definitions) {
     return this.loadRoutes(new ExplicitLoader(new FlattenMapper({ maxDepth: this.#maxDepth }), definitions))
   }
 
-  loadRouteFromDecoratorSource (classes) {
+  loadRoutesFromDecoratorSource (classes) {
     return this.loadRoutes(new DecoratorLoader(new FlattenMapper({ maxDepth: this.#maxDepth }), classes))
   }
 
@@ -211,6 +213,16 @@ export class Router {
 
   setRules (rules) {
     this.#rules = rules
+    return this
+  }
+
+  addDefault (name, value) {
+    this.#defaults[name] = value
+    return this
+  }
+
+  setDefaults (defaults) {
+    this.#defaults = defaults
     return this
   }
 
@@ -383,6 +395,7 @@ export class Router {
     return route
       .setRouter(this)
       .addRules(this.#rules)
+      .addDefaults(this.#defaults)
       .setContainer(this.#container)
       .setMatchers(this.getMatchers())
       .setDispatchers(this.getDispatchers())
@@ -395,6 +408,7 @@ export class Router {
       this.#rules = config.get('router.rules', {})
       this.#maxDepth = config.get('router.maxDepth', 5)
       this.#matchers = config.get('router.matchers', [])
+      this.#defaults = config.get('router.defaults', {})
       this.#middleware = config.get('router.middleware', [])
       this.#dispatchers = config.get('router.dispatchers', {})
       this.#skipMiddleware = config.get('router.middleware_disabled', false)
