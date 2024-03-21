@@ -249,7 +249,7 @@ export class Route {
 
   getControllerActionFullname (separator = '@') {
     const [action, Class] = Object.entries(this.action).pop()
-    return [Class.metadata?.name ?? Class.name ?? 'Unknown', action].join(separator)
+    return [Class.metadata?.name ?? Class.name, action].join(separator)
   }
 
   generate (params = {}, query = {}, hash = null, withDomain = true) {
@@ -391,13 +391,13 @@ export class Route {
 
   /**
    * SegmentConstraint
-   * 
+   *
    * @typedef  {Object}  SegmentConstraint
    * @property {string}  match - The domain real value.
    * @property {string}  prefix - The segment prefix value.
    * @property {string}  suffix - The domain suffix value.
    * @property {string}  param - The domain param name.
-   * @property {string}  alias - The value defined as alias.
+   * @property {string}  alias - The value defined as alias for entity bindings.
    * @property {string}  rule - The domain regex rule.
    * @property {string}  quantifier - The domain regex quantifier.
    * @property {string}  default - The default value when there is no values.
@@ -479,12 +479,11 @@ export class Route {
       ?.filter((_v, i) => i > 0)
       ?.map(v => isNumeric(v) ? parseFloat(v) : v) ?? []
 
-
     for (const i in constraints) {
-      let v = constraints[i]
+      const v = constraints[i]
       let value = matches[i]
       if (this.#hasEntityBinding(v.param)) {
-        value = await this.#bindEntity(v.alias ?? v.param, value, v.optional)
+        value = await this.#bindEntity(v.param, value, v.alias, v.optional)
       }
       params[v.param] = value ?? v.default
     }
@@ -502,25 +501,22 @@ export class Route {
     return !!this.get('bindings', {})[field]
   }
 
-  #bindEntity (field, value, isOptional = false) {
+  #bindEntity (field, value, alias, isOptional) {
+    const key = alias ?? field
     const Class = this.get('bindings', {})[field]
 
-    if (Class) {
-      if (isClass(Class)) {
-        if (Class.resolveRouteBinding) {
-          return Class.resolveRouteBinding(field, value, isOptional)
-        } else if (Class.prototype.resolveRouteBinding) {
-          const instance = this.#getInstance(Class)
-          return instance.resolveRouteBinding(field, value, isOptional)
-        } else {
-          throw new LogicException('Binding must have this `resolveRouteBinding` as class or instance method.')
-        }
+    if (isClass(Class)) {
+      if (Class.resolveRouteBinding) {
+        return Class.resolveRouteBinding(key, value, isOptional)
+      } else if (Class.prototype.resolveRouteBinding) {
+        const instance = this.#getInstance(Class)
+        return instance.resolveRouteBinding(key, value, isOptional)
       } else {
-        throw new LogicException('Binding must be a class.')
+        throw new LogicException('Binding must have this `resolveRouteBinding` as class or instance method.')
       }
+    } else {
+      throw new LogicException('Binding must be a class.')
     }
-
-    return null
   }
 
   #runComponent (request) {
@@ -566,15 +562,11 @@ export class Route {
   toJSON () {
     return {
       name: this.name ?? 'Empty',
-      path: this.path ?? 'Empty',
+      path: this.path,
       methods: this.methods,
       action: this.isControllerAction() ? this.getControllerActionFullname() : this.getActionType(),
-      rules: this.rules ?? 'Empty',
-      defaults: this.defaults ?? 'Empty',
       domain: this.domain ?? 'Empty',
-      fallback: this.fallback ?? false,
-      middleware: this.middleware?.map(v => v.name) ?? 'Empty',
-      excludeMiddleware: this.excludeMiddleware?.map(v => v.name) ?? 'Empty'
+      fallback: this.isFallback
     }
   }
 

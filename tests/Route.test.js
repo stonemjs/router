@@ -117,6 +117,7 @@ describe('#Route', () => {
         expect(error.message).toBe('Callable action must be a function')
       }
       expect(route.isControllerAction()).toBe(true)
+      expect(route.getController()).toBeTruthy()
       expect(route.getController().getUsers()).toEqual('Get users')
       expect(route.getControllerMethod()).toBe('getUsers')
       expect(route.getControllerActionFullname()).toBe('Controller@getUsers')
@@ -126,6 +127,7 @@ describe('#Route', () => {
       expect(route.getDispatchers()).toEqual({ callable: null, controller: null })
       expect(route.getDispatcher('controller')).toBe(null)
       expect(route.hasDispatcher('controller')).toBe(false)
+      expect(route.toString()).toBe('{"name":"users.get","path":"/users/:id","methods":["GET","HEAD"],"action":"Controller@getUsers","domain":"{subdomain}.example.com","fallback":false}')
     })
   })
 
@@ -167,7 +169,62 @@ describe('#Route', () => {
     })
   })
 
+  describe('#getController && #getControllerMethod', () => {
+    it('Must throw an exception when controller is not a class', async () => {
+      // Arrange
+      const route = new Route(new RouteDefinition({ path: '/users/:id(\\d+)', method: GET, action: { getUsers: () => 'Users' } }))
+
+      try {
+        // Act
+        route.getController()
+      } catch (error) {
+        // Assert
+        expect(error.message).toBe('The controller must be a class')
+      }
+
+      try {
+        // Act
+        route.getControllerMethod()
+      } catch (error) {
+        // Assert
+        expect(error.message).toBe("The controller action must be a string, representing the controller's method.")
+      }
+    })
+  })
+
   describe('#run', () => {
+    it('Must throw an exception when an invalid action is provided', async () => {
+      // Arrange
+      const route = new Route(new RouteDefinition({ path: '/users/:id(\\d+)', method: GET, action: 'User action' }))
+      const request = { decodedPath: '/users/12', method: GET, getUri () { return this.decodedPath } }
+
+      await route.bind(request)
+
+      try {
+        // Act
+        route.run(request)
+      } catch (error) {
+        // Assert
+        expect(error.message).toBe('Invalid action provided.')
+      }
+    })
+
+    it('Must throw an exception when there is no callable dispatcher', async () => {
+      // Arrange
+      const route = new Route(new RouteDefinition({ path: '/users/:id(\\d+)', method: GET, action: () => 'Get users' }))
+      const request = { decodedPath: '/users/12', method: GET, getUri () { return this.decodedPath } }
+
+      await route.bind(request)
+
+      try {
+        // Act
+        route.run(request)
+      } catch (error) {
+        // Assert
+        expect(error.message).toBe('No callable dispatcher provided')
+      }
+    })
+
     it('Must run callable route action', async () => {
       // Arrange
       const route = new Route(new RouteDefinition({ path: '/users/:id(\\d+)', method: GET, action: () => 'Get users' }))
@@ -182,6 +239,22 @@ describe('#Route', () => {
 
       // Assert
       expect(response).toBe('Get users')
+    })
+
+    it('Must throw an exception when there is no controller dispatcher', async () => {
+      // Arrange
+      const route = new Route(new RouteDefinition({ path: '/users/:id(\\d+)', method: GET, action: { getUsers: Controller } }))
+      const request = { decodedPath: '/users/12', method: GET, getUri () { return this.decodedPath } }
+
+      await route.bind(request)
+
+      try {
+        // Act
+        route.run(request)
+      } catch (error) {
+        // Assert
+        expect(error.message).toBe('No controller dispatcher provided')
+      }
     })
 
     it('Must run controller route action', async () => {
@@ -201,6 +274,24 @@ describe('#Route', () => {
       expect(response).toBe('Get users')
     })
 
+    it('Must throw an exception when there is no component dispatcher', async () => {
+      // Arrange
+      const route = new Route(new RouteDefinition({ path: '/users/:id(\\d+)', method: GET, action: { getUsers: { template: '<h1>Get users</h1>' } } }))
+      const request = { decodedPath: '/users/12', method: GET, getUri () { return this.decodedPath } }
+
+      route._isBrowser = jest.fn(() => true)
+
+      await route.bind(request)
+
+      try {
+        // Act
+        route.run(request)
+      } catch (error) {
+        // Assert
+        expect(error.message).toBe('No component dispatcher provided.')
+      }
+    })
+
     it('Must run component route action', async () => {
       // Arrange
       const route = new Route(new RouteDefinition({ path: '/users/:id(\\d+)', method: GET, action: { getUsers: { template: '<h1>Get users</h1>' } } }))
@@ -216,12 +307,13 @@ describe('#Route', () => {
       const response = route.run(request)
 
       // Assert
+      expect(route.getActionType()).toBe('Component')
       expect(response.action).toEqual({ getUsers: { template: '<h1>Get users</h1>' } })
     })
   })
 
   describe('#generate', () => {
-    it('Must generate route path from route', () => {
+    it('Must generate route path with domain from route', () => {
       // Arrange
       const route = new Route(new RouteDefinition({
         domain: 'http://{domain@subDomain(.+?)}.example.com',
@@ -241,6 +333,22 @@ describe('#Route', () => {
       expect(path2).toBe('stone.example.com/users/12/profile/stone.js/comments/24/')
       expect(path3).toBe('/users/12/profile/stone.js/comments/24/')
       expect(path4).toBe('stone.example.com/users/12/profile/stone.js/comments/24/?firstname=Doe#title')
+    })
+
+    it('Must generate route path without domain from route', () => {
+      // Arrange
+      const route = new Route(new RouteDefinition({
+        path: '/users/:id(\\d+)/profile/:name(.+)/comments/:commId(\\d+)?',
+        method: GET,
+        defaults: { commId: 24 }
+      }))
+
+      // Act
+      const path1 = route.generate({ domain: 'stone', id: 12, name: 'stone.js' })
+
+      // Assert
+      expect(path1).toBe('/users/12/profile/stone.js/comments/24/')
+      expect(route.uri).toBe('/users/:id(\\d+)/profile/:name(.+)/comments/:commId(\\d+)?')
     })
   })
 
@@ -330,6 +438,94 @@ describe('#Route', () => {
 
       route.deleteParameter('firstname')
       expect(route.parameter('firstname')).toBe(null)
+    })
+  })
+
+  describe('#bindEntity', () => {
+    it('Must throw an exception when binding value is not a class', async () => {
+      // Arrange
+      const definition = new RouteDefinition({
+        path: '/users/:id(\\d+)',
+        method: GET,
+        action: { getUsers: Controller },
+        bindings: { id: () => {} }
+      })
+      const route = new Route(definition)
+      const request = { decodedPath: '/users/12/', method: GET, getUri () { return this.decodedPath } }
+
+      try {
+        // Act
+        await route.bind(request)
+      } catch (error) {
+        // Assert
+        expect(error.message).toBe('Binding must be a class.')
+      }
+    })
+
+    it('Must throw an exception when class not contains resolveRouteBinding method', async () => {
+      // Arrange
+      const definition = new RouteDefinition({
+        path: '/users/:id(\\d+)',
+        method: GET,
+        action: { getUsers: Controller },
+        bindings: { id: class {} }
+      })
+      const route = new Route(definition)
+      const request = { decodedPath: '/users/12/', method: GET, getUri () { return this.decodedPath } }
+
+      try {
+        // Act
+        await route.bind(request)
+      } catch (error) {
+        // Assert
+        expect(error.message).toBe('Binding must have this `resolveRouteBinding` as class or instance method.')
+      }
+    })
+
+    it('Must return binding value when class contains static resolveRouteBinding method', async () => {
+      // Arrange
+      const User = class {
+        static resolveRouteBinding (field, value, isOptional) {
+          return Promise.resolve(`UserEntity-${field}-${value}-${isOptional}`)
+        }
+      }
+      const definition = new RouteDefinition({
+        path: '/users/:id@uuid(\\d+)',
+        method: GET,
+        action: { getUsers: Controller },
+        bindings: { id: User }
+      })
+      const route = new Route(definition)
+      const request = { decodedPath: '/users/12/', method: GET, getUri () { return this.decodedPath } }
+
+      // Act
+      await route.bind(request)
+
+      // Assert
+      expect(route.parameters()).toEqual({ id: 'UserEntity-uuid-12-false' })
+    })
+
+    it('Must return binding value when class contains instance resolveRouteBinding method', async () => {
+      // Arrange
+      const UserService = class {
+        resolveRouteBinding (field, value, isOptional) {
+          return Promise.resolve(`UserEntity-${field}-${value}-${isOptional}`)
+        }
+      }
+      const definition = new RouteDefinition({
+        path: '/users/:id(\\d+)?',
+        method: GET,
+        action: { getUsers: Controller },
+        bindings: { id: UserService }
+      })
+      const route = new Route(definition)
+      const request = { decodedPath: '/users/12/', method: GET, getUri () { return this.decodedPath } }
+
+      // Act
+      await route.bind(request)
+
+      // Assert
+      expect(route.parameters()).toEqual({ id: 'UserEntity-id-12-true' })
     })
   })
 
