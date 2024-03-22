@@ -1,6 +1,13 @@
 import { AbstractLoader } from './AbstractLoader.mjs'
 import { LogicException, MetaProperty } from '@stone-js/common'
 
+/**
+ * Class representing a DecoratorLoader.
+ *
+ * @author Mr. Stone <evensstone@gmail.com>
+ *
+ * @extends AbstractLoader
+ */
 export class DecoratorLoader extends AbstractLoader {
   #classes
 

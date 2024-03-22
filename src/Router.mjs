@@ -19,10 +19,19 @@ import { DELETE, GET, HTTP_METHODS, OPTIONS, PATCH, POST, PUT } from './enums/ht
 /**
  * Class representing a Router.
  *
- * @author Mr. Stone <pierre.evens16@gmail.com>
+ * @author Mr. Stone <evensstone@gmail.com>
+ *
+ * @external Request
+ * @see {@link https://github.com/stonemjs/http/blob/main/src/Request.mjs|Request}
  *
  * @external Container
  * @see {@link https://github.com/stonemjs/service-container/blob/main/src/Container.mjs|Container}
+ *
+ * @external EventEmitter
+ * @see {@link https://github.com/stonemjs/Core/blob/main/src/EventEmitter.mjs|EventEmitter}
+ *
+ * @typedef {import('./RouteDefinition.mjs').definition} definition
+ * @typedef {import('./loaders/AbstractLoader.mjs').AbstractLoader} AbstractLoader
  */
 export class Router {
   static METHODS = HTTP_METHODS
@@ -36,9 +45,11 @@ export class Router {
   #container
   #middleware
   #dispatchers
-  #eventManager
+  #eventEmitter
   #skipMiddleware
   #currentRequest
+
+  #defaultMatchers
 
   /**
    * Create a router.
@@ -47,7 +58,7 @@ export class Router {
    */
   constructor ({
     container,
-    eventManager
+    eventEmitter
   } = {}) {
     this.#rules = {}
     this.#maxDepth = 5
@@ -57,14 +68,14 @@ export class Router {
     this.#dispatchers = {}
     this.#container = container
     this.#skipMiddleware = false
-    this.#eventManager = eventManager
+    this.#eventEmitter = eventEmitter
     this.#routes = new RouteCollection()
 
     if (!this.#container) {
       console.log('No service container instance provided.')
     }
 
-    if (!this.#eventManager) {
+    if (!this.#eventEmitter) {
       console.log('No Event manager instance provided. No events will be disptached.')
     }
 
@@ -72,56 +83,136 @@ export class Router {
     this.#container?.instance('routes', this.#routes)
   }
 
+  /**
+   * Define implicit GET route.
+   *
+   * @param  {definition} definition
+   * @return {this}
+   */
   get (definition) {
     return this.match({ ...definition, methods: [GET] })
   }
 
+  /**
+   * Define implicit POST route.
+   *
+   * @param  {definition} definition
+   * @return {this}
+   */
   post (definition) {
     return this.match({ ...definition, methods: [POST] })
   }
 
+  /**
+   * Define implicit PUT route.
+   *
+   * @param  {definition} definition
+   * @return {this}
+   */
   put (definition) {
     return this.match({ ...definition, methods: [PUT] })
   }
 
+  /**
+   * Define implicit PATCH route.
+   *
+   * @param  {definition} definition
+   * @return {this}
+   */
   patch (definition) {
     return this.match({ ...definition, methods: [PATCH] })
   }
 
+  /**
+   * Define implicit DELETE route.
+   *
+   * @param  {definition} definition
+   * @return {this}
+   */
   delete (definition) {
     return this.match({ ...definition, methods: [DELETE] })
   }
 
+  /**
+   * Define implicit OPTIONS route.
+   *
+   * @param  {definition} definition
+   * @return {this}
+   */
   options (definition) {
     return this.match({ ...definition, methods: [OPTIONS] })
   }
 
+  /**
+   * Define implicit any route.
+   *
+   * @param  {definition} definition
+   * @return {this}
+   */
   any (definition) {
     return this.match({ ...definition, methods: HTTP_METHODS })
   }
 
+  /**
+   * Define a fallback route.
+   * Fallback allow to define an action when no routes matches.
+   *
+   * @param  {Function|Object} action
+   * @return {this}
+   */
   fallback (action) {
     return this.match({ action, fallback: true, methods: [GET], path: '/:__fallback__(.*)*' })
   }
 
+  /**
+   * Define implicit match any verbs route.
+   *
+   * @param  {definition} definition
+   * @return {this}
+   */
   match (definition) {
     return this.addFromRouteDefinition(new RouteDefinition(definition))
   }
 
+  /**
+   * Add single route to RouteCollection from RouteDefinition.
+   *
+   * @param  {RouteDefinition} routeDefinition
+   * @return {this}
+   */
   addFromRouteDefinition (routeDefinition) {
     this.#routes.add(this.createFromRouteDefinition(routeDefinition))
     return this
   }
 
+  /**
+   * Add routes to RouteCollection from an array of RouteDefinition.
+   *
+   * @param  {RouteDefinition[]} routeDefinitions
+   * @return {this}
+   */
   addFromRouteDefinitions (routeDefinitions) {
     routeDefinitions.forEach(v => this.addFromRouteDefinition(v))
     return this
   }
 
+  /**
+   * Create route from RouteDefinition.
+   *
+   * @param  {RouteDefinition} routeDefinition
+   * @return {this}
+   */
   createFromRouteDefinition (routeDefinition) {
     return this.#hydrateRoute(Route.create(routeDefinition))
   }
 
+  /**
+   * Load routes from source.
+   *
+   * @param  {AbstractLoader} routeLoader
+   * @return {this}
+   * @throws {LogicException}
+   */
   loadRoutes (routeLoader) {
     if (!routeLoader.load) {
       throw new LogicException('Invalid loader, routeLoader must have `load` method')
@@ -130,22 +221,55 @@ export class Router {
     return this.addFromRouteDefinitions(routeLoader.load())
   }
 
+  /**
+   * Load routes from explicit source.
+   *
+   * @param  {definition[]} definitions
+   * @return {this}
+   */
   loadRoutesFromExplicitSource (definitions) {
     return this.loadRoutes(new ExplicitLoader(new FlattenMapper({ maxDepth: this.#maxDepth }), definitions))
   }
 
+  /**
+   * Load routes from decorator source.
+   *
+   * @param  {Function[]} classes
+   * @return {this}
+   */
   loadRoutesFromDecoratorSource (classes) {
     return this.loadRoutes(new DecoratorLoader(new FlattenMapper({ maxDepth: this.#maxDepth }), classes))
   }
 
+  /**
+   * dispatchToRoute's alias
+   *
+   * @param  {Request} request
+   * @return {*}
+   */
   dispatch (request) {
     return this.dispatchToRoute(request)
   }
 
+  /**
+   * Dispatch request to route.
+   * Match request to route and if exists run the route's action.
+   *
+   * @param  {Request} request
+   * @return {*}
+   */
   dispatchToRoute (request) {
     return this.#runRoute(request, this.findRoute(request))
   }
 
+  /**
+   * Get route by name and run the route's action.
+   *
+   * @param  {Request} request
+   * @param  {string} name
+   * @return {*}
+   * @throws {HttpException}
+   */
   respondWithRouteName (request, name) {
     const route = this.#routes.getByName(name)
 
@@ -156,6 +280,16 @@ export class Router {
     return this.#runRoute(request, route)
   }
 
+  /**
+   * Generate a route string by name.
+   *
+   * @param  {string} name
+   * @param  {Object} [params={}]
+   * @param  {Object} [query={}]
+   * @param  {string} [hash=null]
+   * @return {string}
+   * @throws {LogicException}
+   */
   generate (name, params = {}, query = {}, hash = null) {
     const route = this.#routes.getByName(name)
 
@@ -166,8 +300,14 @@ export class Router {
     return route.generate(params, query, hash)
   }
 
+  /**
+   * Find matched route by request.
+   *
+   * @param  {Request} request
+   * @return {Route}
+   */
   findRoute (request) {
-    this.#eventManager?.emit(Event.ROUTING, new Event(Event.ROUTING, this, { request }))
+    this.#eventEmitter?.emit(Event.ROUTING, new Event(Event.ROUTING, this, { request }))
 
     this.#current = this.#routes.match(request)
     this.#container?.instance(Route, this.#current)?.alias(Route, 'route')
@@ -175,6 +315,12 @@ export class Router {
     return this.#current
   }
 
+  /**
+   * Unique merge Router and route middleware, remove excludeMiddleware.
+   *
+   * @param  {Route} route
+   * @return {Function[]}
+   */
   gatherRouteMiddleware (route) {
     return this.#middleware
       .concat(route.middleware)
@@ -182,89 +328,199 @@ export class Router {
       .reduce((prev, curr) => prev.includes(curr) ? prev : prev.concat(curr), [])
   }
 
+  /**
+   * Register a callback to be invoked when route matched.
+   *
+   * @param  {Function} callback
+   * @return {this}
+   */
   matched (callback) {
-    this.#eventManager?.on(Event.ROUTE_MATCHED, callback)
+    this.#eventEmitter?.on(Event.ROUTE_MATCHED, callback)
     return this
   }
 
+  /**
+   * Set max depth value for explicit parent children route definitions.
+   *
+   * @param  {number} value
+   * @return {this}
+   */
   setMaxDepth (value) {
     this.#maxDepth = value
     return this
   }
 
+  /**
+   * Get middleware.
+   *
+   * @return {Function[]}
+   */
   getMiddleware () {
     return this.#middleware
   }
 
+  /**
+   * Set middleware.
+   *
+   * @param  {Function[]} middleware
+   * @return {this}
+   */
   setMiddleware (middleware) {
     this.#middleware = middleware
     return this
   }
 
+  /**
+   * Add middleware.
+   *
+   * @param  {Function} middleware
+   * @return {this}
+   */
   addMiddleware (middleware) {
     this.#middleware = this.#middleware.concat(middleware)
     return this
   }
 
+  /**
+   * Add rule.
+   *
+   * @param  {string} name
+   * @param  {RegExp} pattern
+   * @return {this}
+   */
   addRule (name, pattern) {
     this.#rules[name] = pattern
     return this
   }
 
+  /**
+   * Set rules.
+   *
+   * @param  {Object} rules
+   * @return {this}
+   */
   setRules (rules) {
     this.#rules = rules
     return this
   }
 
+  /**
+   * Add default.
+   *
+   * @param  {string} name
+   * @param  {string} value
+   * @return {this}
+   */
   addDefault (name, value) {
     this.#defaults[name] = value
     return this
   }
 
+  /**
+   * Set defaults.
+   *
+   * @param  {Object} defaults
+   * @return {this}
+   */
   setDefaults (defaults) {
     this.#defaults = defaults
     return this
   }
 
+  /**
+   * Skip all middleware.
+   *
+   * @param  {boolean} [value=true]
+   * @return {this}
+   */
   skipMiddleware (value = true) {
     this.#skipMiddleware = value
     return this
   }
 
+  /**
+   * Has named route.
+   *
+   * @param  {string} name
+   * @return {boolean}
+   */
   has (name) {
     return []
       .concat(name)
       .reduce((prev, curr) => !this.#routes.hasNamedRoute(curr) ? false : prev, true)
   }
 
+  /**
+   * Get route matched request parameters.
+   *
+   * @param  {string} name
+   * @param  {*} [fallback=null] return default value when not found.
+   * @return {string}
+   */
   input (name, fallback = null) {
     return this.current().parameter(name, fallback)
   }
 
+  /**
+   * Get current request.
+   *
+   * @return {Request}
+   */
   getCurrentRequest () {
     return this.#currentRequest
   }
 
+  /**
+   * Get current matched route.
+   *
+   * @return {Route}
+   */
   current () {
     return this.#current
   }
 
+  /**
+   * Get current matched route name.
+   *
+   * @return {string}
+   */
   currentRouteName () {
     return this.current()?.name
   }
 
+  /**
+   * Is current matched route has name.
+   *
+   * @return {boolean}
+   */
   isCurrentRouteNamed (name) {
     return this.currentRouteName() === name
   }
 
+  /**
+   * Get current matched route action.
+   *
+   * @return {*}
+   */
   currentRouteAction () {
     return this.current()?.action
   }
 
+  /**
+   * Get routes.
+   *
+   * @return {RouteCollection}
+   */
   getRoutes () {
     return this.#routes
   }
 
+  /**
+   * Set routes.
+   *
+   * @param  {RouteCollection} routeCollection
+   * @return {this}
+   */
   setRoutes (routeCollection) {
     if (!(routeCollection instanceof RouteCollection)) {
       throw new LogicException('Parameter must be an instance of RouteCollection')
@@ -279,37 +535,84 @@ export class Router {
     return this
   }
 
+  /**
+   * Set container.
+   *
+   * @param  {Container} container
+   * @return {this}
+   */
   setContainer (container) {
     this.#container = container
     return this
   }
 
-  setEventManager (eventManager) {
-    this.#eventManager = eventManager
+  /**
+   * Set Event Emitter.
+   *
+   * @param  {EventEmitter} EventEmitter
+   * @return {this}
+   */
+  setEventEmitter (eventEmitter) {
+    this.#eventEmitter = eventEmitter
     return this
   }
 
+  /**
+   * Get user defined or built in route matchers.
+   *
+   * @param  {boolean} [orDefault=true] when true return built in matchers if no matchers is defined.
+   * @return {array}
+   */
   getMatchers (orDefault = true) {
     return this.hasMatchers() ? this.#matchers : (orDefault ? this.#getDefaultMatchers() : [])
   }
 
+  /**
+   * Has route matchers.
+   *
+   * @return {boolean}
+   */
   hasMatchers () {
     return this.#matchers?.length > 0
   }
 
+  /**
+   * Set matchers.
+   *
+   * @param  {array} matchers
+   * @param  {boolean} [mergeWithDefault=true] merge with built in matchers.
+   * @return {this}
+   */
   setMatchers (matchers, mergeWithDefault = true) {
     this.#matchers = [].concat(mergeWithDefault ? this.#getDefaultMatchers() : [], matchers)
     return this
   }
 
+  /**
+   * Get user defined or built in route dispatchers.
+   *
+   * @param  {boolean} [orDefault=true] when true return built in dispatchers if no dispatchers is defined.
+   * @return {Object}
+   */
   getDispatchers (orDefault = true) {
     return this.hasDispatchers() ? this.#dispatchers : (orDefault ? this.#getDefaultDispatchers() : {})
   }
 
+  /**
+   * Has route dispatchers.
+   *
+   * @return {boolean}
+   */
   hasDispatchers () {
     return Object.values(this.#dispatchers).length > 0
   }
 
+  /**
+   * Set dispatchers.
+   *
+   * @param  {Object} dispatchers
+   * @return {this}
+   */
   setDispatchers (dispatchers) {
     Object
       .entries(dispatchers)
@@ -318,6 +621,13 @@ export class Router {
     return this
   }
 
+  /**
+   * Add dispatcher.
+   *
+   * @param  {string} type
+   * @param  {Function} dispatcher
+   * @return {this}
+   */
   addDispatcher (type, dispatcher) {
     if (!['component', 'callable', 'controller'].includes(type)) {
       throw new LogicException(`Invalid dispatcher type ${type}. Valid types are ('component', 'callable', 'controller')`)
@@ -328,34 +638,58 @@ export class Router {
     return this
   }
 
-  setCallableDispatcher (dispatcher) {
-    this.addDispatcher('callable', dispatcher)
-    return this
-  }
-
+  /**
+   * Set component dispatcher.
+   *
+   * @param  {Function} dispatcher
+   * @return {this}
+   */
   setComponentDispatcher (dispatcher) {
     this.addDispatcher('component', dispatcher)
     return this
   }
 
+  /**
+   * Set callable dispatcher.
+   *
+   * @param  {Function} dispatcher
+   * @return {this}
+   */
+  setCallableDispatcher (dispatcher) {
+    this.addDispatcher('callable', dispatcher)
+    return this
+  }
+
+  /**
+   * Set controller dispatcher.
+   *
+   * @param  {Function} dispatcher
+   * @return {this}
+   */
   setControllerDispatcher (dispatcher) {
     this.addDispatcher('controller', dispatcher)
     return this
   }
 
+  /**
+   * Dump routes.
+   * Return all routes literal object array
+   *
+   * @return {array}
+   */
   dumpRoutes () {
     return this.#routes.dump()
   }
 
   #getDefaultMatchers () {
-    this._defaultMatchers ??= [
+    this.#defaultMatchers ??= [
       new HostMatcher(),
       new MethodMatcher(),
       new ProtocolMatcher(),
       new UriMatcher()
     ]
 
-    return this._defaultMatchers
+    return this.#defaultMatchers
   }
 
   #getDefaultDispatchers () {
@@ -371,7 +705,7 @@ export class Router {
 
     this.#currentRequest = request
 
-    this.#eventManager?.emit(Event.ROUTE_MATCHED, new Event(Event.ROUTE_MATCHED, this, { route, request }))
+    this.#eventEmitter?.emit(Event.ROUTE_MATCHED, new Event(Event.ROUTE_MATCHED, this, { route, request }))
 
     return this.#runRouteWithMiddleware(request, route)
   }

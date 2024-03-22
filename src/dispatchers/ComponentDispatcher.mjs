@@ -1,7 +1,7 @@
 /**
  * Class representing a ComponentDispatcher.
  *
- * @author Mr. Stone <pierre.evens16@gmail.com>
+ * @author Mr. Stone <evensstone@gmail.com>
  */
 export class ComponentDispatcher {
   /**

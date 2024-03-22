@@ -1,4 +1,4 @@
-export default class EventManager {
+export default class EventEmitter {
   #listeners = new Map()
 
   subscribe (eventType, callback) {

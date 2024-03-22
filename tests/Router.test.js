@@ -23,24 +23,24 @@ describe('Router', () => {
     bound: jest.fn(() => true),
     make: jest.fn(V => V === 'config' ? config : new V())
   }
-  const eventManager = {
+  const eventEmitter = {
     on: jest.fn(),
     emit: jest.fn()
   }
 
   beforeEach(() => {
-    router = new Router({ container, eventManager })
+    router = new Router({ container, eventEmitter })
   })
 
   describe('#constructor', () => {
-    it('Must create a Router instance with service container and eventManager provided', () => {
+    it('Must create a Router instance with service container and eventEmitter provided', () => {
       // Assert
       expect(config.get).toHaveBeenCalled()
       expect(container.instance).toHaveBeenCalled()
       expect(router.getRoutes()).toBeInstanceOf(RouteCollection)
     })
 
-    it('Must create a Router and must log container and eventManager message when not present', () => {
+    it('Must create a Router and must log container and eventEmitter message when not present', () => {
       // Arrange
       console.log = jest.fn()
 
@@ -403,7 +403,7 @@ describe('Router', () => {
         .skipMiddleware()
         .setRoutes(routeCollection)
         .setContainer(container)
-        .setEventManager(eventManager)
+        .setEventEmitter(eventEmitter)
         .setMatchers([new MethodMatcher(), new UriMatcher()], false)
         .setMatchers([new MethodMatcher(), new UriMatcher()])
         .setDispatchers({})

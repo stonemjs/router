@@ -2,7 +2,7 @@ import { Container } from "@noowow-community/service-container"
 import middleware from "./middleware/**/*Middleware.mjs"
 import controllers from "./controllers/**/*Controller.mjs"
 import { Router, RoutingServiceProvider } from "@noowow-community/router"
-import EventManager from "../EventManager.mjs"
+import EventEmitter from "../EventEmitter.mjs"
 
 export const container = new Container()
 
@@ -15,10 +15,10 @@ const services = [
 container.discovering(services)
 container.instance(Container, container)
 container.provider(RoutingServiceProvider)
-container.singleton('events', () => new EventManager())
-container.singleton(EventManager, () => new EventManager())
+container.singleton('events', () => new EventEmitter())
+container.singleton(EventEmitter, () => new EventEmitter())
 
 export const router = container.make(Router)
-export const eventManager = container.make(EventManager)
+export const eventEmitter = container.make(EventEmitter)
 
 

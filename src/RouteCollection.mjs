@@ -1,14 +1,28 @@
 import { Route } from './Route.mjs'
-import { RouteDefinition } from './RouteDefinition.mjs'
 import { Router } from './Router.mjs'
 import { HttpException } from '@stone-js/common'
+import { RouteDefinition } from './RouteDefinition.mjs'
 
+/**
+ * Class representing a RouteCollection.
+ *
+ * @author Mr. Stone <evensstone@gmail.com>
+ *
+ * @external Request
+ * @see {@link https://github.com/stonemjs/http/blob/main/src/Request.mjs|Request}
+ */
 export class RouteCollection {
   #routes = new Map()
   #nameList = new Map()
   #actionList = new Map()
   #methodList = new Map()
 
+  /**
+   * Add route instance to collection
+   *
+   * @param  {Route} route
+   * @return {this}
+   */
   add (route) {
     return this
       .#addToCollections(route)
@@ -17,40 +31,92 @@ export class RouteCollection {
       .#addToNameList(route)
   }
 
+  /**
+   * Check matched route against request
+   *
+   * @param  {Request} request
+   * @param  {boolean} [includingMethod=true]
+   * @return {Route}
+   */
   match (request, includingMethod = true) {
     const routes = this.getByMethod(request.method)
     const route = this.#matchAgainstRoutes(routes, request, includingMethod)
     return this.#handleMatchedRoute(request, route)
   }
 
+  /**
+   * Check matched route against name
+   *
+   * @param  {string} name
+   * @return {boolean}
+   */
   hasNamedRoute (name) {
     return this.#nameList.has(name)
   }
 
+  /**
+   * Get matched route against name
+   *
+   * @param  {string} name
+   * @return {Route}
+   */
   getByName (name) {
     return this.#nameList.get(name)
   }
 
+  /**
+   * Get matched route against method
+   *
+   * @param  {string} method
+   * @return {Route}
+   */
   getByMethod (method) {
     return Array.from(this.#methodList.get(method.toUpperCase())?.values() ?? [])
   }
 
+  /**
+   * Get matched route against action
+   *
+   * @param  {string} action
+   * @return {Route}
+   */
   getByAction (action) {
     return this.#actionList.get(action)
   }
 
+  /**
+   * Get routes as array
+   *
+   * @return {Route[]}
+   */
   getRoutes () {
     return Array.from(this.#routes.values())
   }
 
+  /**
+   * Get routes as Map grouped by method
+   *
+   * @return {Map}
+   */
   getRoutesByMethod () {
     return this.#methodList
   }
 
+  /**
+   * Get routes as Map grouped by name
+   *
+   * @return {Map}
+   */
   getRoutesByName () {
     return this.#nameList
   }
 
+  /**
+   * Dump routes.
+   * Return all routes literal object array
+   *
+   * @return {array}
+   */
   dump () {
     return Array
       .from(this.#methodList.entries())
@@ -69,10 +135,20 @@ export class RouteCollection {
       .sort((a, b) => a.path === b.path ? 0 : (a.path > b.path ? 1 : -1))
   }
 
+  /**
+   * Get routes as json collection
+   *
+   * @return {Object[]}
+   */
   toJSON () {
     return this.getRoutes().map(route => route.toJSON())
   }
 
+  /**
+   * Get routes as string
+   *
+   * @return {string}
+   */
   toString () {
     return JSON.stringify(this.toJSON())
   }

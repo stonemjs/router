@@ -3,25 +3,31 @@ import { CallableDispatcher } from './dispatchers/CallableDispatcher.mjs'
 import { ComponentDispatcher } from './dispatchers/ComponentDispatcher.mjs'
 import { ControllerDispatcher } from './dispatchers/ControllerDispatcher.mjs'
 
+/**
+ * Class representing a RoutingServiceProvider.
+ *
+ * @author Mr. Stone <evensstone@gmail.com>
+ *
+ * @external Container
+ * @see {@link https://github.com/stonemjs/service-container/blob/main/src/Container.mjs|Container}
+ */
 export class RoutingServiceProvider {
   #container
 
   /**
-   * The Container class.
-   *
-   * @external Container
-   * @see {@link https://github.com/stonemjs/service-container/blob/main/src/Container.mjs|Container}
-   */
-
-  /**
    * Create a new instance of RoutingServiceProvider.
    *
-   * @param  {Container} container
+   * @param {Container} container
    */
   constructor (container) {
     this.#container = container
   }
 
+  /**
+   * Register router components in service container.
+   *
+   * @return  {void}
+   */
   register () {
     this
       .#registerRouter()
@@ -31,7 +37,7 @@ export class RoutingServiceProvider {
   #registerRouter () {
     this
       .#container
-      .singletonIf(Router, container => new Router({ container, eventManager: container.bound('events') ? container.make('events') : null }))
+      .singletonIf(Router, container => new Router({ container, eventEmitter: container.bound('events') ? container.make('events') : null }))
       .alias(Router, 'router')
 
     return this

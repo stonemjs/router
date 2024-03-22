@@ -1,7 +1,7 @@
 /**
  * Class representing a CallableDispatcher.
  *
- * @author Mr. Stone <pierre.evens16@gmail.com>
+ * @author Mr. Stone <evensstone@gmail.com>
  *
  * @external Request
  * @see {@link https://github.com/stonemjs/http/blob/main/src/Request.mjs|Request}

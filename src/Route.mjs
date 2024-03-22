@@ -2,6 +2,17 @@ import { RouteDefinition } from './RouteDefinition.mjs'
 import { MethodMatcher } from './matchers/MethodMatcher.mjs'
 import { LogicException, isPlainObject, isFunction, isClass, isNumeric } from '@stone-js/common'
 
+/**
+ * Class representing a Route.
+ *
+ * @author Mr. Stone <evensstone@gmail.com>
+ *
+ * @external Request
+ * @see {@link https://github.com/stonemjs/http/blob/main/src/Request.mjs|Request}
+ *
+ * @external Container
+ * @see {@link https://github.com/stonemjs/service-container/blob/main/src/Container.mjs|Container}
+ */
 export class Route {
   #router
   #matchers
@@ -17,10 +28,20 @@ export class Route {
   static pathConstraintRegex = /^(.+?)?[:{](.+?)(?:@(.+?))?(?:\((.+?)\))?([?*+]?)\}?$/
   static domainConstraintRegex = /^(?:\{(.+?)(?:@(.+?))?(?:\((.+?)\))?([?*+]?)\})?(.+)$/
 
+  /**
+   * Create a route.
+   *
+   * @param {RouteDefinition} routeDefinition
+   */
   static create (routeDefinition) {
     return new this(routeDefinition)
   }
 
+  /**
+   * Create a route.
+   *
+   * @param {RouteDefinition} routeDefinition
+   */
   constructor (routeDefinition) {
     if (!(routeDefinition instanceof RouteDefinition)) {
       throw new LogicException("This method's parameter must be an instance of `RouteDefinition`")
