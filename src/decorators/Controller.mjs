@@ -1,6 +1,17 @@
 import deepmerge from 'deepmerge'
 import { LogicException, isClass, MetaProperty } from '@stone-js/common'
 
+/**
+ * Controller decorator, usefull for decorating controller class and define it as a controller.
+ *
+ * @author Mr. Stone <evensstone@gmail.com>
+ *
+ * @typedef  {Object} definition
+ * @property {string} name
+ *
+ * @param  {definition} definition
+ * @return {Function}
+ */
 export const Controller = (definition) => {
   return (target) => {
     if (!isClass(target)) {

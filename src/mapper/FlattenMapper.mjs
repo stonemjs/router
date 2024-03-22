@@ -3,18 +3,43 @@ import { Pipeline } from '@stone-js/pipeline'
 import { LogicException } from '@stone-js/common'
 import { RouteDefinition } from '../RouteDefinition.mjs'
 
+/**
+ * Class representing a FlattenMapper.
+ *
+ * @author Mr. Stone <evensstone@gmail.com>
+ *
+ * @typedef {import('./RouteDefinition.mjs').definition} definition
+ * @typedef {import('../RouteDefinition.mjs').RouteDefinition} RouteDefinition
+ */
 export class FlattenMapper {
   #maxDepth
 
-  constructor ({ maxDepth } = {}) {
+  /**
+   * Create a FlattenMapper.
+   *
+   * @param {number} maxDepth
+   */
+  constructor (maxDepth = 5) {
     this.#maxDepth = maxDepth ?? 5
   }
 
+  /**
+   * Set MaxDepth.
+   *
+   * @param  {number} maxDepth
+   * @return {this}
+   */
   setMaxDepth (value) {
     this.#maxDepth = value
     return this
   }
 
+  /**
+   * Flat map raw defintions to RouteDefinition.
+   *
+   * @param  {definition[]} definitions
+   * @return {RouteDefinition[]}
+   */
   flattenMap (definitions) {
     return this._validate(
       definitions.reduce((prev, definition) => this._flatten(prev, definition, definition.children), [])

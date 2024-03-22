@@ -1,7 +1,7 @@
 import { Route } from './Route.mjs'
-import { Router } from './Router.mjs'
 import { HttpException } from '@stone-js/common'
 import { RouteDefinition } from './RouteDefinition.mjs'
+import { HTTP_METHODS } from './enums/http-methods.mjs'
 
 /**
  * Class representing a RouteCollection.
@@ -18,7 +18,7 @@ export class RouteCollection {
   #methodList = new Map()
 
   /**
-   * Add route instance to collection
+   * Add route instance to collection.
    *
    * @param  {Route} route
    * @return {this}
@@ -32,7 +32,7 @@ export class RouteCollection {
   }
 
   /**
-   * Check matched route against request
+   * Check matched route against request.
    *
    * @param  {Request} request
    * @param  {boolean} [includingMethod=true]
@@ -45,7 +45,7 @@ export class RouteCollection {
   }
 
   /**
-   * Check matched route against name
+   * Check matched route against name.
    *
    * @param  {string} name
    * @return {boolean}
@@ -55,7 +55,7 @@ export class RouteCollection {
   }
 
   /**
-   * Get matched route against name
+   * Get matched route against name.
    *
    * @param  {string} name
    * @return {Route}
@@ -65,7 +65,7 @@ export class RouteCollection {
   }
 
   /**
-   * Get matched route against method
+   * Get matched route against method.
    *
    * @param  {string} method
    * @return {Route}
@@ -75,7 +75,7 @@ export class RouteCollection {
   }
 
   /**
-   * Get matched route against action
+   * Get matched route against action.
    *
    * @param  {string} action
    * @return {Route}
@@ -85,7 +85,7 @@ export class RouteCollection {
   }
 
   /**
-   * Get routes as array
+   * Get routes as array.
    *
    * @return {Route[]}
    */
@@ -94,7 +94,7 @@ export class RouteCollection {
   }
 
   /**
-   * Get routes as Map grouped by method
+   * Get routes as Map grouped by method.
    *
    * @return {Map}
    */
@@ -103,7 +103,7 @@ export class RouteCollection {
   }
 
   /**
-   * Get routes as Map grouped by name
+   * Get routes as Map grouped by name.
    *
    * @return {Map}
    */
@@ -113,7 +113,7 @@ export class RouteCollection {
 
   /**
    * Dump routes.
-   * Return all routes literal object array
+   * Return all routes literal object array.
    *
    * @return {array}
    */
@@ -136,7 +136,7 @@ export class RouteCollection {
   }
 
   /**
-   * Get routes as json collection
+   * Get routes as json collection.
    *
    * @return {Object[]}
    */
@@ -145,7 +145,7 @@ export class RouteCollection {
   }
 
   /**
-   * Get routes as string
+   * Get routes as string.
    *
    * @return {string}
    */
@@ -199,8 +199,7 @@ export class RouteCollection {
   }
 
   #checkForAlternateVerbs (request) {
-    return Router
-      .METHODS
+    return HTTP_METHODS
       .filter(method => method.toUpperCase() !== request.method?.toUpperCase())
       .filter(method => !!this.#matchAgainstRoutes(this.getByMethod(method), request, false))
   }

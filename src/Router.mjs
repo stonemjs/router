@@ -228,7 +228,7 @@ export class Router {
    * @return {this}
    */
   loadRoutesFromExplicitSource (definitions) {
-    return this.loadRoutes(new ExplicitLoader(new FlattenMapper({ maxDepth: this.#maxDepth }), definitions))
+    return this.loadRoutes(new ExplicitLoader(new FlattenMapper(this.#maxDepth), definitions))
   }
 
   /**
@@ -238,7 +238,7 @@ export class Router {
    * @return {this}
    */
   loadRoutesFromDecoratorSource (classes) {
-    return this.loadRoutes(new DecoratorLoader(new FlattenMapper({ maxDepth: this.#maxDepth }), classes))
+    return this.loadRoutes(new DecoratorLoader(new FlattenMapper(this.#maxDepth), classes))
   }
 
   /**

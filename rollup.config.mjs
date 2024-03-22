@@ -6,17 +6,19 @@ import commonjs from '@rollup/plugin-commonjs'
 import nodeResolve from '@rollup/plugin-node-resolve'
 import nodeExternals from 'rollup-plugin-node-externals'
 
-const isProduction = ['production', 'prod'].includes(process.env.NODE_ENV ?? 'prod')
-
 export default {
 	input: 'src/index.mjs',
-	output: {
-		format: 'umd',
-    name: 'StoneRouter',
-		file: 'dist/index.js',
-    plugins: isProduction ? [terser()] : [],
-    sourcemap: isProduction ? false : 'inline'
-	},
+	output: [
+    { format: 'es', file: 'dist/index.mjs' },
+    { format: 'cjs', file: 'dist/index.cjs' },
+    {
+      format: 'umd',
+      sourcemap: true,
+      name: 'StoneRouter',
+      plugins: [terser()],
+      file: 'dist/index.js',
+    }
+  ],
   plugins: [
     json(),
     nodeExternals({ deps: false }), // Must always be before `nodeResolve()`.

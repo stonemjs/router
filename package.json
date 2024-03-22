@@ -1,7 +1,7 @@
 {
   "name": "@stone-js/router",
   "version": "0.0.1",
-  "description": "Stone.js router",
+  "description": "Stone.js universal router",
   "author": "Mr. Stone <evensstone@gmail.com>",
   "license": "MIT",
   "repository": "git@github.com:stonemjs/router.git",
@@ -18,24 +18,22 @@
     "serverless",
     "universal router"
   ],
-  "main": "./src/index.mjs",
-  "module": "./src/index.mjs",
-  "types": "./types/index.d.mts",
-  "typings": "./types/index.d.mts",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "browser": "./dist/index.js",
+  "types": "./dist/types/index.d.mts",
   "files": [
-    "/src",
-    "/dist",
-    "/types"
+    "/dist"
   ],
   "exports": {
     ".": {
       "import": {
-        "types": "./types/index.d.mts",
-        "default": "./src/index.mjs"
+        "types": "./dist/types/index.d.mts",
+        "default": "./dist/index.mjs"
       },
       "require": {
-        "types": "./types/index.d.mts",
-        "default": "./test/index.js"
+        "types": "./dist/types/index.d.mts",
+        "default": "./dist/index.cjs"
       }
     }
   },
@@ -47,10 +45,9 @@
     "predoc": "rimraf docs",
     "doc": "jsdoc src/index.mjs -d docs",
     "build": "npm run lint && rollup -c && npm run types",
-    "build:dev": "cross-env NODE_ENV=dev npm run build",
     "release": "npm run test:text && npm run build && npm publish --access public",
-    "test": "npm run lint:test && jest",
-    "test:cvg": "npm run lint:test && jest --coverage",
+    "test": "npm run lint:test && jest -i",
+    "test:cvg": "npm run lint:test && jest -i --coverage",
     "test:text": "npm run test:cvg -- --coverageReporters=text",
     "test:html": "npm run test:cvg -- --coverageReporters=html text",
     "test:lcov": "npm run test:cvg -- --coverageReporters=lcov text"
@@ -69,7 +66,6 @@
     "@rollup/plugin-node-resolve": "^15.2.3",
     "@rollup/plugin-terser": "^0.4.4",
     "babel-jest": "^29.7.0",
-    "cross-env": "^7.0.3",
     "jest": "^29.7.0",
     "jsdoc": "^4.0.2",
     "lodash": "^4.17.21",

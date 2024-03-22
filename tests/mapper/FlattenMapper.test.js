@@ -56,7 +56,7 @@ describe('FlattenMapper', () => {
 
   describe('#constructor', () => {
     it('Must create a new instance', () => {
-      expect(new FlattenMapper()).toBeTruthy()
+      expect(new FlattenMapper(null)).toBeTruthy()
     })
   })
 
