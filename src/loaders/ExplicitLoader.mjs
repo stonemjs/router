@@ -2,13 +2,9 @@ import { LogicException } from '@stone-js/common'
 import { AbstractLoader } from './AbstractLoader.mjs'
 
 /**
- * Class representing a ExplicitLoader.
+ * Class representing an ExplicitLoader.
  *
  * @author Mr. Stone <evensstone@gmail.com>
- *
- * @typedef {import('./RouteDefinition.mjs').definition} definition
- * @typedef {import('../RouteDefinition.mjs').RouteDefinition} RouteDefinition
- * @typedef {import('../mapper/FlattenMapper.mjs').FlattenMapper} FlattenMapper
  *
  * @extends AbstractLoader
  */

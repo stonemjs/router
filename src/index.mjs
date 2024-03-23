@@ -1,6 +1,3 @@
-/**
- * Decorators
-*/
 export { Any } from './decorators/Any.mjs'
 export { Get } from './decorators/Get.mjs'
 export { Put } from './decorators/Put.mjs'

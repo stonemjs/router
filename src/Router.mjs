@@ -17,21 +17,30 @@ import { ControllerDispatcher } from './dispatchers/ControllerDispatcher.mjs'
 import { DELETE, GET, HTTP_METHODS, OPTIONS, PATCH, POST, PUT } from './enums/http-methods.mjs'
 
 /**
- * Class representing a Router.
- *
- * @author Mr. Stone <evensstone@gmail.com>
+ * Request.
  *
  * @external Request
  * @see {@link https://github.com/stonemjs/http/blob/main/src/Request.mjs|Request}
+ */
+
+/**
+ * Container.
  *
  * @external Container
  * @see {@link https://github.com/stonemjs/service-container/blob/main/src/Container.mjs|Container}
+ */
+
+/**
+ * EventEmitter.
  *
  * @external EventEmitter
  * @see {@link https://github.com/stonemjs/Core/blob/main/src/EventEmitter.mjs|EventEmitter}
+ */
+
+/**
+ * Class representing a Router.
  *
- * @typedef {import('./RouteDefinition.mjs').definition} definition
- * @typedef {import('./loaders/AbstractLoader.mjs').AbstractLoader} AbstractLoader
+ * @author Mr. Stone <evensstone@gmail.com>
  */
 export class Router {
   static METHODS = HTTP_METHODS
@@ -54,12 +63,10 @@ export class Router {
   /**
    * Create a router.
    *
-   * @param {Container} container
+   * @param {external:Container=} container Stone.js service container module
+   * @param {external:EventEmitter=} eventEmitter Stone.js event emitter module
    */
-  constructor ({
-    container,
-    eventEmitter
-  } = {}) {
+  constructor (container = null, eventEmitter = null) {
     this.#rules = {}
     this.#maxDepth = 5
     this.#matchers = []
@@ -244,7 +251,8 @@ export class Router {
   /**
    * dispatchToRoute's alias
    *
-   * @param  {Request} request
+   * @fires  Event#ROUTE_MATCHED
+   * @param  {external:Request} request
    * @return {*}
    */
   dispatch (request) {
@@ -255,7 +263,8 @@ export class Router {
    * Dispatch request to route.
    * Match request to route and if exists run the route's action.
    *
-   * @param  {Request} request
+   * @fires  Event#ROUTE_MATCHED
+   * @param  {external:Request} request
    * @return {*}
    */
   dispatchToRoute (request) {
@@ -265,7 +274,8 @@ export class Router {
   /**
    * Get route by name and run the route's action.
    *
-   * @param  {Request} request
+   * @fires  Event#ROUTE_MATCHED
+   * @param  {external:Request} request
    * @param  {string} name
    * @return {*}
    * @throws {HttpException}
@@ -303,7 +313,8 @@ export class Router {
   /**
    * Find matched route by request.
    *
-   * @param  {Request} request
+   * @fires Event#ROUTING
+   * @param  {external:Request} request
    * @return {Route}
    */
   findRoute (request) {
@@ -331,6 +342,7 @@ export class Router {
   /**
    * Register a callback to be invoked when route matched.
    *
+   * @listens Event#ROUTE_MATCHED
    * @param  {Function} callback
    * @return {this}
    */
@@ -538,7 +550,7 @@ export class Router {
   /**
    * Set container.
    *
-   * @param  {Container} container
+   * @param  {external:Container} container
    * @return {this}
    */
   setContainer (container) {
@@ -549,7 +561,7 @@ export class Router {
   /**
    * Set Event Emitter.
    *
-   * @param  {EventEmitter} EventEmitter
+   * @param  {external:EventEmitter} EventEmitter
    * @return {this}
    */
   setEventEmitter (eventEmitter) {

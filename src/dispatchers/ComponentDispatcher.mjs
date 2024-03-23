@@ -2,17 +2,12 @@
  * Class representing a ComponentDispatcher.
  *
  * @author Mr. Stone <evensstone@gmail.com>
- *
- * @typedef {import('../Route.mjs').Route} Route
- *
- * @external Request
- * @see {@link https://github.com/stonemjs/http/blob/main/src/Request.mjs|Request}
  */
 export class ComponentDispatcher {
   /**
    * Dispatch.
    *
-   * @param {Request} request
+   * @param {external:Request} request
    * @param {Route}  route
    *
    * @return {any}

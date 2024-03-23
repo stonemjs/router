@@ -29,7 +29,7 @@ describe('Router', () => {
   }
 
   beforeEach(() => {
-    router = new Router({ container, eventEmitter })
+    router = new Router(container, eventEmitter)
   })
 
   describe('#constructor', () => {

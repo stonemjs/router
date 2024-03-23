@@ -6,10 +6,6 @@ import { LogicException, MetaProperty } from '@stone-js/common'
  *
  * @author Mr. Stone <evensstone@gmail.com>
  *
- * @typedef {import('./RouteDefinition.mjs').definition} definition
- * @typedef {import('../RouteDefinition.mjs').RouteDefinition} RouteDefinition
- * @typedef {import('../mapper/FlattenMapper.mjs').FlattenMapper} FlattenMapper
- *
  * @extends AbstractLoader
  */
 export class DecoratorLoader extends AbstractLoader {

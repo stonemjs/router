@@ -5,8 +5,7 @@ import { Match } from './Match.mjs'
  *
  * @author Mr. Stone <evensstone@gmail.com>
  *
- * @typedef {import('../RouteDefinition.mjs').definition} definition
- *
+ * @memberOf Decorators
  * @param  {definition} definition
  * @return {Function}
  */

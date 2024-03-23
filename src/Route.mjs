@@ -6,14 +6,6 @@ import { LogicException, isPlainObject, isFunction, isClass, isNumeric } from '@
  * Class representing a Route.
  *
  * @author Mr. Stone <evensstone@gmail.com>
- *
- * @typedef {import('./Router.mjs').Router} Router
- *
- * @external Request
- * @see {@link https://github.com/stonemjs/http/blob/main/src/Request.mjs|Request}
- *
- * @external Container
- * @see {@link https://github.com/stonemjs/service-container/blob/main/src/Container.mjs|Container}
  */
 export class Route {
   #router
@@ -130,7 +122,7 @@ export class Route {
   /**
    * Check if the request matches the route.
    *
-   * @param  {Request} request
+   * @param  {external:Request} request
    * @param  {boolean} [includingMethod=true]
    * @return {boolean}
    */
@@ -147,7 +139,7 @@ export class Route {
   /**
    * Bind request to route and retrieve params.
    *
-   * @param  {Request} request
+   * @param  {external:Request} request
    * @return {this}
    */
   async bind (request) {
@@ -158,7 +150,7 @@ export class Route {
   /**
    * Execute and return route action.
    *
-   * @param  {Request} request
+   * @param  {external:Request} request
    * @return {*}
    */
   run (request) {
@@ -392,7 +384,7 @@ export class Route {
   /**
    * Get action type.
    *
-   * @return {string} Return value can be (Component|Closure|Controller)
+   * @return {('Component'|'Closure'|'Controller')}
    */
   getActionType () {
     return this._isBrowser() ? 'Component' : (isFunction(this.action) ? 'Closure' : 'Controller')
@@ -542,7 +534,7 @@ export class Route {
   /**
    * Set container.
    *
-   * @param {Container} container
+   * @param {external:Container} container
    * @return {this}
    */
   setContainer (container) {

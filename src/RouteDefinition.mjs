@@ -5,25 +5,6 @@ import { GET, HEAD, HTTP_METHODS } from './enums/http-methods.mjs'
  * Class representing a RouteDefinition.
  *
  * @author Mr. Stone <evensstone@gmail.com>
- *
- * @typedef  {Object} definition
- * @property {string} path
- * @property {string} method
- * @property {Function|Object} action
- * @property {string=} name
- * @property {string=} alias
- * @property {Object=} rules
- * @property {string=} domain
- * @property {Object=} actions - Frontend context
- * @property {Object=} bindings
- * @property {Object=} defaults
- * @property {string=} redirect
- * @property {string[]=} methods
- * @property {Function[]=} throttle
- * @property {Function[]=} middleware
- * @property {definition[]=} children
- * @property {boolean} [fallback=false]
- * @property {Function[]=} excludeMiddleware
  */
 export class RouteDefinition {
   /**

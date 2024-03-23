@@ -66,7 +66,7 @@ describe('#Route', () => {
 
       })
       const route = new Route(definition)
-      route.setRouter(null)
+      route.setRouter()
       route.setContainer(null)
       route.setMatchers([])
       route.setDispatchers({ callable: null })

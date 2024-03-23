@@ -2,17 +2,12 @@
  * Class representing a ControllerDispatcher.
  *
  * @author Mr. Stone <evensstone@gmail.com>
- *
- * @typedef {import('../Route.mjs').Route} Route
- *
- * @external Request
- * @see {@link https://github.com/stonemjs/http/blob/main/src/Request.mjs|Request}
  */
 export class ControllerDispatcher {
   /**
    * Dispatch.
    *
-   * @param {Request} request
+   * @param {external:Request} request
    * @param {Route}   route
    * @param {any}     controller
    * @param {String}  method

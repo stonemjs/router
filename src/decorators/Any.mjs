@@ -6,8 +6,7 @@ import { HTTP_METHODS } from '../enums/http-methods.mjs'
  *
  * @author Mr. Stone <evensstone@gmail.com>
  *
- * @typedef {import('../RouteDefinition.mjs').definition} definition
- *
+ * @memberOf Decorators
  * @param  {definition} definition
  * @return {Function}
  */

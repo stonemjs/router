@@ -7,9 +7,6 @@ import { RouteDefinition } from '../RouteDefinition.mjs'
  * Class representing a FlattenMapper.
  *
  * @author Mr. Stone <evensstone@gmail.com>
- *
- * @typedef {import('./RouteDefinition.mjs').definition} definition
- * @typedef {import('../RouteDefinition.mjs').RouteDefinition} RouteDefinition
  */
 export class FlattenMapper {
   #maxDepth

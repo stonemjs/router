@@ -7,9 +7,6 @@ import { ControllerDispatcher } from './dispatchers/ControllerDispatcher.mjs'
  * Class representing a RoutingServiceProvider.
  *
  * @author Mr. Stone <evensstone@gmail.com>
- *
- * @external Container
- * @see {@link https://github.com/stonemjs/service-container/blob/main/src/Container.mjs|Container}
  */
 export class RoutingServiceProvider {
   #container
@@ -17,7 +14,7 @@ export class RoutingServiceProvider {
   /**
    * Create a new instance of RoutingServiceProvider.
    *
-   * @param {Container} container
+   * @param {external:Container} container
    */
   constructor (container) {
     this.#container = container
@@ -37,7 +34,7 @@ export class RoutingServiceProvider {
   #registerRouter () {
     this
       .#container
-      .singletonIf(Router, container => new Router({ container, eventEmitter: container.bound('events') ? container.make('events') : null }))
+      .singletonIf(Router, container => new Router(container, container.bound('events') ? container.make('events') : null))
       .alias(Router, 'router')
 
     return this

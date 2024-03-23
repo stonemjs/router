@@ -351,3 +351,6 @@ Controller method decorate with Http verb will always return a MetaProperty inst
   excludeMiddleware: ['middleware'],
   actions: { home: HomeComponent }
 }`
+
+# Run jsdoc locally
+`npx http-server docs/jsdoc`

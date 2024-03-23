@@ -7,9 +7,6 @@ import { HTTP_METHODS } from './enums/http-methods.mjs'
  * Class representing a RouteCollection.
  *
  * @author Mr. Stone <evensstone@gmail.com>
- *
- * @external Request
- * @see {@link https://github.com/stonemjs/http/blob/main/src/Request.mjs|Request}
  */
 export class RouteCollection {
   #routes = new Map()
@@ -34,7 +31,7 @@ export class RouteCollection {
   /**
    * Check matched route against request.
    *
-   * @param  {Request} request
+   * @param  {external:Request} request
    * @param  {boolean} [includingMethod=true]
    * @return {Route}
    */

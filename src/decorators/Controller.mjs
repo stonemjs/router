@@ -2,24 +2,30 @@ import deepmerge from 'deepmerge'
 import { LogicException, isClass, MetaProperty } from '@stone-js/common'
 
 /**
+ * options.
+ *
+ * @memberOf Decorators
+ * @typedef  {Object} Decorators.options
+ * @property {string} name
+ */
+
+/**
  * Controller decorator, usefull for decorating controller class and define it as a controller.
  *
  * @author Mr. Stone <evensstone@gmail.com>
  *
- * @typedef  {Object} definition
- * @property {string} name
- *
- * @param  {definition} definition
+ * @memberOf Decorators
+ * @param  {Decorators.options} options
  * @return {Function}
  */
-export const Controller = (definition) => {
+export const Controller = (options) => {
   return (target) => {
     if (!isClass(target)) {
       throw new LogicException('This decorator can only be applied at class level')
     }
 
     const metadata = {
-      ...definition,
+      ...options,
       type: 'service',
       isController: true
     }

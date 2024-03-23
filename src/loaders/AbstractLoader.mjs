@@ -6,8 +6,7 @@ import { LogicException } from '@stone-js/common'
  *
  * @author Mr. Stone <evensstone@gmail.com>
  *
- * @typedef {import('./RouteDefinition.mjs').definition} definition
- * @typedef {import('../mapper/FlattenMapper.mjs').FlattenMapper} FlattenMapper
+ * @abstract
  */
 export class AbstractLoader {
   #mapper

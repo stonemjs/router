@@ -1,6 +1,6 @@
 {
   // https://www.typescriptlang.org/docs/handbook/declaration-files/dts-from-js.html
-  "include": ["src/**/*"],
+  "include": ["dist/index.mjs"],
   "compilerOptions": {
     "skipLibCheck": true,
     // Tells TypeScript to read JS files, as
