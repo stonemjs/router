@@ -1,7 +1,7 @@
 {
   "name": "@stone-js/router",
   "version": "0.0.1",
-  "description": "Stone.js universal router",
+  "description": "Stone.js router",
   "author": "Mr. Stone <evensstone@gmail.com>",
   "license": "MIT",
   "repository": "git@github.com:stonemjs/router.git",
@@ -15,8 +15,7 @@
     "browser",
     "Stone.js",
     "router",
-    "serverless",
-    "universal router"
+    "serverless"
   ],
   "main": "./dist/index.cjs",
   "module": "./dist/index.mjs",
@@ -43,7 +42,8 @@
     "lint:fix": "standard --fix src tests",
     "lint:test": "standard --env jest tests",
     "predoc": "npm run build && rimraf docs",
-    "doc": "jsdoc -a all -c jsdoc.json dist/index.mjs -d docs/jsdoc && jsdoc2md -c jsdoc.json dist/index.mjs > docs/API.md",
+    "doc": "jsdoc -a all -c jsdoc.json -R README.md dist/index.mjs -d docs/jsdoc && jsdoc2md -c jsdoc.json dist/index.mjs > docs/API.md",
+    "doc:serve": "npm run doc && npx http-server docs/jsdoc",
     "build": "npm run lint && rollup -c && npm run types",
     "release": "npm run test:text && npm run build && npm publish --access public",
     "test": "npm run lint:test && jest -i",
@@ -53,6 +53,7 @@
     "test:lcov": "npm run test:cvg -- --coverageReporters=lcov text"
   },
   "dependencies": {
+    "@stone-js/common": "^1.0.0",
     "@stone-js/pipeline": "^1.0.1",
     "deepmerge": "^4.3.1"
   },

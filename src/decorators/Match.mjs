@@ -12,23 +12,23 @@ import { LogicException, isClass, isMethod, MetaProperty } from '@stone-js/commo
  * definition.
  *
  * @typedef  {Object} definition
- * @property {string} path
- * @property {string} method
- * @property {Function|Object} action
- * @property {string=} name
- * @property {string=} alias
- * @property {Object=} rules
- * @property {string=} domain
- * @property {Object=} actions - Frontend context
- * @property {Object=} bindings
- * @property {Object=} defaults
- * @property {string=} redirect
- * @property {Array<string>=} methods
- * @property {Array<Function>=} throttle
- * @property {Array<Function>=} middleware
- * @property {Array<definition>=} children
- * @property {boolean} [fallback=false]
- * @property {Array<Function>=} excludeMiddleware
+ * @property {string} path - Path to match the user request.
+ * @property {string} method - Http method.
+ * @property {Function|Object} action - Action to be invoked when running route.
+ * @property {string=} name - Route name.
+ * @property {string=} alias - Define aliases for path and resolve it internally. Example, { path: '/users', alias: '/people' } will match both /users and /people
+ * @property {Object=} rules - Define regex for path params definition.
+ * @property {string=} domain - Domain to match user request domain.
+ * @property {Object=} actions - Many actions for frontend context.
+ * @property {Object=} bindings -  Resolve parameters from database models, passing class must have `resolveRouteBinding` as static or instance method.
+ * @property {Object=} defaults - Define default route params values.
+ * @property {string=} redirect - Redirect request from one route to another route.
+ * @property {Array<string>=} methods - Http methods.
+ * @property {Array<Function>=} throttle - Defined rate limiter for routes.
+ * @property {Array<Function>=} middleware - Route Middleware.
+ * @property {Array<definition>=} children - Group route definitions.
+ * @property {boolean} [fallback=false] - Define default action when no routes matches.
+ * @property {Array<Function>=} excludeMiddleware - Route exclude Middleware.
  */
 
 /**
