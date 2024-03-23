@@ -16,7 +16,7 @@ export default {
       sourcemap: true,
       name: 'StoneRouter',
       plugins: [terser()],
-      file: 'dist/index.js',
+      file: 'dist/index.min.js',
     }
   ],
   plugins: [

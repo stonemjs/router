@@ -20,19 +20,19 @@
   ],
   "main": "./dist/index.cjs",
   "module": "./dist/index.mjs",
-  "browser": "./dist/index.js",
-  "types": "./dist/types/index.d.ts",
+  "browser": "./dist/index.min.js",
+  "types": "./dist/types/index.d.mts",
   "files": [
     "/dist"
   ],
   "exports": {
     ".": {
       "import": {
-        "types": "./dist/types/index.d.ts",
+        "types": "./dist/types/index.d.mts",
         "default": "./dist/index.mjs"
       },
       "require": {
-        "types": "./dist/types/index.d.ts",
+        "types": "./dist/types/index.d.mts",
         "default": "./dist/index.cjs"
       }
     }
@@ -43,7 +43,7 @@
     "lint:fix": "standard --fix src tests",
     "lint:test": "standard --env jest tests",
     "predoc": "npm run build && rimraf docs",
-    "doc": "jsdoc -a all -c jsdoc.json dist/index.mjs -d docs/jsdoc && jsdoc2md --files dist/index.mjs > docs/API.md",
+    "doc": "jsdoc -a all -c jsdoc.json dist/index.mjs -d docs/jsdoc && jsdoc2md -c jsdoc.json dist/index.mjs > docs/API.md",
     "build": "npm run lint && rollup -c && npm run types",
     "release": "npm run test:text && npm run build && npm publish --access public",
     "test": "npm run lint:test && jest -i",
