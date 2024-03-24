@@ -15,6 +15,8 @@ export class Route {
   #definition
   #dispatchers
 
+  #hash
+  #query
   #parameterNames
   #domainConstraints
   #segmentConstraints
@@ -97,6 +99,11 @@ export class Route {
     return this.get('fallback', false)
   }
 
+  /** @return {boolean} */
+  get isStrict () {
+    return this.get('strict', false)
+  }
+
   /** @return {Function[]} */
   get middleware () {
     return this.get('middleware', [])
@@ -105,6 +112,21 @@ export class Route {
   /** @return {Function[]} */
   get excludeMiddleware () {
     return this.get('excludeMiddleware', [])
+  }
+
+  /** @return {Object<string,*>} */
+  get params () {
+    return this.parameters()
+  }
+
+  /** @return {Object<string,*>} */
+  get query () {
+    return this.#query ?? {}
+  }
+
+  /** @return {string} */
+  get hash () {
+    return this.#hash
   }
 
   /**
@@ -143,6 +165,8 @@ export class Route {
    * @return {this}
    */
   async bind (request) {
+    this.#hash = request.hash
+    this.#query = request.query
     this.#parameters = await this.#bindParameters(request)
     return this
   }
@@ -276,6 +300,17 @@ export class Route {
    */
   isParameterNameOptional (name) {
     return this.optionalParameterNames().includes(name)
+  }
+
+  /**
+   * Set Uri regex pattern to be strict when matching.
+   *
+   * @param  {boolean} value
+   * @return {this}
+   */
+  setStrict (value) {
+    this.#definition.set('strict', value)
+    return this
   }
 
   /**
@@ -633,37 +668,42 @@ export class Route {
    * Get uri regex.
    * This regex is generated from route definition and used to match against request path.
    *
-   * @param  {string} flag
+   * @param  {string} [flag='i']
    * @return {RegExp}
    */
-  uriRegex (flag = 'i') {
+  uriRegex (flags = 'i') {
+    flags = this.isStrict ? '' : flags
+    const trailingSlash = this.isStrict ? (this.path.endsWith('/') ? '/' : '') : '/?'
     const domain = this.domain ? this._buildDomainPattern(this._getDomainConstraints()) : ''
     const path = this._getSegmentsConstraints().reduce((prev, curr) => `${prev}${this._buildSegmentPattern(curr)}`, '')
-    return new RegExp(`^${domain}${path.length ? path : '/'}/?$`, flag)
+    return new RegExp(`^${domain}${path.length ? path : '/'}${trailingSlash}$`, flags)
   }
 
   /**
    * Get path regex.
    * This regex is generated from route definition and used to match against request path.
    *
-   * @param  {string} flag
+   * @param  {string} [flag=null]
    * @return {RegExp}
    */
-  pathRegex (flag = 'i') {
+  pathRegex (flags = 'i') {
+    flags = this.isStrict ? '' : flags
+    const trailingSlash = this.isStrict ? (this.path.endsWith('/') ? '/' : '') : '/?'
     const pattern = this._getSegmentsConstraints().reduce((prev, curr) => `${prev}${this._buildSegmentPattern(curr)}`, '')
-    return new RegExp(`^${pattern.length ? pattern : '/'}/?$`, flag)
+    return new RegExp(`^${pattern.length ? pattern : '/'}${trailingSlash}$`, flags)
   }
 
   /**
    * Get domain regex.
    * This regex is generated from route definition and used to match against request path.
    *
-   * @param  {string} flag
+   * @param  {string} [flag=null]
    * @return {RegExp}
    */
-  domainRegex (flag = 'i') {
+  domainRegex (flags = 'i') {
+    flags = this.isStrict ? '' : flags
     const pattern = this.domain ? this._buildDomainPattern(this._getDomainConstraints()) : null
-    return pattern ? new RegExp(`^${pattern}$`, flag) : null
+    return pattern ? new RegExp(`^${pattern}$`, flags) : null
   }
 
   /** @private */
@@ -710,18 +750,18 @@ export class Route {
   }
 
   /**
-   * SegmentConstraint
+   * Internal SegmentConstraint object.
    *
    * @typedef  {Object}  SegmentConstraint
-   * @property {string}  match - The domain real value.
-   * @property {string}  prefix - The segment prefix value.
-   * @property {string}  suffix - The domain suffix value.
-   * @property {string}  param - The domain param name.
-   * @property {string}  alias - The value defined as alias for entity bindings.
-   * @property {string}  rule - The domain regex rule.
-   * @property {string}  quantifier - The domain regex quantifier.
-   * @property {string}  default - The default value when there is no values.
-   * @property {boolean} optional - Is this domain is optional.
+   * @property {string}  match - Segment value.
+   * @property {string}  prefix - Segment prefix value.
+   * @property {string}  suffix - Domain suffix value.
+   * @property {string}  param - Param name.
+   * @property {string}  alias - Value defined as alias for entity bindings.
+   * @property {string}  rule - Regex rule.
+   * @property {string}  quantifier - Regex quantifier.
+   * @property {string}  default - Default value for param.
+   * @property {boolean} optional - Is param optional.
    */
 
   /**

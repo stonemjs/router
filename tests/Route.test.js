@@ -67,6 +67,7 @@ describe('#Route', () => {
       })
       const route = new Route(definition)
       route.setRouter(null)
+      route.setStrict(true)
       route.setContainer(null)
       route.setMatchers([])
       route.setDispatchers({ callable: null })
@@ -85,6 +86,7 @@ describe('#Route', () => {
       // Assert
       expect(route.uri).toBe('{subdomain}.example.com/users/:id')
       expect(route.path).toBe('/users/:id')
+      expect(route.isStrict).toBe(true)
       expect(route.domain).toBe('{subdomain}.example.com')
       expect(route.methods).toEqual([GET, HEAD])
       expect(route.action).toEqual({ getUsers: Controller })
@@ -137,7 +139,9 @@ describe('#Route', () => {
     it('The request must match the route', () => {
       // Arrange
       const route = new Route(new RouteDefinition({ path: '/users/:id(\\d+)/profile/:name(.+)/comments/:commId(\\d+)?', method: GET }))
-      const requiredRoute1 = new Route(new RouteDefinition({ path: '/users/:id(\\d+)+', method: GET }))
+      const requiredRoute1 = new Route(new RouteDefinition({ path: '/Users/:id(\\d+)+', method: GET }))
+      const strictRoute = new Route(new RouteDefinition({ path: '/Users/:id(\\d+)+', method: GET, strict: true }))
+      const strictRoute1 = new Route(new RouteDefinition({ path: '/users/:id(\\d+)+/', method: GET, strict: true }))
       const optionalRoute1 = new Route(new RouteDefinition({ path: '/users/:id(\\d+)*', method: GET }))
       const requiredRoute2 = new Route(new RouteDefinition({ path: '/users/user-:id(\\d+)*', method: GET }))
 
@@ -148,8 +152,12 @@ describe('#Route', () => {
       const request5 = { decodedPath: '/users/12/profile/stone/comments/44/deee', method: GET, getUri () { return this.decodedPath } }
       const request6 = { decodedPath: '/users/user-', method: GET, getUri () { return this.decodedPath } }
       const request7 = { decodedPath: '/users/user-12/13/14/15', method: GET, getUri () { return this.decodedPath } }
+      const request8 = { decodedPath: '/Users/12/13/14/15', method: GET, getUri () { return this.decodedPath } }
+      const request9 = { decodedPath: '/users/12/13/14/15/', method: GET, getUri () { return this.decodedPath } }
 
       route.setMatchers(matchers)
+      strictRoute.setMatchers(matchers)
+      strictRoute1.setMatchers(matchers)
       requiredRoute1.setMatchers(matchers)
       optionalRoute1.setMatchers(matchers)
       requiredRoute2.setMatchers(matchers)
@@ -162,6 +170,12 @@ describe('#Route', () => {
 
       expect(requiredRoute1.matches(request1)).toBe(false)
       expect(requiredRoute1.matches(request2)).toBe(true)
+
+      expect(strictRoute.matches(request2)).toBe(false)
+      expect(strictRoute.matches(request8)).toBe(true)
+
+      expect(strictRoute1.matches(request2)).toBe(false)
+      expect(strictRoute1.matches(request9)).toBe(true)
 
       expect(optionalRoute1.matches(request1)).toBe(true)
       expect(optionalRoute1.matches(request2)).toBe(true)
@@ -399,13 +413,15 @@ describe('#Route', () => {
         action: { getUsers: Controller }
       })
       const route = new Route(definition)
-      const request = { decodedPath: '/users/12/profile/stone/', method: GET, getUri () { return this.decodedPath } }
+      const request = { decodedPath: '/users/12/profile/stone/', method: GET, getUri () { return this.decodedPath }, query: { lastname: 'Doe' }, hash: 'name' }
 
       // Act
       await route.bind(request)
 
       // Assert
-      expect(route.parameters()).toEqual({ id: null, name: null, commId: null })
+      expect(route.hash).toEqual('name')
+      expect(route.query).toEqual({ lastname: 'Doe' })
+      expect(route.params).toEqual({ id: null, name: null, commId: null })
     })
 
     it('Must bind request to route and get request parameters', async () => {
@@ -425,6 +441,7 @@ describe('#Route', () => {
       route.setParameter('firstname', 'Doe')
 
       // Assert
+      expect(route.query).toEqual({})
       expect(route.hasParameters()).toBe(true)
       expect(route.hasParameter('id')).toBe(true)
       expect(route.hasParameter('username')).toBe(false)
@@ -536,6 +553,8 @@ describe('#Route', () => {
       // Arrange
       const requiredRoute = new Route(new RouteDefinition({ domain: 'http://{name@subDomain(.+?)?}.example.com', path: '/users/:id@userId(\\d+)/profile/:profile' }))
       const requiredRoute2 = new Route(new RouteDefinition({ path: '/users/:id@userId(\\d+)/profile/:profile+' }))
+      const strictRoute = new Route(new RouteDefinition({ path: '/users/:id@userId(\\d+)/profile/:profile/name', strict: true }))
+      const strictRoute2 = new Route(new RouteDefinition({ path: '/users/:id@userId(\\d+)/profile/:profile+/', strict: true }))
       const optionalRoute = new Route(new RouteDefinition({ domain: 'http://{name@subDomain(.+?)}.example.com', path: '/users/{id@userId(\\d+)}/profile/{profile?}' }))
       const optionalRoute2 = new Route(new RouteDefinition({ domain: 'http://{name@subDomain(.+?)}.example.com', path: '/users/{id@userId(\\d+)}/profile/{profile*}' }))
       const optionalRoute3 = new Route(new RouteDefinition({ domain: 'http://{name@subDomain(.+?)}.example.com' }))
@@ -543,6 +562,8 @@ describe('#Route', () => {
       // Act
       const requiredRegex = requiredRoute.uriRegex()
       const requiredRegex2 = requiredRoute2.uriRegex()
+      const strictRegex = strictRoute.uriRegex()
+      const strictRegex2 = strictRoute2.uriRegex()
       const optionalRegex = optionalRoute.uriRegex()
       const optionalRegex2 = optionalRoute2.uriRegex()
       const optionalRegex3 = optionalRoute3.uriRegex()
@@ -550,6 +571,8 @@ describe('#Route', () => {
       // Assert
       expect(requiredRegex).toEqual(/^(.+?)?.example.com\/users\/(\d+)\/profile\/([^/]+?)\/?$/i)
       expect(requiredRegex2).toEqual(/^\/users\/(\d+)\/profile\/((?:[^/]+?)(?:\/(?:[^/]+?))*)\/?$/i)
+      expect(strictRegex).toEqual(/^\/users\/(\d+)\/profile\/([^/]+?)\/name$/)
+      expect(strictRegex2).toEqual(/^\/users\/(\d+)\/profile\/((?:[^/]+?)(?:\/(?:[^/]+?))*)\/$/)
       expect(optionalRegex).toEqual(/^(.+?).example.com\/users\/(\d+)\/profile(?:\/([^/]+?))?\/?$/i)
       expect(optionalRegex2).toEqual(/^(.+?).example.com\/users\/(\d+)\/profile(?:\/((?:[^/]+?)(?:\/(?:[^/]+?))*))?\/?$/i)
       expect(optionalRegex3).toEqual(/^(.+?).example.com\/\/?$/i)
@@ -564,6 +587,8 @@ describe('#Route', () => {
 
       const requiredRoute = new Route(new RouteDefinition({ path: '/users/:id@userId(\\d+)' }))
       const requiredRoute2 = new Route(new RouteDefinition({ path: '/users/:id@userId(\\d+)+' }))
+      const strictRoute = new Route(new RouteDefinition({ path: '/users/:id@userId(\\d+)', strict: true }))
+      const strictRoute2 = new Route(new RouteDefinition({ path: '/users/:id@userId(\\d+)+/', strict: true }))
       const optionalRoute = new Route(new RouteDefinition({ path: '/users/{id@userId(\\d+)?}' }))
       const optionalRoute2 = new Route(new RouteDefinition({ path: '/users/{id@userId(\\d+)*}' }))
 
@@ -578,6 +603,8 @@ describe('#Route', () => {
 
       const requiredRegex = requiredRoute.pathRegex()
       const requiredRegex2 = requiredRoute2.pathRegex()
+      const strictRegex = strictRoute.pathRegex()
+      const strictRegex2 = strictRoute2.pathRegex()
       const optionalRegex = optionalRoute.pathRegex()
       const optionalRegex2 = optionalRoute2.pathRegex()
 
@@ -592,6 +619,8 @@ describe('#Route', () => {
 
       expect(requiredRegex).toEqual(/^\/users\/(\d+)\/?$/i)
       expect(requiredRegex2).toEqual(/^\/users\/((?:\d+)(?:\/(?:\d+))*)\/?$/i)
+      expect(strictRegex).toEqual(/^\/users\/(\d+)$/)
+      expect(strictRegex2).toEqual(/^\/users\/((?:\d+)(?:\/(?:\d+))*)\/$/)
       expect(optionalRegex).toEqual(/^\/users(?:\/(\d+))?\/?$/i)
       expect(optionalRegex2).toEqual(/^\/users(?:\/((?:\d+)(?:\/(?:\d+))*))?\/?$/i)
 
@@ -608,18 +637,21 @@ describe('#Route', () => {
       const emptyRoute = new Route(new RouteDefinition({}))
       const emptyRoute2 = new Route(new RouteDefinition({ domain: 'example.com' }))
       const requiredRoute = new Route(new RouteDefinition({ domain: 'http://{name@subDomain(.+?)}.example.com' }))
+      const requiredRoute2 = new Route(new RouteDefinition({ domain: 'http://{name@subDomain(.+?)}.example.com', strict: true }))
       const optionalRoute = new Route(new RouteDefinition({ domain: 'http://{name@subDomain(.+?)?}.example.com' }))
 
       // Act
       const emptyRegex = emptyRoute.domainRegex()
       const emptyRegex2 = emptyRoute2.domainRegex()
       const requiredRegex = requiredRoute.domainRegex()
+      const requiredRegex2 = requiredRoute2.domainRegex()
       const optionalRegex = optionalRoute.domainRegex()
 
       // Assert
       expect(emptyRegex).toBe(null)
       expect(emptyRegex2).toEqual(/^example.com$/i)
       expect(requiredRegex).toEqual(/^(.+?).example.com$/i)
+      expect(requiredRegex2).toEqual(/^(.+?).example.com$/)
       expect(optionalRegex).toEqual(/^(.+?)?.example.com$/i)
     })
   })

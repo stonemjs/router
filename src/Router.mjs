@@ -46,6 +46,7 @@ export class Router {
   static METHODS = HTTP_METHODS
 
   #rules
+  #strict
   #routes
   #current
   #maxDepth
@@ -359,6 +360,17 @@ export class Router {
    */
   setMaxDepth (value) {
     this.#maxDepth = value
+    return this
+  }
+
+  /**
+   * Set Uri regex pattern to be strict when matching.
+   *
+   * @param  {boolean} value
+   * @return {this}
+   */
+  setStrict (value) {
+    this.#strict = value
     return this
   }
 
@@ -741,6 +753,7 @@ export class Router {
     return route
       .setRouter(this)
       .addRules(this.#rules)
+      .setStrict(this.#strict)
       .addDefaults(this.#defaults)
       .setContainer(this.#container)
       .setMatchers(this.getMatchers())
@@ -752,6 +765,7 @@ export class Router {
       const config = this.#container.make('config')
 
       this.#rules = config.get('router.rules', {})
+      this.#strict = config.get('router.strict', false)
       this.#maxDepth = config.get('router.maxDepth', 5)
       this.#matchers = config.get('router.matchers', [])
       this.#defaults = config.get('router.defaults', {})

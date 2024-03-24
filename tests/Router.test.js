@@ -397,6 +397,7 @@ describe('Router', () => {
         .setMaxDepth(5)
         .setRules({ id: /\d+/ })
         .addRule('name', /.+/g)
+        .setStrict(false)
         .setMiddleware([])
         .setDefaults({ domain: 'stone' })
         .addMiddleware(SimpleMiddleware)

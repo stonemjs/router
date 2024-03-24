@@ -9,7 +9,7 @@ import { LogicException, isClass, isMethod, MetaProperty } from '@stone-js/commo
  */
 
 /**
- * definition.
+ * Standard definition properties.
  *
  * @typedef  {Object} definition
  * @property {string} path - Path to match the user request.
@@ -26,7 +26,8 @@ import { LogicException, isClass, isMethod, MetaProperty } from '@stone-js/commo
  * @property {Array<string>=} methods - Http methods.
  * @property {Array<Function>=} throttle - Defined rate limiter for routes.
  * @property {Array<Function>=} middleware - Route Middleware.
- * @property {Array<definition>=} children - Group route definitions.
+ * @property {Array<definition>=} children - Group explicit route definitions.
+ * @property {boolean} [strict=false] - Strict regex pattern mode for case sensitive and trailing slash.
  * @property {boolean} [fallback=false] - Define default action when no routes matches.
  * @property {Array<Function>=} excludeMiddleware - Route exclude Middleware.
  */
