@@ -22,7 +22,7 @@ import { LogicException, isClass, isMethod, MetaProperty } from '@stone-js/commo
  * @property {Object=} actions - Many actions for frontend context.
  * @property {Object=} bindings -  Resolve parameters from database models, passing class must have `resolveRouteBinding` as static or instance method.
  * @property {Object=} defaults - Define default route params values.
- * @property {string=} redirect - Redirect request from one route to another route.
+ * @property {(string|Object|Function)} [redirect] - Redirect request from one route to another route.
  * @property {Array<string>=} methods - Http methods.
  * @property {Array<Function>=} throttle - Defined rate limiter for routes.
  * @property {Array<Function>=} middleware - Route Middleware.

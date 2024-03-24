@@ -183,7 +183,9 @@ export class Route {
    * @return {*}
    */
   run (request) {
-    if (this._isBrowser()) {
+    if (this.#definition.has('redirect')) {
+      return this.#runRedirection(request, this.get('redirect'))
+    } else if (this._isBrowser()) {
       return this.#runComponent(request)
     } else if (this.isControllerAction()) {
       return this.#runController(request)
@@ -891,6 +893,17 @@ export class Route {
       }
     } else {
       throw new LogicException('Binding must be a class.')
+    }
+  }
+
+  async #runRedirection (request, redirect, status = 302) {
+    if (isPlainObject(redirect)) {
+      const [[status, location]] = Object.entries(redirect)
+      return this.#runRedirection(request, location, parseInt(status))
+    } else if (isFunction(redirect)) {
+      return this.#runRedirection(request, await redirect(this, request))
+    } else {
+      return { status, statusCode: status, headers: { Location: redirect } }
     }
   }
 

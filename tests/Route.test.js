@@ -241,6 +241,37 @@ describe('#Route', () => {
       }
     })
 
+    it('Must run redirect route action', async () => {
+      // Arrange
+      const route = new Route(new RouteDefinition({ path: '/users', redirect: '/people' }))
+      const route2 = new Route(new RouteDefinition({ path: '/users', redirect: { 301: '/people' } }))
+      const route3 = new Route(new RouteDefinition({ path: '/users', redirect: () => '/people?name=Jonh' }))
+      const route4 = new Route(new RouteDefinition({ path: '/users', redirect: (_, req) => ({ 301: `/people?name=${req.query.name}` }) }))
+      const request = { decodedPath: '/users', query: { name: 'Doe' }, method: GET, getUri () { return this.decodedPath } }
+
+      route.setDispatchers(dispatchers)
+      route2.setDispatchers(dispatchers)
+      route3.setDispatchers(dispatchers)
+      route4.setDispatchers(dispatchers)
+
+      await route.bind(request)
+      await route2.bind(request)
+      await route3.bind(request)
+      await route4.bind(request)
+
+      // Act
+      const response = await route.run(request)
+      const response2 = await route2.run(request)
+      const response3 = await route3.run(request)
+      const response4 = await route4.run(request)
+
+      // Assert
+      expect(response).toEqual({ headers: { Location: '/people' }, status: 302, statusCode: 302 })
+      expect(response2).toEqual({ headers: { Location: '/people' }, status: 301, statusCode: 301 })
+      expect(response3).toEqual({ headers: { Location: '/people?name=Jonh' }, status: 302, statusCode: 302 })
+      expect(response4).toEqual({ headers: { Location: '/people?name=Doe' }, status: 301, statusCode: 301 })
+    })
+
     it('Must run callable route action', async () => {
       // Arrange
       const route = new Route(new RouteDefinition({ path: '/users/:id(\\d+)', method: GET, action: () => 'Get users' }))
