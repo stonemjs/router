@@ -12,6 +12,6 @@ export class UriMatcher {
    * @return {boolean}
    */
   matches (route, request) {
-    return route.uriRegex().test(request.decodedPath)
+    return route.pathRegex().reduce((prev, curr) => prev || curr.test(request.decodedPath), false)
   }
 }

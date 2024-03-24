@@ -54,6 +54,11 @@ export class Route {
     return `${this.domain ?? ''}${this.path}`
   }
 
+  /** @return {string[]} */
+  get alias () {
+    return [].concat(this.get('alias', []))
+  }
+
   /** @return {string} */
   get path () {
     return `/${this.get('path', '').trim()}`.replaceAll(/\/+/g, '/')
@@ -523,7 +528,7 @@ export class Route {
    */
   generate (params = {}, query = {}, hash = null, withDomain = true) {
     let path = this
-      ._getSegmentsConstraints()
+      ._getSegmentsConstraints(this.path)
       .reduce((prev, curr) => `${prev}${curr.prefix ?? ''}${curr.param ? (params[curr.param] ?? curr.default) : curr.match}/`, '/')
 
     if (withDomain) {
@@ -669,28 +674,34 @@ export class Route {
    * This regex is generated from route definition and used to match against request path.
    *
    * @param  {string} [flag='i']
-   * @return {RegExp}
+   * @return {RegExp[]}
    */
   uriRegex (flags = 'i') {
     flags = this.isStrict ? '' : flags
     const trailingSlash = this.isStrict ? (this.path.endsWith('/') ? '/' : '') : '/?'
     const domain = this.domain ? this._buildDomainPattern(this._getDomainConstraints()) : ''
-    const path = this._getSegmentsConstraints().reduce((prev, curr) => `${prev}${this._buildSegmentPattern(curr)}`, '')
-    return new RegExp(`^${domain}${path.length ? path : '/'}${trailingSlash}$`, flags)
+
+    return [this.path].concat(this.alias).map(path => {
+      const pattern = this._getSegmentsConstraints(path).reduce((prev, curr) => `${prev}${this._buildSegmentPattern(curr)}`, '')
+      return new RegExp(`^${domain}${pattern.length ? pattern : '/'}${trailingSlash}$`, flags)
+    })
   }
 
   /**
-   * Get path regex.
+   * Get path regex including alias.
    * This regex is generated from route definition and used to match against request path.
    *
    * @param  {string} [flag=null]
-   * @return {RegExp}
+   * @return {RegExp[]}
    */
   pathRegex (flags = 'i') {
     flags = this.isStrict ? '' : flags
     const trailingSlash = this.isStrict ? (this.path.endsWith('/') ? '/' : '') : '/?'
-    const pattern = this._getSegmentsConstraints().reduce((prev, curr) => `${prev}${this._buildSegmentPattern(curr)}`, '')
-    return new RegExp(`^${pattern.length ? pattern : '/'}${trailingSlash}$`, flags)
+
+    return [this.path].concat(this.alias).map(path => {
+      const pattern = this._getSegmentsConstraints(path).reduce((prev, curr) => `${prev}${this._buildSegmentPattern(curr)}`, '')
+      return new RegExp(`^${pattern.length ? pattern : '/'}${trailingSlash}$`, flags)
+    })
   }
 
   /**
@@ -771,7 +782,7 @@ export class Route {
    * @return {SegmentConstraint[]}
    */
   _uriConstraints () {
-    return [].concat(this._getDomainConstraints(), this._getSegmentsConstraints()).filter(v => !!v)
+    return [].concat(this._getDomainConstraints(), this._getSegmentsConstraints(this.path)).filter(v => !!v)
   }
 
   /**
@@ -803,9 +814,8 @@ export class Route {
    * @private
    * @return {SegmentConstraint[]}
    */
-  _getSegmentsConstraints () {
-    this.#segmentConstraints ??= this
-      .path
+  _getSegmentsConstraints (path) {
+    this.#segmentConstraints ??= path
       .split('/')
       .filter(segment => segment.trim().length)
       .map(segment => {
@@ -836,11 +846,12 @@ export class Route {
 
     const params = {}
     const constraints = this._uriConstraints().filter(v => v.param)
-    const matches = request
-      .getUri(this.hasDomain())
-      .match(this.uriRegex())
-      ?.filter((_v, i) => i > 0)
-      ?.map(v => isNumeric(v) ? parseFloat(v) : v) ?? []
+
+    const matches = this
+      .uriRegex()
+      .reduce((prev, curr) => prev.length ? prev : (request.getUri(this.hasDomain()).match(curr) ?? []), [])
+      .filter((_v, i) => i > 0)
+      .map(v => isNumeric(v) ? parseFloat(v) : v)
 
     for (const i in constraints) {
       const v = constraints[i]

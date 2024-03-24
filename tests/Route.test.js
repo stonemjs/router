@@ -430,7 +430,11 @@ describe('#Route', () => {
         path: '/users/:id(\\d+)/profile/:name(.+)/comments/:commId(\\d+)?',
         method: GET,
         action: { getUsers: Controller },
-        defaults: { name: null, commId: null }
+        defaults: { name: null, commId: null },
+        alias: [
+          '/people/:id(\\d+)/profile/:name(.+)/comments/:commId(\\d+)?',
+          '/man/:id(\\d+)/profile/:name(.+)/comments/:commId(\\d+)?'
+        ]
       })
       const route = new Route(definition)
       const request = { decodedPath: '/users/12/profile/stone/comments', method: GET, getUri () { return this.decodedPath } }
@@ -569,13 +573,13 @@ describe('#Route', () => {
       const optionalRegex3 = optionalRoute3.uriRegex()
 
       // Assert
-      expect(requiredRegex).toEqual(/^(.+?)?.example.com\/users\/(\d+)\/profile\/([^/]+?)\/?$/i)
-      expect(requiredRegex2).toEqual(/^\/users\/(\d+)\/profile\/((?:[^/]+?)(?:\/(?:[^/]+?))*)\/?$/i)
-      expect(strictRegex).toEqual(/^\/users\/(\d+)\/profile\/([^/]+?)\/name$/)
-      expect(strictRegex2).toEqual(/^\/users\/(\d+)\/profile\/((?:[^/]+?)(?:\/(?:[^/]+?))*)\/$/)
-      expect(optionalRegex).toEqual(/^(.+?).example.com\/users\/(\d+)\/profile(?:\/([^/]+?))?\/?$/i)
-      expect(optionalRegex2).toEqual(/^(.+?).example.com\/users\/(\d+)\/profile(?:\/((?:[^/]+?)(?:\/(?:[^/]+?))*))?\/?$/i)
-      expect(optionalRegex3).toEqual(/^(.+?).example.com\/\/?$/i)
+      expect(requiredRegex).toEqual([/^(.+?)?.example.com\/users\/(\d+)\/profile\/([^/]+?)\/?$/i])
+      expect(requiredRegex2).toEqual([/^\/users\/(\d+)\/profile\/((?:[^/]+?)(?:\/(?:[^/]+?))*)\/?$/i])
+      expect(strictRegex).toEqual([/^\/users\/(\d+)\/profile\/([^/]+?)\/name$/])
+      expect(strictRegex2).toEqual([/^\/users\/(\d+)\/profile\/((?:[^/]+?)(?:\/(?:[^/]+?))*)\/$/])
+      expect(optionalRegex).toEqual([/^(.+?).example.com\/users\/(\d+)\/profile(?:\/([^/]+?))?\/?$/i])
+      expect(optionalRegex2).toEqual([/^(.+?).example.com\/users\/(\d+)\/profile(?:\/((?:[^/]+?)(?:\/(?:[^/]+?))*))?\/?$/i])
+      expect(optionalRegex3).toEqual([/^(.+?).example.com\/\/?$/i])
     })
   })
 
@@ -614,20 +618,20 @@ describe('#Route', () => {
       const prefixOptionalRegex2 = prefixOptionalRoute2.pathRegex()
 
       // Assert
-      expect(emptyRegex).toEqual(/^\/\/?$/i)
-      expect(emptyRegex2).toEqual(/^\/users\/?$/i)
+      expect(emptyRegex).toEqual([/^\/\/?$/i])
+      expect(emptyRegex2).toEqual([/^\/users\/?$/i])
 
-      expect(requiredRegex).toEqual(/^\/users\/(\d+)\/?$/i)
-      expect(requiredRegex2).toEqual(/^\/users\/((?:\d+)(?:\/(?:\d+))*)\/?$/i)
-      expect(strictRegex).toEqual(/^\/users\/(\d+)$/)
-      expect(strictRegex2).toEqual(/^\/users\/((?:\d+)(?:\/(?:\d+))*)\/$/)
-      expect(optionalRegex).toEqual(/^\/users(?:\/(\d+))?\/?$/i)
-      expect(optionalRegex2).toEqual(/^\/users(?:\/((?:\d+)(?:\/(?:\d+))*))?\/?$/i)
+      expect(requiredRegex).toEqual([/^\/users\/(\d+)\/?$/i])
+      expect(requiredRegex2).toEqual([/^\/users\/((?:\d+)(?:\/(?:\d+))*)\/?$/i])
+      expect(strictRegex).toEqual([/^\/users\/(\d+)$/])
+      expect(strictRegex2).toEqual([/^\/users\/((?:\d+)(?:\/(?:\d+))*)\/$/])
+      expect(optionalRegex).toEqual([/^\/users(?:\/(\d+))?\/?$/i])
+      expect(optionalRegex2).toEqual([/^\/users(?:\/((?:\d+)(?:\/(?:\d+))*))?\/?$/i])
 
-      expect(prefixRequiredRegex).toEqual(/^\/users\/user-([^/]+?)\/?$/i)
-      expect(prefixRequiredRegex2).toEqual(/^\/users\/user-((?:[^/]+?)(?:\/(?:[^/]+?))*)\/?$/i)
-      expect(prefixOptionalRegex).toEqual(/^\/users\/user-([^/]+?)?\/?$/i)
-      expect(prefixOptionalRegex2).toEqual(/^\/users\/user-((?:[^/]+?)(?:\/(?:[^/]+?))*)?\/?$/i)
+      expect(prefixRequiredRegex).toEqual([/^\/users\/user-([^/]+?)\/?$/i])
+      expect(prefixRequiredRegex2).toEqual([/^\/users\/user-((?:[^/]+?)(?:\/(?:[^/]+?))*)\/?$/i])
+      expect(prefixOptionalRegex).toEqual([/^\/users\/user-([^/]+?)?\/?$/i])
+      expect(prefixOptionalRegex2).toEqual([/^\/users\/user-((?:[^/]+?)(?:\/(?:[^/]+?))*)?\/?$/i])
     })
   })
 
@@ -695,18 +699,18 @@ describe('#Route', () => {
       const prefixOptionalRoute = new Route(new RouteDefinition({ path: '/users/user-{id@userId?}' }))
       const prefixOptionalRoute2 = new Route(new RouteDefinition({ path: '/users/user-{id@userId*}' }))
 
-      const emptySegments = emptyRoute._getSegmentsConstraints()
-      const emptySegments2 = emptyRoute2._getSegmentsConstraints()
+      const emptySegments = emptyRoute._getSegmentsConstraints(emptyRoute.path)
+      const emptySegments2 = emptyRoute2._getSegmentsConstraints(emptyRoute2.path)
 
-      const requiredSegments = requiredRoute._getSegmentsConstraints()
-      const requiredSegments2 = requiredRoute2._getSegmentsConstraints()
-      const optionalSegments = optionalRoute._getSegmentsConstraints()
-      const optionalSegments2 = optionalRoute2._getSegmentsConstraints()
+      const requiredSegments = requiredRoute._getSegmentsConstraints(requiredRoute.path)
+      const requiredSegments2 = requiredRoute2._getSegmentsConstraints(requiredRoute2.path)
+      const optionalSegments = optionalRoute._getSegmentsConstraints(optionalRoute.path)
+      const optionalSegments2 = optionalRoute2._getSegmentsConstraints(optionalRoute2.path)
 
-      const prefixRequiredSegments = prefixRequiredRoute._getSegmentsConstraints()
-      const prefixRequiredSegments2 = prefixRequiredRoute2._getSegmentsConstraints()
-      const prefixOptionalSegments = prefixOptionalRoute._getSegmentsConstraints()
-      const prefixOptionalSegments2 = prefixOptionalRoute2._getSegmentsConstraints()
+      const prefixRequiredSegments = prefixRequiredRoute._getSegmentsConstraints(prefixRequiredRoute.path)
+      const prefixRequiredSegments2 = prefixRequiredRoute2._getSegmentsConstraints(prefixRequiredRoute2.path)
+      const prefixOptionalSegments = prefixOptionalRoute._getSegmentsConstraints(prefixOptionalRoute.path)
+      const prefixOptionalSegments2 = prefixOptionalRoute2._getSegmentsConstraints(prefixOptionalRoute2.path)
 
       // Act
       const emptyRegex = emptyRoute._buildSegmentPattern(emptySegments[0])
@@ -818,10 +822,10 @@ describe('#Route', () => {
       const optionalRoute2 = new Route(new RouteDefinition({ path: '/users/user-{id@userId(\\d+)*}' }))
 
       // Act
-      const requiredSegments = requiredRoute._getSegmentsConstraints()
-      const requiredSegments2 = requiredRoute2._getSegmentsConstraints()
-      const optionalSegments = optionalRoute._getSegmentsConstraints()
-      const optionalSegments2 = optionalRoute2._getSegmentsConstraints()
+      const requiredSegments = requiredRoute._getSegmentsConstraints(requiredRoute.path)
+      const requiredSegments2 = requiredRoute2._getSegmentsConstraints(requiredRoute2.path)
+      const optionalSegments = optionalRoute._getSegmentsConstraints(optionalRoute.path)
+      const optionalSegments2 = optionalRoute2._getSegmentsConstraints(optionalRoute2.path)
 
       // Assert
       expect(requiredSegments[0]).toEqual({ match: 'users' })
