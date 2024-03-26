@@ -19,6 +19,7 @@ import { LogicException, isClass, isMethod, MetaProperty } from '@stone-js/commo
  * @property {string=} alias - Define aliases for path and resolve it internally. Example, { path: '/users', alias: '/people' } will match both /users and /people
  * @property {Object=} rules - Define regex for path params definition.
  * @property {string=} domain - Domain to match user request domain.
+ * @property {string=} protocol - Protocol to match user request protocol. Example, http or https.
  * @property {Object=} actions - Many actions for frontend context.
  * @property {Object=} bindings -  Resolve parameters from database models, passing class must have `resolveRouteBinding` as static or instance method.
  * @property {Object=} defaults - Define default route params values.

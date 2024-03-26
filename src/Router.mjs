@@ -10,11 +10,12 @@ import { MethodMatcher } from './matchers/MethodMatcher.mjs'
 import { ExplicitLoader } from './loaders/ExplicitLoader.mjs'
 import { DecoratorLoader } from './loaders/DecoratorLoader.mjs'
 import { ProtocolMatcher } from './matchers/ProtocolMatcher.mjs'
-import { LogicException, HttpException } from '@stone-js/common'
+import { LogicException, HttpException, isClass } from '@stone-js/common'
 import { CallableDispatcher } from './dispatchers/CallableDispatcher.mjs'
 import { ComponentDispatcher } from './dispatchers/ComponentDispatcher.mjs'
 import { ControllerDispatcher } from './dispatchers/ControllerDispatcher.mjs'
 import { DELETE, GET, HTTP_METHODS, OPTIONS, PATCH, POST, PUT } from './enums/http-methods.mjs'
+import { isPlainObject } from 'lodash'
 
 /**
  * Request.
@@ -215,13 +216,31 @@ export class Router {
   }
 
   /**
-   * Load routes from source.
+   * Load routes from explicit or decorator source.
+   *
+   * @param  {(definition[]|Function[])} definitions
+   * @return {this}
+   */
+  load (definitions) {
+    if (Array.isArray(definitions)) {
+      if (isPlainObject(definitions[0])) {
+        return this.loadRoutesFromExplicitSource(definitions)
+      } else if (isClass(definitions[0])) {
+        return this.loadRoutesFromDecoratorSource(definitions)
+      }
+    }
+
+    throw new LogicException('Definitions must be an array of literal object or class.')
+  }
+
+  /**
+   * Load routes from loader.
    *
    * @param  {AbstractLoader} routeLoader
    * @return {this}
    * @throws {LogicException}
    */
-  loadRoutes (routeLoader) {
+  loadRoutesFromLoader (routeLoader) {
     if (!routeLoader.load) {
       throw new LogicException('Invalid loader, routeLoader must have `load` method')
     }
@@ -236,7 +255,7 @@ export class Router {
    * @return {this}
    */
   loadRoutesFromExplicitSource (definitions) {
-    return this.loadRoutes(new ExplicitLoader(new FlattenMapper(this.#maxDepth), definitions))
+    return this.loadRoutesFromLoader(new ExplicitLoader(new FlattenMapper(this.#maxDepth), definitions))
   }
 
   /**
@@ -246,7 +265,7 @@ export class Router {
    * @return {this}
    */
   loadRoutesFromDecoratorSource (classes) {
-    return this.loadRoutes(new DecoratorLoader(new FlattenMapper(this.#maxDepth), classes))
+    return this.loadRoutesFromLoader(new DecoratorLoader(new FlattenMapper(this.#maxDepth), classes))
   }
 
   /**

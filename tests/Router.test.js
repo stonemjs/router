@@ -235,14 +235,40 @@ describe('Router', () => {
     })
   })
 
-  describe('#loadRoutes', () => {
+  describe('#loadRoutesFromLoader', () => {
     it('Must throw LogicException when load method not present in loader', async () => {
       // Act
       try {
-        await router.loadRoutes({})
+        await router.loadRoutesFromLoader({})
       } catch (error) {
         // Assert
         expect(error.message).toEqual('Invalid loader, routeLoader must have `load` method')
+      }
+    })
+  })
+
+  describe('#load', () => {
+    it('Must throw an exception when definitions is not an array', () => {
+      try {
+        router.load({})
+      } catch (error) {
+        expect(error.message).toBe('Definitions must be an array of literal object or class.')
+      }
+    })
+
+    it('Must throw an exception when definitions is empty', () => {
+      try {
+        router.load([])
+      } catch (error) {
+        expect(error.message).toBe('Definitions must be an array of literal object or class.')
+      }
+    })
+
+    it('Must throw an exception when definitions are not literal object nor classes', () => {
+      try {
+        router.load(['name'])
+      } catch (error) {
+        expect(error.message).toBe('Definitions must be an array of literal object or class.')
       }
     })
   })
@@ -256,7 +282,7 @@ describe('Router', () => {
       ]
 
       // Act
-      router.loadRoutesFromExplicitSource(definitions)
+      router.load(definitions)
 
       const routes = router.getRoutes()
       const getRoute = routes.getByName('users.get')
@@ -298,7 +324,7 @@ describe('Router', () => {
       const definitions = [UserController]
 
       // Act
-      await router.loadRoutesFromDecoratorSource(definitions)
+      await router.load(definitions)
 
       const routes = router.getRoutes()
       const getRoute = routes.getByName('users.get')
