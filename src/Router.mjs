@@ -10,12 +10,11 @@ import { MethodMatcher } from './matchers/MethodMatcher.mjs'
 import { ExplicitLoader } from './loaders/ExplicitLoader.mjs'
 import { DecoratorLoader } from './loaders/DecoratorLoader.mjs'
 import { ProtocolMatcher } from './matchers/ProtocolMatcher.mjs'
-import { LogicException, HttpException, isClass } from '@stone-js/common'
 import { CallableDispatcher } from './dispatchers/CallableDispatcher.mjs'
 import { ComponentDispatcher } from './dispatchers/ComponentDispatcher.mjs'
 import { ControllerDispatcher } from './dispatchers/ControllerDispatcher.mjs'
+import { LogicException, HttpException, isClass, isPlainObject } from '@stone-js/common'
 import { DELETE, GET, HTTP_METHODS, OPTIONS, PATCH, POST, PUT } from './enums/http-methods.mjs'
-import { isPlainObject } from 'lodash'
 
 /**
  * Request.
@@ -65,18 +64,12 @@ export class Router {
   /**
    * Create a router.
    *
-   * @param {external:Container=} container Stone.js service container module
-   * @param {external:EventEmitter=} eventEmitter Stone.js event emitter module
+   * @param {routerOptions} [options={}] - Router configuration options
+   * @param {external:Container=} [container=null] - Stone.js service container module
+   * @param {external:EventEmitter=} [eventEmitter=null] - Stone.js event emitter module
    */
-  constructor (container = null, eventEmitter = null) {
-    this.#rules = {}
-    this.#maxDepth = 5
-    this.#matchers = []
-    this.#defaults = {}
-    this.#middleware = []
-    this.#dispatchers = {}
+  constructor (options = {}, container = null, eventEmitter = null) {
     this.#container = container
-    this.#skipMiddleware = false
     this.#eventEmitter = eventEmitter
     this.#routes = new RouteCollection()
 
@@ -88,8 +81,9 @@ export class Router {
       console.log('No Event manager instance provided. No events will be disptached.')
     }
 
-    this.#setOptions()
-    this.#container?.instance('routes', this.#routes)
+    this
+      .#setOptions(options)
+      .#container?.instance('routes', this.#routes)
   }
 
   /**
@@ -222,7 +216,7 @@ export class Router {
    * @return {this}
    */
   load (definitions) {
-    if (Array.isArray(definitions)) {
+    if (Array.isArray(definitions) && definitions.length) {
       if (isPlainObject(definitions[0])) {
         return this.loadRoutesFromExplicitSource(definitions)
       } else if (isClass(definitions[0])) {
@@ -230,7 +224,7 @@ export class Router {
       }
     }
 
-    throw new LogicException('Definitions must be an array of literal object or class.')
+    throw new LogicException('Route definitions must be an array of literal object or class.')
   }
 
   /**
@@ -779,18 +773,20 @@ export class Router {
       .setDispatchers(this.getDispatchers())
   }
 
-  #setOptions () {
-    if (this.#container?.bound('config')) {
-      const config = this.#container.make('config')
+  #setOptions (options) {
+    this.#rules = options?.rules ?? {}
+    this.#strict = options?.strict ?? false
+    this.#maxDepth = options?.max_depth ?? 5
+    this.#matchers = options?.matchers ?? []
+    this.#defaults = options?.defaults ?? {}
+    this.#middleware = options?.middleware ?? []
+    this.#dispatchers = options?.dispatchers ?? {}
+    this.#skipMiddleware = options?.skip_middleware ?? false
 
-      this.#rules = config.get('router.rules', {})
-      this.#strict = config.get('router.strict', false)
-      this.#maxDepth = config.get('router.maxDepth', 5)
-      this.#matchers = config.get('router.matchers', [])
-      this.#defaults = config.get('router.defaults', {})
-      this.#middleware = config.get('router.middleware', [])
-      this.#dispatchers = config.get('router.dispatchers', {})
-      this.#skipMiddleware = config.get('router.middleware_disabled', false)
+    if (options?.definitions?.length) {
+      this.load(options.definitions)
     }
+
+    return this
   }
 }

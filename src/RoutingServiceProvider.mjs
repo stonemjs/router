@@ -32,9 +32,12 @@ export class RoutingServiceProvider {
   }
 
   #registerRouter () {
+    const events = this.#container.bound('events') ? this.#container.make('events') : null
+    const options = this.#container.bound('config') ? this.#container.make('config').get('router', {}) : {}
+
     this
       .#container
-      .singletonIf(Router, container => new Router(container, container.bound('events') ? container.make('events') : null))
+      .singletonIf(Router, container => new Router(options, container, events))
       .alias(Router, 'router')
 
     return this

@@ -2,6 +2,7 @@ import { Route } from '../src/Route.mjs'
 import { Router } from '../src/Router.mjs'
 import { Get } from '../src/decorators/Get.mjs'
 import { Post } from '../src/decorators/Post.mjs'
+import { options } from '../src/config/options.mjs'
 import { Group } from '../src/decorators/Group.mjs'
 import { UriMatcher } from '../src/matchers/UriMatcher.mjs'
 import { RouteCollection } from '../src/RouteCollection.mjs'
@@ -15,13 +16,10 @@ import { DELETE, GET, HEAD, HTTP_METHODS, OPTIONS, PATCH, POST, PUT } from '../s
 
 describe('Router', () => {
   let router
-  const config = {
-    get: jest.fn((_, v) => v)
-  }
   const container = {
     instance: jest.fn(),
     bound: jest.fn(() => true),
-    make: jest.fn(V => V === 'config' ? config : new V())
+    make: jest.fn(V => new V())
   }
   const eventEmitter = {
     on: jest.fn(),
@@ -29,13 +27,12 @@ describe('Router', () => {
   }
 
   beforeEach(() => {
-    router = new Router(container, eventEmitter)
+    router = new Router(options, container, eventEmitter)
   })
 
   describe('#constructor', () => {
     it('Must create a Router instance with service container and eventEmitter provided', () => {
       // Assert
-      expect(config.get).toHaveBeenCalled()
       expect(container.instance).toHaveBeenCalled()
       expect(router.getRoutes()).toBeInstanceOf(RouteCollection)
     })
@@ -80,6 +77,8 @@ describe('Router', () => {
         { path: '/users/:username', action: () => Promise.resolve('Get users'), name: 'users.get', method: GET, middleware: [SimpleMiddleware] },
         { path: '/users/:username', action: () => Promise.resolve('Save user'), name: 'users.post', method: POST, middleware: [SimpleMiddleware] }
       ]
+
+      const router = new Router({ ...options, definitions }, container, eventEmitter)
 
       request.method = GET
       request.custom = null
@@ -252,7 +251,7 @@ describe('Router', () => {
       try {
         router.load({})
       } catch (error) {
-        expect(error.message).toBe('Definitions must be an array of literal object or class.')
+        expect(error.message).toBe('Route definitions must be an array of literal object or class.')
       }
     })
 
@@ -260,7 +259,7 @@ describe('Router', () => {
       try {
         router.load([])
       } catch (error) {
-        expect(error.message).toBe('Definitions must be an array of literal object or class.')
+        expect(error.message).toBe('Route definitions must be an array of literal object or class.')
       }
     })
 
@@ -268,7 +267,7 @@ describe('Router', () => {
       try {
         router.load(['name'])
       } catch (error) {
-        expect(error.message).toBe('Definitions must be an array of literal object or class.')
+        expect(error.message).toBe('Route definitions must be an array of literal object or class.')
       }
     })
   })

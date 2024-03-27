@@ -43,7 +43,7 @@
     "lint:test": "standard --env jest tests",
     "predoc": "npm run build && rimraf docs",
     "doc": "jsdoc -a all -c jsdoc.json -R README.md dist/index.mjs -d docs/jsdoc && jsdoc2md -c jsdoc.json dist/index.mjs > docs/API.md",
-    "doc:serve": "npm run doc && npx http-server docs/jsdoc",
+    "doc:serve": "npm run doc && npx http-server docs/jsdoc -p 8081",
     "build": "npm run lint && rollup -c && npm run types",
     "release": "npm run test:text && npm run build && npm publish --access public",
     "test": "npm run lint:test && jest -i",

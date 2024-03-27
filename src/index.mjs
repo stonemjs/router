@@ -8,6 +8,8 @@ export { Delete } from './decorators/Delete.mjs'
 export { Options } from './decorators/Options.mjs'
 export { Controller } from './decorators/Controller.mjs'
 
+export { options } from './config/options.mjs'
+
 export { Event } from './Event.mjs'
 export { Route } from './Route.mjs'
 export { Router } from './Router.mjs'
