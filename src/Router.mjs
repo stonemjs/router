@@ -309,19 +309,19 @@ export class Router {
    *
    * @param  {string} name
    * @param  {Object} [params={}]
-   * @param  {Object} [query={}]
-   * @param  {string} [hash=null]
+   * @param  {boolean} [withDomain=true]
+   * @param  {string} [protocol=null]
    * @return {string}
    * @throws {LogicException}
    */
-  generate (name, params = {}, query = {}, hash = null) {
+  generate (name, params = {}, withDomain = true, protocol = null) {
     const route = this.#routes.getByName(name)
 
     if (!route) {
       throw new LogicException(`No routes found for this name ${name}`)
     }
 
-    return route.generate(params, query, hash)
+    return route.generate(params, withDomain, protocol)
   }
 
   /**
@@ -354,14 +354,17 @@ export class Router {
   }
 
   /**
-   * Register a callback to be invoked when route matched.
+   * Register a callback to be invoked when route events fire.
    *
+   * @listens Event#ROUTING
    * @listens Event#ROUTE_MATCHED
+   *
+   * @param  {(Event.ROUTING|Event.ROUTE_MATCHED)} eventName
    * @param  {Function} callback
    * @return {this}
    */
-  matched (callback) {
-    this.#eventEmitter?.on(Event.ROUTE_MATCHED, callback)
+  on (eventName, callback) {
+    this.#eventEmitter?.on(eventName, callback)
     return this
   }
 

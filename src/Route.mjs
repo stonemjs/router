@@ -524,29 +524,28 @@ export class Route {
    * Generate a route string.
    *
    * @param  {Object} [params={}]
-   * @param  {Object} [query={}]
-   * @param  {string} [hash=null]
+   * @param  {boolean} [withDomain=true]
+   * @param  {string} [protocol=null]
    * @return {string}
    */
-  generate (params = {}, query = {}, hash = null, withDomain = true) {
-    let path = this
-      ._getSegmentsConstraints(this.path)
-      .reduce((prev, curr) => `${prev}${curr.prefix ?? ''}${curr.param ? (params[curr.param] ?? curr.default) : curr.match}/`, '/')
+  generate (params = {}, withDomain = true, protocol = null) {
+    const pathCons = this._getSegmentsConstraints(this.path)
+
+    let query = Object.entries(params).filter(([name]) => !pathCons.find(v => name === v.param))
+    let path = pathCons.reduce((prev, curr) => `${prev}${curr.prefix ?? ''}${curr.param ? (params[curr.param] ?? curr.default) : curr.match}/`, '/')
 
     if (withDomain) {
       const domainCons = this._getDomainConstraints()
       if (domainCons?.suffix) {
-        path = `${params[domainCons.param] ?? domainCons.default ?? ''}${domainCons.suffix}${path}`
+        protocol ??= this.protocol ?? 'http'
+        query = query.filter(([name]) => name !== domainCons.param)
+        path = `${protocol}://${params[domainCons.param] ?? domainCons.default ?? ''}${domainCons.suffix}${path}`
       }
     }
 
-    if (Object.keys(query).length) {
+    if (query.length) {
       const queryString = new URLSearchParams(query).toString()
       path = `${path}?${queryString}`
-    }
-
-    if (hash) {
-      path = `${path}#${hash}`
     }
 
     return path

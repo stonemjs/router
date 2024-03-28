@@ -360,7 +360,7 @@ describe('#Route', () => {
   })
 
   describe('#generate', () => {
-    it('Must generate route path with domain from route', () => {
+    it('Must generate route path with domain from route and default', () => {
       // Arrange
       const route = new Route(new RouteDefinition({
         domain: 'http://{domain@subDomain(.+?)}.example.com',
@@ -369,17 +369,25 @@ describe('#Route', () => {
         defaults: { commId: 24 }
       }))
 
+      const route2 = new Route(new RouteDefinition({
+        domain: 'http://{domain@subDomain(.+?)}.example.com',
+        path: '/users/:id(\\d+)/profile/:name(.+)/comments/:commId(\\d+)?',
+        method: GET,
+        protocol: 'https',
+        defaults: { commId: 24 }
+      }))
+
       // Act
       const path1 = route.generate()
-      const path2 = route.generate({ domain: 'stone', id: 12, name: 'stone.js' })
-      const path3 = route.generate({ domain: 'stone', id: 12, name: 'stone.js' }, {}, null, false)
-      const path4 = route.generate({ domain: 'stone', id: 12, name: 'stone.js' }, { firstname: 'Doe' }, 'title')
+      const path2 = route.generate({ domain: 'stone', id: 12, name: 'stone.js' }, true, 'https')
+      const path3 = route.generate({ domain: 'stone', id: 12, name: 'stone.js' }, false)
+      const path4 = route2.generate({ domain: 'stone', id: 12, name: 'stone.js', firstname: 'Doe' })
 
       // Assert
-      expect(path1).toBe('.example.com/users/null/profile/null/comments/24/')
-      expect(path2).toBe('stone.example.com/users/12/profile/stone.js/comments/24/')
-      expect(path3).toBe('/users/12/profile/stone.js/comments/24/')
-      expect(path4).toBe('stone.example.com/users/12/profile/stone.js/comments/24/?firstname=Doe#title')
+      expect(path1).toBe('http://.example.com/users/null/profile/null/comments/24/')
+      expect(path2).toBe('https://stone.example.com/users/12/profile/stone.js/comments/24/')
+      expect(path3).toBe('/users/12/profile/stone.js/comments/24/?domain=stone')
+      expect(path4).toBe('https://stone.example.com/users/12/profile/stone.js/comments/24/?firstname=Doe')
     })
 
     it('Must generate route path without domain from route', () => {
@@ -394,7 +402,7 @@ describe('#Route', () => {
       const path1 = route.generate({ domain: 'stone', id: 12, name: 'stone.js' })
 
       // Assert
-      expect(path1).toBe('/users/12/profile/stone.js/comments/24/')
+      expect(path1).toBe('/users/12/profile/stone.js/comments/24/?domain=stone')
       expect(route.uri).toBe('/users/:id(\\d+)/profile/:name(.+)/comments/:commId(\\d+)?')
     })
   })

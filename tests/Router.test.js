@@ -13,6 +13,7 @@ import { CallableDispatcher } from '../src/dispatchers/CallableDispatcher.mjs'
 import { ComponentDispatcher } from '../src/dispatchers/ComponentDispatcher.mjs'
 import { ControllerDispatcher } from '../src/dispatchers/ControllerDispatcher.mjs'
 import { DELETE, GET, HEAD, HTTP_METHODS, OPTIONS, PATCH, POST, PUT } from '../src/enums/http-methods.mjs'
+import { Event } from '../src/Event.mjs'
 
 describe('Router', () => {
   let router
@@ -348,11 +349,11 @@ describe('Router', () => {
 
       // Act
       const postUrl = router.generate('users.post')
-      const getUrl = router.generate('users.get', { id: 22 }, { name: 'Stone' }, 'title')
+      const getUrl = router.generate('users.get', { id: 22, name: 'Stone' })
 
       // Assert
       expect(postUrl).toEqual('/users/11/profile/')
-      expect(getUrl).toEqual('/users/22/profile/?name=Stone#title')
+      expect(getUrl).toEqual('/users/22/profile/?name=Stone')
     })
 
     it('Must generate route with provided params and with domain', () => {
@@ -368,16 +369,16 @@ describe('Router', () => {
         .loadRoutesFromExplicitSource(definitions)
 
       // Act
-      const getUrl = router.generate('users.get', { subDomain: 'my', id: 22 }, { name: 'Stone' }, 'title')
-      const postUrl = router.generate('users.post', { id: 11 }, { name: 'Stone' }, 'title')
-      const putUrl = router.generate('users.put', { id: 11 }, { name: 'Stone' }, 'title')
-      const deleteUrl = router.generate('users.delete', { id: 11 }, { name: 'Stone' }, 'title')
+      const getUrl = router.generate('users.get', { subDomain: 'my', id: 22, name: 'Stone' })
+      const postUrl = router.generate('users.post', { id: 11, name: 'Stone' })
+      const putUrl = router.generate('users.put', { id: 11, name: 'Stone' })
+      const deleteUrl = router.generate('users.delete', { id: 11, name: 'Stone' }, true, 'https')
 
       // Assert
-      expect(getUrl).toEqual('my.example.com/users/22/profile/?name=Stone#title')
-      expect(postUrl).toEqual('your.example.com/users/11/profile/?name=Stone#title')
-      expect(putUrl).toEqual('.example.com/users/11/profile/?name=Stone#title')
-      expect(deleteUrl).toEqual('stone.example.com/users/11/profile/?name=Stone#title')
+      expect(getUrl).toEqual('http://my.example.com/users/22/profile/?name=Stone')
+      expect(postUrl).toEqual('http://your.example.com/users/11/profile/?name=Stone')
+      expect(putUrl).toEqual('http://.example.com/users/11/profile/?name=Stone')
+      expect(deleteUrl).toEqual('https://stone.example.com/users/11/profile/?name=Stone')
     })
 
     it('Must throw LogicException when no such route is defined', () => {
@@ -437,7 +438,7 @@ describe('Router', () => {
         .setCallableDispatcher(CallableDispatcher)
         .setComponentDispatcher(ComponentDispatcher)
         .setControllerDispatcher(ControllerDispatcher)
-        .matched(() => 'Route matched')
+        .on(Event.ROUTE_MATCHED, () => 'Route matched')
         .loadRoutesFromExplicitSource(definitions)
 
       try {
