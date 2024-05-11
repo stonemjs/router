@@ -1,4 +1,4 @@
-import { LogicException, isClass, isMethod, MetaProperty } from '@stone-js/common'
+import { LogicError, isClass, isMethod, MetaProperty } from '@stone-js/common'
 
 /**
  * Decorators, usefull for decorating class for route definitions.
@@ -55,7 +55,7 @@ import { LogicException, isClass, isMethod, MetaProperty } from '@stone-js/commo
 export const Match = (definition) => {
   return (target, name, descriptor) => {
     if (!isClass(target) || (!isMethod(descriptor.value) && !(descriptor.value instanceof MetaProperty))) {
-      throw new LogicException('This decorator can only be applied at method level')
+      throw new LogicError('This decorator can only be applied at method level')
     }
 
     descriptor.value = new MetaProperty(name, descriptor.value, { decorators: { route: { ...definition, action: { [name]: target }, method: undefined } } })

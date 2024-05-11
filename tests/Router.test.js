@@ -3,8 +3,8 @@ import { Event } from '../src/Event.mjs'
 import { Router } from '../src/Router.mjs'
 import { Get } from '../src/decorators/Get.mjs'
 import { Post } from '../src/decorators/Post.mjs'
-import { options } from '../src/config/options.mjs'
 import { Group } from '../src/decorators/Group.mjs'
+import { router as options } from '../src/config/router.mjs'
 import { UriMatcher } from '../src/matchers/UriMatcher.mjs'
 import { RouteCollection } from '../src/RouteCollection.mjs'
 import { RouteDefinition } from '../src/RouteDefinition.mjs'
@@ -224,7 +224,7 @@ describe('Router', () => {
   })
 
   describe('#setDispatchers', () => {
-    it('Must throw LogicException when setting an invalid dispatcher', () => {
+    it('Must throw LogicError when setting an invalid dispatcher', () => {
       // Act
       try {
         router.setDispatchers({ patate: class {} })
@@ -236,7 +236,7 @@ describe('Router', () => {
   })
 
   describe('#registerRoutesFromLoader', () => {
-    it('Must throw LogicException when load method not present in loader', async () => {
+    it('Must throw LogicError when load method not present in loader', async () => {
       // Act
       try {
         await router.registerRoutesFromLoader({})
@@ -381,7 +381,7 @@ describe('Router', () => {
       expect(deleteUrl).toEqual('https://stone.example.com/users/11/profile/?name=Stone')
     })
 
-    it('Must throw LogicException when no such route is defined', () => {
+    it('Must throw LogicError when no such route is defined', () => {
       // Arrange
       const definitions = [
         { path: '/users/:id/profile', action: () => 'Stone.js', name: 'users.get', method: GET }

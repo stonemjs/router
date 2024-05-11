@@ -1,4 +1,4 @@
-import { cloneDeep } from 'lodash'
+import { cloneDeep } from 'lodash-es'
 import { FlattenMapper } from '../../src/mapper/FlattenMapper.mjs'
 import { GET, HEAD, POST, PUT } from '../../src/enums/http-methods.mjs'
 

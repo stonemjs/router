@@ -1,17 +1,11 @@
 import { AbstractEvent } from '@stone-js/common'
-/**
- * AbstractEvent
- *
- * @external AbstractEvent
- * @see {@link https://github.com/stonemjs/common/blob/main/src/AbstractEvent.mjs|AbstractEvent}
-*/
 
 /**
  * Class representing a Route Event.
  *
  * @author Mr. Stone <evensstone@gmail.com>
  *
- * @extends external:AbstractEvent
+ * @extends AbstractEvent
  */
 export class Event extends AbstractEvent {
   /**

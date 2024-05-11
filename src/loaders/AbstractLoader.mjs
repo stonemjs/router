@@ -1,4 +1,4 @@
-import { LogicException } from '@stone-js/common'
+import { LogicError } from '@stone-js/common'
 
 /**
  * Class representing an AbstractLoader.
@@ -23,10 +23,10 @@ export class AbstractLoader {
   /**
    * Load definitions from source.
    *
-   * @throws {LogicException}
+   * @throws {LogicError}
    */
   load () {
-    throw new LogicException('Cannot call this abstract method.')
+    throw new LogicError('Cannot call this abstract method.')
   }
 
   /**

@@ -18,7 +18,7 @@
  * @property {definition[]} [definitions=[]]
  * @property {boolean} [middleware_disabled=false]
  */
-export const options = {
+export const router = {
   rules: {},
   strict: false,
   defaults: {},

@@ -1,7 +1,13 @@
 {
   "roots": ["src/", "tests/"],
   "transform": {
-    "\\.m?[jt]sx?$": "babel-jest"
+    "\\.m?[jt]sx?$": ["babel-jest", {
+      "presets": [
+        ["@babel/env", {
+          "modules": "commonjs"
+        }]
+      ]
+    }]
   },
   "collectCoverageFrom": [
     "src/**/*.{js,mjs}",
@@ -13,5 +19,9 @@
       "branches": 80,
       "functions": 80
     }
-  }
+  },
+  "testEnvironment": "node",
+  "transformIgnorePatterns": [
+    "node_modules/(?!(\\@stone-js)/)"
+  ]
 }

@@ -1,5 +1,5 @@
 import { AbstractLoader } from './AbstractLoader.mjs'
-import { LogicException, MetaProperty } from '@stone-js/common'
+import { LogicError, MetaProperty } from '@stone-js/common'
 
 /**
  * Class representing a DecoratorLoader.
@@ -21,7 +21,7 @@ export class DecoratorLoader extends AbstractLoader {
     super(mapper)
 
     if (!Array.isArray(classes)) {
-      throw new LogicException('classes must be an array of class.')
+      throw new LogicError('classes must be an array of class.')
     }
 
     this.#classes = classes

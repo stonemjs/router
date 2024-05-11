@@ -1,6 +1,6 @@
 import { RouteDefinition } from './RouteDefinition.mjs'
 import { MethodMatcher } from './matchers/MethodMatcher.mjs'
-import { HttpException, LogicException, isPlainObject, isFunction, isClass, isNumeric } from '@stone-js/common'
+import { HttpError, LogicError, isPlainObject, isFunction, isClass, isNumeric } from '@stone-js/common'
 
 /**
  * Class representing a Route.
@@ -38,11 +38,11 @@ export class Route {
    * Create a route.
    *
    * @param  {RouteDefinition} routeDefinition
-   * @throws {LogicException}
+   * @throws {LogicError}
    */
   constructor (routeDefinition) {
     if (!(routeDefinition instanceof RouteDefinition)) {
-      throw new LogicException("This method's parameter must be an instance of `RouteDefinition`")
+      throw new LogicError("This method's parameter must be an instance of `RouteDefinition`")
     }
 
     this.#matchers = []
@@ -193,7 +193,7 @@ export class Route {
     } else if (this.isCallableAction()) {
       return this.#runCallable(request)
     } else {
-      throw new LogicException('Invalid action provided.')
+      throw new LogicError('Invalid action provided.')
     }
   }
 
@@ -220,14 +220,14 @@ export class Route {
    * Get all route parameters.
    *
    * @return {Object}
-   * @throws {LogicException}
+   * @throws {LogicError}
    */
   parameters () {
     if (this.hasParameters()) {
       return this.#parameters
     }
 
-    throw new LogicException('Route is not bound')
+    throw new LogicError('Route is not bound')
   }
 
   /**
@@ -236,7 +236,7 @@ export class Route {
    * @param  {string} name
    * @param  {*} [fallback=null] return default value when not found.
    * @return {*}
-   * @throws {LogicException}
+   * @throws {LogicError}
    */
   parameter (name, fallback = null) {
     return this.parameters()[name] ?? fallback
@@ -248,7 +248,7 @@ export class Route {
    * @param  {string} name
    * @param  {*} value
    * @return {this}
-   * @throws {LogicException}
+   * @throws {LogicError}
    */
   setParameter (name, value) {
     this.parameters()[name] = value
@@ -260,7 +260,7 @@ export class Route {
    *
    * @param  {string} name
    * @return {this}
-   * @throws {LogicException}
+   * @throws {LogicError}
    */
   deleteParameter (name) {
     delete this.parameters()[name]
@@ -271,7 +271,7 @@ export class Route {
    * Get all non null route parameters.
    *
    * @return {Object}
-   * @throws {LogicException}
+   * @throws {LogicError}
    */
   parametersWithoutNulls () {
     return Object.fromEntries(Object.entries(this.parameters()).filter(([, value]) => value != null))
@@ -281,7 +281,7 @@ export class Route {
    * Get all parameter names.
    *
    * @return {string[]}
-   * @throws {LogicException}
+   * @throws {LogicError}
    */
   parameterNames () {
     this.#parameterNames ??= Object.keys(this.parameters())
@@ -470,14 +470,14 @@ export class Route {
    * Get component action.
    *
    * @return {Object}
-   * @throws {LogicException}
+   * @throws {LogicError}
    */
   getComponent () {
     if (this._isBrowser()) {
       return this.action
     }
 
-    throw new LogicException('Component action must be called only on browser context.')
+    throw new LogicError('Component action must be called only on browser context.')
   }
 
   /**
@@ -493,14 +493,14 @@ export class Route {
    * Get callable action.
    *
    * @return {Function}
-   * @throws {LogicException}
+   * @throws {LogicError}
    */
   getCallable () {
     if (this.isCallableAction()) {
       return this.action
     }
 
-    throw new LogicException('Callable action must be a function')
+    throw new LogicError('Callable action must be a function')
   }
 
   /**
@@ -516,14 +516,14 @@ export class Route {
    * Get controller action.
    *
    * @return {Object}
-   * @throws {LogicException}
+   * @throws {LogicError}
    */
   getController () {
     if (!this._controller) {
       if (this.isControllerAction()) {
         this._controller = this.#getInstance(Object.values(this.action)[0])
       } else {
-        throw new LogicException('The controller must be a class')
+        throw new LogicError('The controller must be a class')
       }
     }
 
@@ -534,13 +534,13 @@ export class Route {
    * Get controller method.
    *
    * @return {string}
-   * @throws {LogicException}
+   * @throws {LogicError}
    */
   getControllerMethod () {
     if (this.isControllerAction()) {
       return Object.keys(this.action)[0]
     } else {
-      throw new LogicException("The controller action must be a string, representing the controller's method.")
+      throw new LogicError("The controller action must be a string, representing the controller's method.")
     }
   }
 
@@ -698,7 +698,7 @@ export class Route {
    */
   addDispatcher (type, dispatcher) {
     if (!['component', 'callable', 'controller'].includes(type)) {
-      throw new LogicException(`Invalid dispatcher type ${type}. Valid types are 'component', 'callable' and 'controller'`)
+      throw new LogicError(`Invalid dispatcher type ${type}. Valid types are 'component', 'callable' and 'controller'`)
     }
     this.#dispatchers[type] = dispatcher
     return this
@@ -881,7 +881,7 @@ export class Route {
 
   async #bindParameters (request) {
     if (!Object.hasOwn(request, 'getUri')) {
-      throw new LogicException('Request must have a `getUri` method.')
+      throw new LogicError('Request must have a `getUri` method.')
     }
 
     const params = {}
@@ -921,25 +921,25 @@ export class Route {
         try {
           model = await Class.resolveRouteBinding(key, value)
         } catch (error) {
-          throw new HttpException(404, 'Not found!', [], `No model found for this value "${value}".`, null, null, null, error)
+          throw new HttpError(404, 'Not found!', [], `No model found for this value "${value}".`, null, null, null, error)
         }
       } else if (Class.prototype.resolveRouteBinding) {
         try {
           model = await this.#getInstance(Class).resolveRouteBinding(key, value)
         } catch (error) {
-          throw new HttpException(404, 'Not found!', [], `No model found for this value "${value}".`, null, null, null, error)
+          throw new HttpError(404, 'Not found!', [], `No model found for this value "${value}".`, null, null, null, error)
         }
       } else {
-        throw new LogicException('Binding must have this `resolveRouteBinding` as class or instance method.')
+        throw new LogicError('Binding must have this `resolveRouteBinding` as class or instance method.')
       }
 
       if (!model && !isOptional) {
-        throw new HttpException(404, 'Not found!', [], `No model found for this value "${value}".`)
+        throw new HttpError(404, 'Not found!', [], `No model found for this value "${value}".`)
       }
 
       return model
     } else {
-      throw new LogicException('Binding must be a class.')
+      throw new LogicError('Binding must be a class.')
     }
   }
 
@@ -963,7 +963,7 @@ export class Route {
       return this.#getInstance(this.getDispatcher('component'))
     }
 
-    throw new LogicException('No component dispatcher provided.')
+    throw new LogicError('No component dispatcher provided.')
   }
 
   #runCallable (request) {
@@ -975,7 +975,7 @@ export class Route {
       return this.#getInstance(this.getDispatcher('callable'))
     }
 
-    throw new LogicException('No callable dispatcher provided')
+    throw new LogicError('No callable dispatcher provided')
   }
 
   #runController (request) {
@@ -987,7 +987,7 @@ export class Route {
       return this.#getInstance(this.getDispatcher('controller'))
     }
 
-    throw new LogicException('No controller dispatcher provided')
+    throw new LogicError('No controller dispatcher provided')
   }
 
   #getInstance (Class) {

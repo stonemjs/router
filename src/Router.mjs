@@ -13,7 +13,7 @@ import { ProtocolMatcher } from './matchers/ProtocolMatcher.mjs'
 import { CallableDispatcher } from './dispatchers/CallableDispatcher.mjs'
 import { ComponentDispatcher } from './dispatchers/ComponentDispatcher.mjs'
 import { ControllerDispatcher } from './dispatchers/ControllerDispatcher.mjs'
-import { LogicException, HttpException, isClass, isPlainObject } from '@stone-js/common'
+import { LogicError, HttpError, isClass, isPlainObject } from '@stone-js/common'
 import { DELETE, GET, HTTP_METHODS, OPTIONS, PATCH, POST, PUT } from './enums/http-methods.mjs'
 
 /**
@@ -225,7 +225,7 @@ export class Router {
       }
     }
 
-    throw new LogicException('Route definitions must be an array of literal object or class.')
+    throw new LogicError('Route definitions must be an array of literal object or class.')
   }
 
   /**
@@ -233,11 +233,11 @@ export class Router {
    *
    * @param  {AbstractLoader} routeLoader
    * @return {this}
-   * @throws {LogicException}
+   * @throws {LogicError}
    */
   registerRoutesFromLoader (routeLoader) {
     if (!routeLoader.load) {
-      throw new LogicException('Invalid loader, routeLoader must have `load` method')
+      throw new LogicError('Invalid loader, routeLoader must have `load` method')
     }
 
     return this.addFromRouteDefinitions(routeLoader.load())
@@ -293,13 +293,13 @@ export class Router {
    * @param  {external:Request} request
    * @param  {string} name
    * @return {*}
-   * @throws {HttpException}
+   * @throws {HttpError}
    */
   respondWithRouteName (request, name) {
     const route = this.#routes.getByName(name)
 
     if (!route) {
-      throw new HttpException(404, 'Not Found', [], `No routes found for this name ${name}`)
+      throw new HttpError(404, 'Not Found', [], `No routes found for this name ${name}`)
     }
 
     return this.#runRoute(request, route)
@@ -313,13 +313,13 @@ export class Router {
    * @param  {boolean} [withDomain=true]
    * @param  {string} [protocol=null]
    * @return {string}
-   * @throws {LogicException}
+   * @throws {LogicError}
    */
   generate (name, params = {}, withDomain = true, protocol = null) {
     const route = this.#routes.getByName(name)
 
     if (!route) {
-      throw new LogicException(`No routes found for this name ${name}`)
+      throw new LogicError(`No routes found for this name ${name}`)
     }
 
     return route.generate(params, withDomain, protocol)
@@ -587,7 +587,7 @@ export class Router {
    */
   setRoutes (routeCollection) {
     if (!(routeCollection instanceof RouteCollection)) {
-      throw new LogicException('Parameter must be an instance of RouteCollection')
+      throw new LogicError('Parameter must be an instance of RouteCollection')
     }
 
     for (const route of routeCollection) {
@@ -694,7 +694,7 @@ export class Router {
    */
   addDispatcher (type, dispatcher) {
     if (!['component', 'callable', 'controller'].includes(type)) {
-      throw new LogicException(`Invalid dispatcher type ${type}. Valid types are ('component', 'callable', 'controller')`)
+      throw new LogicError(`Invalid dispatcher type ${type}. Valid types are ('component', 'callable', 'controller')`)
     }
 
     this.#dispatchers[type] = dispatcher

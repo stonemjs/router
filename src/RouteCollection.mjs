@@ -1,5 +1,5 @@
 import { Route } from './Route.mjs'
-import { HttpException } from '@stone-js/common'
+import { HttpError } from '@stone-js/common'
 import { RouteDefinition } from './RouteDefinition.mjs'
 import { HTTP_METHODS } from './enums/http-methods.mjs'
 
@@ -192,7 +192,7 @@ export class RouteCollection {
 
     if (others.length > 0) { return this.#getRouteForMethods(request, others) }
 
-    throw new HttpException(404, 'Not Found', [], `The route ${request.decodedPathname} could not be found.`)
+    throw new HttpError(404, 'Not Found', [], `The route ${request.decodedPathname} could not be found.`)
   }
 
   #checkForAlternateVerbs (request) {
@@ -218,7 +218,7 @@ export class RouteCollection {
   }
 
   #requestMethodNotAllowed (request, others, method) {
-    throw new HttpException(
+    throw new HttpError(
       405,
       'Not Found',
       [],

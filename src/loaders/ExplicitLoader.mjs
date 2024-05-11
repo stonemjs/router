@@ -1,4 +1,4 @@
-import { LogicException } from '@stone-js/common'
+import { LogicError } from '@stone-js/common'
 import { AbstractLoader } from './AbstractLoader.mjs'
 
 /**
@@ -16,13 +16,13 @@ export class ExplicitLoader extends AbstractLoader {
    *
    * @param {FlattenMapper} mapper
    * @param {definition[]} definitions
-   * @throws {LogicException}
+   * @throws {LogicError}
    */
   constructor (mapper, definitions) {
     super(mapper)
 
     if (!Array.isArray(definitions)) {
-      throw new LogicException('definitions must be an array of object.')
+      throw new LogicError('definitions must be an array of object.')
     }
 
     this.#definitions = definitions

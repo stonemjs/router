@@ -1,5 +1,5 @@
 import deepmerge from 'deepmerge'
-import { LogicException, isClass, MetaProperty } from '@stone-js/common'
+import { LogicError, isClass, MetaProperty } from '@stone-js/common'
 
 /**
  * options.
@@ -21,7 +21,7 @@ import { LogicException, isClass, MetaProperty } from '@stone-js/common'
 export const Controller = (options) => {
   return (target) => {
     if (!isClass(target)) {
-      throw new LogicException('This decorator can only be applied at class level')
+      throw new LogicError('This decorator can only be applied at class level')
     }
 
     const metadata = {

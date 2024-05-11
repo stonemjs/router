@@ -1,6 +1,6 @@
 import * as pipes from './pipes.mjs'
 import { Pipeline } from '@stone-js/pipeline'
-import { LogicException } from '@stone-js/common'
+import { LogicError } from '@stone-js/common'
 import { RouteDefinition } from '../RouteDefinition.mjs'
 
 /**
@@ -46,11 +46,11 @@ export class FlattenMapper {
   _validate (definitions) {
     return definitions.reduce((prev, definition) => {
       if (!definition.path) {
-        throw new LogicException(`No Path provided for this route definition ${JSON.stringify(definition)}`)
+        throw new LogicError(`No Path provided for this route definition ${JSON.stringify(definition)}`)
       } else if (!definition.method && !definition.methods) {
-        throw new LogicException(`No Methods provided for this route definition ${JSON.stringify(definition)}`)
+        throw new LogicError(`No Methods provided for this route definition ${JSON.stringify(definition)}`)
       } else if (!definition.action) {
-        throw new LogicException(`No Action provided for this route definition ${JSON.stringify(definition)}`)
+        throw new LogicError(`No Action provided for this route definition ${JSON.stringify(definition)}`)
       } else {
         return prev.concat(new RouteDefinition(definition))
       }
@@ -66,7 +66,7 @@ export class FlattenMapper {
       depth++
       for (const child of children) {
         if (depth >= this.#maxDepth) {
-          throw new LogicException(`Route definition depth exeeceded the limit value (${this.#maxDepth})`)
+          throw new LogicError(`Route definition depth exeeceded the limit value (${this.#maxDepth})`)
         }
         this._flatten(flattened, this._prepend(definition, child), child.children, depth)
       }
