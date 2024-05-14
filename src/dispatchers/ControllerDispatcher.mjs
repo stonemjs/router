@@ -1,3 +1,5 @@
+import { MetaProperty } from '@stone-js/common'
+
 /**
  * Class representing a ControllerDispatcher.
  *
@@ -7,29 +9,37 @@ export class ControllerDispatcher {
   /**
    * Dispatch.
    *
-   * @param {external:Request} request
+   * @param {IncomingEvent} event
    * @param {Route}   route
    * @param {any}     controller
    * @param {String}  method
    *
    * @return {any}
    */
-  dispatch (request, route, controller, method) {
+  async dispatch (event, route, controller, method) {
+    let response
     const params = route.parametersWithoutNulls()
     const context = {
+      event,
       route,
       params,
-      request,
+      request: event,
       parameters: params,
-      body: request.body ?? {},
-      query: request.query ?? {},
-      payload: request.body ?? {}
+      body: event.body ?? {},
+      query: event.query ?? {},
+      payload: event.body ?? {}
     }
 
     if (controller.callAction) {
-      return controller.callAction(method, context)
+      response = await controller.callAction(method, context)
+    } else {
+      response = await controller[method](context)
     }
 
-    return controller[method](context)
+    if (response instanceof MetaProperty) {
+      response = await response.invoke(controller, context)
+    }
+
+    return response
   }
 }

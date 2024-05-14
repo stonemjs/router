@@ -8,14 +8,14 @@ export class ProtocolMatcher {
    * matches.
    *
    * @param  {Route}   route
-   * @param  {external:Request} request
+   * @param  {IncomingEvent} event
    * @return {boolean}
    */
-  matches (route, request) {
+  matches (route, event) {
     if (route.isHttpOnly()) {
-      return request.isSecure === false
+      return event.isSecure === false
     } else if (route.isHttpsOnly()) {
-      return request.isSecure === true
+      return event.isSecure === true
     } else {
       return true
     }

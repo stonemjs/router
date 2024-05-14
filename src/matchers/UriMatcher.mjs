@@ -8,10 +8,10 @@ export class UriMatcher {
    * matches.
    *
    * @param  {Route}   route
-   * @param  {external:Request} request
+   * @param  {IncomingEvent} event
    * @return {boolean}
    */
-  matches (route, request) {
-    return route.pathRegex().reduce((prev, curr) => prev || curr.test(request.decodedPathname), false)
+  matches (route, event) {
+    return route.pathRegex().reduce((prev, curr) => prev || curr.test(event.decodedPathname), false)
   }
 }

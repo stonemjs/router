@@ -1,6 +1,6 @@
-import { RouteDefinition } from './RouteDefinition.mjs'
 import { MethodMatcher } from './matchers/MethodMatcher.mjs'
-import { HttpError, LogicError, isPlainObject, isFunction, isClass, isNumeric } from '@stone-js/common'
+import { RouteDefinition } from './definition/RouteDefinition.mjs'
+import { HttpError, isPlainObject, isFunction, isConstructor, isNumeric, isBrowser, RuntimeError } from '@stone-js/common'
 
 /**
  * Class representing a Route.
@@ -38,11 +38,11 @@ export class Route {
    * Create a route.
    *
    * @param  {RouteDefinition} routeDefinition
-   * @throws {LogicError}
+   * @throws {TypeError}
    */
   constructor (routeDefinition) {
     if (!(routeDefinition instanceof RouteDefinition)) {
-      throw new LogicError("This method's parameter must be an instance of `RouteDefinition`")
+      throw new TypeError("This method's parameter must be an instance of `RouteDefinition`")
     }
 
     this.#matchers = []
@@ -148,16 +148,16 @@ export class Route {
   }
 
   /**
-   * Check if the request matches the route.
+   * Check if the event matches the route.
    *
-   * @param  {external:Request} request
+   * @param  {IncomingEvent} event
    * @param  {boolean} [includingMethod=true]
    * @return {boolean}
    */
-  matches (request, includingMethod = true) {
+  matches (event, includingMethod = true) {
     const matchers = this.getMatchers().filter(matcher => !(!includingMethod && matcher instanceof MethodMatcher))
     for (const matcher of matchers) {
-      if (!matcher.matches(this, request)) {
+      if (!matcher.matches(this, event)) {
         return false
       }
     }
@@ -165,35 +165,36 @@ export class Route {
   }
 
   /**
-   * Bind request to route and retrieve params.
+   * Bind event to route and retrieve params.
    *
-   * @param  {external:Request} request
+   * @param  {IncomingEvent} event
    * @return {this}
    */
-  async bind (request) {
-    this.#hash = request.hash
-    this.#query = request.query
-    this.#parameters = await this.#bindParameters(request)
+  async bind (event) {
+    this.#hash = event.hash
+    this.#query = event.query
+    this.#parameters = await this.#bindParameters(event)
     return this
   }
 
   /**
    * Execute and return route action.
    *
-   * @param  {external:Request} request
+   * @param  {IncomingEvent} event
    * @return {*}
+   * @throws {TypeError}
    */
-  run (request) {
+  run (event) {
     if (this.#definition.has('redirect')) {
-      return this.#runRedirection(request, this.get('redirect'))
-    } else if (this._isBrowser()) {
-      return this.#runComponent(request)
+      return this.#runRedirection(event, this.get('redirect'))
+    } else if (isBrowser()) {
+      return this.#runComponent(event)
     } else if (this.isControllerAction()) {
-      return this.#runController(request)
+      return this.#runController(event)
     } else if (this.isCallableAction()) {
-      return this.#runCallable(request)
+      return this.#runCallable(event)
     } else {
-      throw new LogicError('Invalid action provided.')
+      throw new TypeError('Invalid action provided.')
     }
   }
 
@@ -220,14 +221,14 @@ export class Route {
    * Get all route parameters.
    *
    * @return {Object}
-   * @throws {LogicError}
+   * @throws {RuntimeError}
    */
   parameters () {
     if (this.hasParameters()) {
       return this.#parameters
     }
 
-    throw new LogicError('Route is not bound')
+    throw new RuntimeError('Event is not bound')
   }
 
   /**
@@ -236,7 +237,7 @@ export class Route {
    * @param  {string} name
    * @param  {*} [fallback=null] return default value when not found.
    * @return {*}
-   * @throws {LogicError}
+   * @throws {RuntimeError}
    */
   parameter (name, fallback = null) {
     return this.parameters()[name] ?? fallback
@@ -248,7 +249,7 @@ export class Route {
    * @param  {string} name
    * @param  {*} value
    * @return {this}
-   * @throws {LogicError}
+   * @throws {RuntimeError}
    */
   setParameter (name, value) {
     this.parameters()[name] = value
@@ -260,7 +261,7 @@ export class Route {
    *
    * @param  {string} name
    * @return {this}
-   * @throws {LogicError}
+   * @throws {RuntimeError}
    */
   deleteParameter (name) {
     delete this.parameters()[name]
@@ -271,7 +272,7 @@ export class Route {
    * Get all non null route parameters.
    *
    * @return {Object}
-   * @throws {LogicError}
+   * @throws {RuntimeError}
    */
   parametersWithoutNulls () {
     return Object.fromEntries(Object.entries(this.parameters()).filter(([, value]) => value != null))
@@ -281,7 +282,7 @@ export class Route {
    * Get all parameter names.
    *
    * @return {string[]}
-   * @throws {LogicError}
+   * @throws {RuntimeError}
    */
   parameterNames () {
     this.#parameterNames ??= Object.keys(this.parameters())
@@ -463,21 +464,21 @@ export class Route {
    * @return {('Component'|'Closure'|'Controller')}
    */
   getActionType () {
-    return this._isBrowser() ? 'Component' : (isFunction(this.action) ? 'Closure' : 'Controller')
+    return isBrowser() ? 'Component' : (isFunction(this.action) ? 'Closure' : 'Controller')
   }
 
   /**
    * Get component action.
    *
    * @return {Object}
-   * @throws {LogicError}
+   * @throws {RuntimeError}
    */
   getComponent () {
-    if (this._isBrowser()) {
+    if (isBrowser()) {
       return this.action
     }
 
-    throw new LogicError('Component action must be called only on browser context.')
+    throw new RuntimeError('Component action must be called only on browser context.')
   }
 
   /**
@@ -493,14 +494,14 @@ export class Route {
    * Get callable action.
    *
    * @return {Function}
-   * @throws {LogicError}
+   * @throws {TypeError}
    */
   getCallable () {
     if (this.isCallableAction()) {
       return this.action
     }
 
-    throw new LogicError('Callable action must be a function')
+    throw new TypeError('Callable action must be a function')
   }
 
   /**
@@ -509,21 +510,21 @@ export class Route {
    * @return {boolean}
    */
   isControllerAction () {
-    return isPlainObject(this.action) && isClass(Object.values(this.action).pop())
+    return isPlainObject(this.action) && isConstructor(Object.values(this.action).pop())
   }
 
   /**
    * Get controller action.
    *
    * @return {Object}
-   * @throws {LogicError}
+   * @throws {TypeError}
    */
   getController () {
     if (!this._controller) {
       if (this.isControllerAction()) {
-        this._controller = this.#getInstance(Object.values(this.action)[0])
+        this._controller = this.#resolveService(Object.values(this.action)[0])
       } else {
-        throw new LogicError('The controller must be a class')
+        throw new TypeError('The controller must be a class')
       }
     }
 
@@ -534,13 +535,13 @@ export class Route {
    * Get controller method.
    *
    * @return {string}
-   * @throws {LogicError}
+   * @throws {TypeError}
    */
   getControllerMethod () {
     if (this.isControllerAction()) {
       return Object.keys(this.action)[0]
     } else {
-      throw new LogicError("The controller action must be a string, representing the controller's method.")
+      throw new TypeError("The controller action must be a string, representing the controller's method.")
     }
   }
 
@@ -551,7 +552,7 @@ export class Route {
    */
   getControllerActionFullname (separator = '@') {
     const [action, Class] = Object.entries(this.action).pop()
-    return [Class.metadata?.name ?? Class.name, action].join(separator)
+    return [Class.name, action].join(separator)
   }
 
   /**
@@ -588,7 +589,7 @@ export class Route {
   /**
    * Get router.
    *
-   * @return {Router}
+   * @returns {Router}
    */
   getRouter () {
     return this.#router
@@ -597,8 +598,8 @@ export class Route {
   /**
    * Set router.
    *
-   * @param {Router} router
-   * @return {this}
+   * @param   {Router} router
+   * @returns {this}
    */
   setRouter (router) {
     this.#router = router
@@ -609,8 +610,8 @@ export class Route {
   /**
    * Set container.
    *
-   * @param {external:Container} container
-   * @return {this}
+   * @param   {external:Container} container
+   * @returns {this}
    */
   setContainer (container) {
     this.#container = container
@@ -695,10 +696,11 @@ export class Route {
    * @param  {string} type
    * @param  {Object} dispatcher
    * @return {this}
+   * @throws {TypeError}
    */
   addDispatcher (type, dispatcher) {
     if (!['component', 'callable', 'controller'].includes(type)) {
-      throw new LogicError(`Invalid dispatcher type ${type}. Valid types are 'component', 'callable' and 'controller'`)
+      throw new TypeError(`Invalid dispatcher type ${type}. Valid types are 'component', 'callable' and 'controller'`)
     }
     this.#dispatchers[type] = dispatcher
     return this
@@ -706,7 +708,7 @@ export class Route {
 
   /**
    * Get uri regex.
-   * This regex is generated from route definition and used to match against request path.
+   * This regex is generated from route definition and used to match against event path.
    *
    * @param  {string} [flag='i']
    * @return {RegExp[]}
@@ -724,7 +726,7 @@ export class Route {
 
   /**
    * Get path regex including alias.
-   * This regex is generated from route definition and used to match against request path.
+   * This regex is generated from route definition and used to match against event path.
    *
    * @param  {string} [flag=null]
    * @return {RegExp[]}
@@ -741,7 +743,7 @@ export class Route {
 
   /**
    * Get domain regex.
-   * This regex is generated from route definition and used to match against request path.
+   * This regex is generated from route definition and used to match against event path.
    *
    * @param  {string} [flag=null]
    * @return {RegExp}
@@ -874,14 +876,9 @@ export class Route {
     return this.#segmentConstraints
   }
 
-  /** @private */
-  _isBrowser () {
-    return typeof window === 'object'
-  }
-
-  async #bindParameters (request) {
-    if (!Object.hasOwn(request, 'getUri')) {
-      throw new LogicError('Request must have a `getUri` method.')
+  async #bindParameters (event) {
+    if (!event.getUri) {
+      throw new TypeError('Event must have a `getUri` method.')
     }
 
     const params = {}
@@ -889,7 +886,7 @@ export class Route {
 
     const matches = this
       .uriRegex()
-      .reduce((prev, curr) => prev.length ? prev : (request.getUri(this.hasDomain()).match(curr) ?? []), [])
+      .reduce((prev, curr) => prev.length ? prev : (event.getUri(this.hasDomain()).match(curr) ?? []), [])
       .filter((_v, i) => i > 0)
       .map(v => isNumeric(v) ? parseFloat(v) : v)
 
@@ -916,7 +913,7 @@ export class Route {
     const key = alias ?? field
     const Class = this.getBinding(field)
 
-    if (isClass(Class)) {
+    if (isConstructor(Class)) {
       if (Class.resolveRouteBinding) {
         try {
           model = await Class.resolveRouteBinding(key, value)
@@ -925,12 +922,12 @@ export class Route {
         }
       } else if (Class.prototype.resolveRouteBinding) {
         try {
-          model = await this.#getInstance(Class).resolveRouteBinding(key, value)
+          model = await this.#resolveService(Class).resolveRouteBinding(key, value)
         } catch (error) {
           throw new HttpError(404, 'Not found!', [], `No model found for this value "${value}".`, null, null, null, error)
         }
       } else {
-        throw new LogicError('Binding must have this `resolveRouteBinding` as class or instance method.')
+        throw new TypeError('Binding must have this `resolveRouteBinding` as class or instance method.')
       }
 
       if (!model && !isOptional) {
@@ -939,59 +936,59 @@ export class Route {
 
       return model
     } else {
-      throw new LogicError('Binding must be a class.')
+      throw new TypeError('Binding must be a class.')
     }
   }
 
-  async #runRedirection (request, redirect, status = 302) {
+  async #runRedirection (event, redirect, status = 302) {
     if (isPlainObject(redirect)) {
       const [[status, location]] = Object.entries(redirect)
-      return this.#runRedirection(request, location, parseInt(status))
+      return this.#runRedirection(event, location, parseInt(status))
     } else if (isFunction(redirect)) {
-      return this.#runRedirection(request, await redirect(this, request))
+      return this.#runRedirection(event, await redirect(this, event))
     } else {
       return { status, statusCode: status, headers: { Location: redirect } }
     }
   }
 
-  #runComponent (request) {
-    return this.#componentDispatcher().dispatch(request, this, this.getComponent())
+  #runComponent (event) {
+    return this.#componentDispatcher().dispatch(event, this, this.getComponent())
   }
 
   #componentDispatcher () {
     if (this.hasDispatcher('component')) {
-      return this.#getInstance(this.getDispatcher('component'))
+      return this.#resolveService(this.getDispatcher('component'))
     }
 
-    throw new LogicError('No component dispatcher provided.')
+    throw new TypeError('No component dispatcher provided.')
   }
 
-  #runCallable (request) {
-    return this.#callableDispatcher().dispatch(request, this, this.getCallable())
+  #runCallable (event) {
+    return this.#callableDispatcher().dispatch(event, this, this.getCallable())
   }
 
   #callableDispatcher () {
     if (this.hasDispatcher('callable')) {
-      return this.#getInstance(this.getDispatcher('callable'))
+      return this.#resolveService(this.getDispatcher('callable'))
     }
 
-    throw new LogicError('No callable dispatcher provided')
+    throw new TypeError('No callable dispatcher provided')
   }
 
-  #runController (request) {
-    return this.#controllerDispatcher().dispatch(request, this, this.getController(), this.getControllerMethod())
+  #runController (event) {
+    return this.#controllerDispatcher().dispatch(event, this, this.getController(), this.getControllerMethod())
   }
 
   #controllerDispatcher () {
     if (this.hasDispatcher('controller')) {
-      return this.#getInstance(this.getDispatcher('controller'))
+      return this.#resolveService(this.getDispatcher('controller'))
     }
 
-    throw new LogicError('No controller dispatcher provided')
+    throw new TypeError('No controller dispatcher provided')
   }
 
-  #getInstance (Class) {
-    return this.#container?.bound(Class) ? this.#container.make(Class) : new Class()
+  #resolveService (Class) {
+    return this.#container?.resolve(Class) ?? new Class()
   }
 
   /**

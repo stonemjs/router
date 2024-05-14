@@ -1,4 +1,4 @@
-import { LogicError, isClass, isMethod, MetaProperty } from '@stone-js/common'
+import { MetaProperty } from '@stone-js/common'
 
 /**
  * Decorators, usefull for decorating class for route definitions.
@@ -12,18 +12,18 @@ import { LogicError, isClass, isMethod, MetaProperty } from '@stone-js/common'
  * Standard definition properties.
  *
  * @typedef  {Object} definition
- * @property {string} path - Path to match the user request.
+ * @property {string} path - Path to match the user event.
  * @property {string} method - Http method.
  * @property {Function|Object} action - Action to be invoked when running route.
  * @property {string=} name - Route name.
  * @property {string=} alias - Define aliases for path and resolve it internally. Example, { path: '/users', alias: '/people' } will match both /users and /people
  * @property {Object=} rules - Define regex for path params definition.
- * @property {string=} domain - Domain to match user request domain.
- * @property {string=} protocol - Protocol to match user request protocol. Example, http or https.
+ * @property {string=} domain - Domain to match user event domain.
+ * @property {string=} protocol - Protocol to match user event protocol. Example, http or https.
  * @property {Object=} actions - Many actions for frontend context.
  * @property {Object=} bindings -  Resolve parameters from database models, passing class must have `resolveRouteBinding` as static or instance method.
  * @property {Object=} defaults - Define default route params values.
- * @property {(string|Object|Function)} [redirect] - Redirect request from one route to another route.
+ * @property {(string|Object|Function)} [redirect] - Redirect event from one route to another route.
  * @property {Array<string>=} methods - Http methods.
  * @property {Array<Function>=} throttle - Defined rate limiter for routes.
  * @property {Array<Function>=} middleware - Route Middleware.
@@ -47,19 +47,19 @@ import { LogicError, isClass, isMethod, MetaProperty } from '@stone-js/common'
  *      path: '/users/:id(\\d+)',
  *      methods: ['PUT', 'PATCH']
  *    })
- *    edit({ request, params }) {
+ *    edit({ event, params }) {
  *      return Response.ok()
  *    }
  * }
  */
-export const Match = (definition) => {
-  return (target, name, descriptor) => {
-    if (!isClass(target) || (!isMethod(descriptor.value) && !(descriptor.value instanceof MetaProperty))) {
-      throw new LogicError('This decorator can only be applied at method level')
+export const Match = (definition = {}) => {
+  return (value, { kind, name }) => {
+    if (kind !== 'method') {
+      throw new TypeError('This decorator can only be applied at method level')
     }
 
-    descriptor.value = new MetaProperty(name, descriptor.value, { decorators: { route: { ...definition, action: { [name]: target }, method: undefined } } })
-
-    return descriptor
+    return function () {
+      return new MetaProperty(name, value, { route: { ...definition, action: name, method: undefined } })
+    }
   }
 }

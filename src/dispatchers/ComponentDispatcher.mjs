@@ -7,19 +7,20 @@ export class ComponentDispatcher {
   /**
    * Dispatch.
    *
-   * @param {external:Request} request
+   * @param {IncomingEvent} event
    * @param {Route}  route
    *
    * @return {any}
    */
-  dispatch (request, route) {
+  dispatch (event, route) {
     const params = route.parametersWithoutNulls()
     const context = {
+      event,
       route,
       params,
-      request,
+      request: event,
       parameters: params,
-      query: request.query ?? {}
+      query: event.query ?? {}
     }
 
     return {

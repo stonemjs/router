@@ -8,10 +8,10 @@ export class MethodMatcher {
    * matches.
    *
    * @param  {Route}   route
-   * @param  {external:Request} request
+   * @param  {IncomingEvent} event
    * @return {boolean}
    */
-  matches (route, request) {
-    return route.methods.includes(request.method)
+  matches (route, event) {
+    return route.methods.includes(event.method)
   }
 }

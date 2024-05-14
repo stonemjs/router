@@ -1,12 +1,13 @@
 import deepmerge from 'deepmerge'
-import { LogicError, isClass, MetaProperty } from '@stone-js/common'
+import { classLevelDecoratorChecker } from '@stone-js/common'
 
 /**
- * options.
+ * Controller options.
  *
  * @memberOf Decorators
  * @typedef  {Object} Decorators.options
- * @property {string} name
+ * @property {boolean} singleton
+ * @property {(string|string[])} alias
  */
 
 /**
@@ -18,32 +19,17 @@ import { LogicError, isClass, MetaProperty } from '@stone-js/common'
  * @param  {Decorators.options} options
  * @return {Function}
  */
-export const Controller = (options) => {
+export const Controller = (options = {}) => {
   return (target) => {
-    if (!isClass(target)) {
-      throw new LogicError('This decorator can only be applied at class level')
-    }
+    classLevelDecoratorChecker(target)
 
     const metadata = {
-      ...options,
-      type: 'service',
-      isController: true
+      routeGroup: {},
+      controller: options,
+      service: { singleton: true, ...options }
     }
 
-    if (!target.prototype.callAction) {
-      Reflect.defineProperty(
-        target.prototype,
-        'callAction', {
-          value (method, context) {
-            return this[method] instanceof MetaProperty
-              ? this[method].invoke(context)
-              : this[method](context)
-          }
-        }
-      )
-    }
-
-    target.metadata = deepmerge(target.metadata ?? {}, metadata)
+    target.$$metadata$$ = deepmerge(target.$$metadata$$ ?? {}, metadata)
 
     return target
   }

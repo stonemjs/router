@@ -1,5 +1,5 @@
 import deepmerge from 'deepmerge'
-import { LogicError, isClass } from '@stone-js/common'
+import { classLevelDecoratorChecker } from '@stone-js/common'
 
 /**
  * Group decorator, usefull for decorating controller class for group route definition.
@@ -10,23 +10,20 @@ import { LogicError, isClass } from '@stone-js/common'
  * @param  {definition} definition
  * @return {Function}
  */
-export const Group = (definition) => {
+export const Group = (definition = {}) => {
   return (target) => {
-    if (!isClass(target)) {
-      throw new LogicError('This decorator can only be applied at class level')
-    }
+    classLevelDecoratorChecker(target)
 
     const metadata = {
-      decorators: {
-        route: {
-          ...definition,
-          action: undefined,
-          actions: undefined
-        }
+      routeGroup: {
+        ...definition,
+        action: undefined,
+        actions: undefined
       }
     }
 
-    target.metadata = deepmerge(target.metadata ?? {}, metadata)
+    target.$$metadata$$ = deepmerge(target.$$metadata$$ ?? {}, metadata)
+
     return target
   }
 }

@@ -9,7 +9,7 @@ import { AbstractEvent } from '@stone-js/common'
  */
 export class Event extends AbstractEvent {
   /**
-   * ROUTING Event name, fires before request match route.
+   * ROUTING Event name, fires before event match route.
    *
    * @type {string}
    * @event Event#ROUTING
@@ -17,7 +17,7 @@ export class Event extends AbstractEvent {
   static ROUTING = 'stonejs@router.routing'
 
   /**
-   * ROUTE_MATCHED Event name, fires after request matched route.
+   * ROUTE_MATCHED Event name, fires after event matched route.
    *
    * @type {string}
    * @event Event#ROUTE_MATCHED

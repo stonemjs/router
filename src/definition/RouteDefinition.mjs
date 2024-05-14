@@ -1,5 +1,4 @@
-import { isString } from '@stone-js/common'
-import { GET, HEAD, HTTP_METHODS } from './enums/http-methods.mjs'
+import { isString, GET, HEAD, HTTP_METHODS } from '@stone-js/common'
 
 /**
  * Class representing a RouteDefinition.
@@ -24,9 +23,9 @@ export class RouteDefinition {
   /**
    * Get value by key from definition
    *
-   * @param  {string} key
-   * @param  {*} [fallback=null] return default value when not found.
-   * @return {*}
+   * @param   {string} key
+   * @param   {*} [fallback=null] return default value when not found.
+   * @returns {*}
    */
   get (key, fallback = null) {
     return this.#definition[key] ?? fallback
@@ -35,8 +34,8 @@ export class RouteDefinition {
   /**
    * Set value by key to definition
    *
-   * @param  {string} key
-   * @return {this}
+   * @param   {string} key
+   * @returns {this}
    */
   set (key, value) {
     this.#definition[key] = value
@@ -46,10 +45,10 @@ export class RouteDefinition {
   /**
    * Add value by key to definition
    *
-   * @param  {string} key
-   * @param  {*} value
-   * @param  {boolean} [isArray=true]
-   * @return {this}
+   * @param   {string} key
+   * @param   {*} value
+   * @param   {boolean} [isArray=true]
+   * @returns {this}
    */
   add (key, value, isArray = true) {
     if (isArray) {
@@ -65,8 +64,8 @@ export class RouteDefinition {
   /**
    * Has key-value in definition
    *
-   * @param  {string} key
-   * @return {boolean}
+   * @param   {string} key
+   * @returns {boolean}
    */
   has (key) {
     return this.#definition[key] !== undefined
@@ -75,7 +74,7 @@ export class RouteDefinition {
   /**
    * Get methods from definition
    *
-   * @return {string[]}
+   * @returns {string[]}
    */
   getMethods () {
     const methods = []
@@ -90,8 +89,8 @@ export class RouteDefinition {
   /**
    * Set methods to definition
    *
-   * @param  {string[]} value
-   * @return {this}
+   * @param   {string[]} value
+   * @returns {this}
    */
   setMethods (value) {
     this.#definition.methods ??= []

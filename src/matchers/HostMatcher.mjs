@@ -8,10 +8,10 @@ export class HostMatcher {
    * matches.
    *
    * @param  {Route}   route
-   * @param  {external:Request} request
+   * @param  {IncomingEvent} event
    * @return {boolean}
    */
-  matches (route, request) {
-    return !route.domainRegex() || route.domainRegex().test(request.host)
+  matches (route, event) {
+    return !route.domainRegex() || route.domainRegex().test(event.host)
   }
 }

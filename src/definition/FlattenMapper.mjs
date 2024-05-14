@@ -1,7 +1,7 @@
 import * as pipes from './pipes.mjs'
 import { Pipeline } from '@stone-js/pipeline'
-import { LogicError } from '@stone-js/common'
-import { RouteDefinition } from '../RouteDefinition.mjs'
+import { RouteDefinition } from './RouteDefinition.mjs'
+import { LogicError, isBrowser } from '@stone-js/common'
 
 /**
  * Class representing a FlattenMapper.
@@ -23,8 +23,8 @@ export class FlattenMapper {
   /**
    * Set MaxDepth.
    *
-   * @param  {number} maxDepth
-   * @return {this}
+   * @param   {number} maxDepth
+   * @returns {this}
    */
   setMaxDepth (value) {
     this.#maxDepth = value
@@ -34,8 +34,8 @@ export class FlattenMapper {
   /**
    * Flat map raw defintions to RouteDefinition.
    *
-   * @param  {definition[]} definitions
-   * @return {RouteDefinition[]}
+   * @param   {definition[]} definitions
+   * @returns {RouteDefinition[]}
    */
   flattenMap (definitions) {
     return this._validate(
@@ -43,22 +43,39 @@ export class FlattenMapper {
     )
   }
 
+  /**
+   * Validate route definitions
+   * Some definition options are required
+   * Like `path`, `action` and `method` or `methods`.
+   *
+   * @param   {definition[]} definitions
+   * @returns {RouteDefinition[]}
+   */
   _validate (definitions) {
     return definitions.reduce((prev, definition) => {
       if (!definition.path) {
-        throw new LogicError(`No Path provided for this route definition ${JSON.stringify(definition)}`)
+        throw new TypeError(`No Path provided for this route definition ${JSON.stringify(definition)}`)
       } else if (!definition.method && !definition.methods) {
-        throw new LogicError(`No Methods provided for this route definition ${JSON.stringify(definition)}`)
+        throw new TypeError(`No Methods provided for this route definition ${JSON.stringify(definition)}`)
       } else if (!definition.action) {
-        throw new LogicError(`No Action provided for this route definition ${JSON.stringify(definition)}`)
+        throw new TypeError(`No Action provided for this route definition ${JSON.stringify(definition)}`)
       } else {
         return prev.concat(new RouteDefinition(definition))
       }
     }, [])
   }
 
+  /**
+   * Flatten route defintions recursively.
+   *
+   * @param   {definition[]} flattened
+   * @param   {definition} definition
+   * @param   {definition[]} children
+   * @param   {number} [depth=0]
+   * @returns {definition[]}
+   */
   _flatten (flattened, definition, children = null, depth = 0) {
-    if ((definition.action || definition.actions) && (!children || this._isBrowser())) {
+    if ((definition.action || definition.actions) && (!children || isBrowser())) {
       flattened.push(definition)
     }
 
@@ -75,6 +92,13 @@ export class FlattenMapper {
     return flattened
   }
 
+  /**
+   * Merge parent with child.
+   *
+   * @param   {definition} parent
+   * @param   {definition[]} child
+   * @returns {definition[]}
+   */
   _prepend (parent, child) {
     return Pipeline
       .create()
@@ -82,9 +106,5 @@ export class FlattenMapper {
       .send(parent, child)
       .through(Object.values(pipes))
       .then((_, definition) => definition)
-  }
-
-  _isBrowser () {
-    return typeof window === 'object'
   }
 }

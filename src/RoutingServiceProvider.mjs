@@ -1,5 +1,6 @@
 import { Router } from './Router.mjs'
 import { Pipeline } from '@stone-js/pipeline'
+import { NODE_CONSOLE_PLATFORM } from '@stone-js/common'
 import { CallableDispatcher } from './dispatchers/CallableDispatcher.mjs'
 import { ComponentDispatcher } from './dispatchers/ComponentDispatcher.mjs'
 import { ControllerDispatcher } from './dispatchers/ControllerDispatcher.mjs'
@@ -22,9 +23,19 @@ export class RoutingServiceProvider {
   }
 
   /**
+   * Skip this provider.
+   * Useful to register your provider based on platform.
+   *
+   * @returns {boolean}
+   */
+  mustSkip () {
+    return this.#container.make('platformName') === NODE_CONSOLE_PLATFORM
+  }
+
+  /**
    * Register router components in service container.
    *
-   * @return  {void}
+   * @returns {void}
    */
   register () {
     this
@@ -43,17 +54,25 @@ export class RoutingServiceProvider {
     const response = this.#container.bound('response') ? this.#container.make('response') : null
 
     const route = event?.route?.()
-    const middleware = route ? router?.gatherRouteMiddleware(route) : []
+    const middleware = route ? router?.gatherRouteMiddleware?.(route) : []
 
-    await Pipeline
-      .create(this.#container)
-      .send(event, response)
-      .through(middleware)
-      .via('terminate')
-      .thenReturn()
+    if (middleware.length) {
+      await Pipeline
+        .create(this.#container)
+        .send(event, response)
+        .through(middleware)
+        .via('terminate')
+        .thenReturn()
+    }
   }
 
+  /**
+   * Register router in service container.
+   *
+   * @returns {this}
+   */
   #registerRouter () {
+    // Get EventEmitter instance and router options.
     const events = this.#container.bound('events') ? this.#container.make('events') : null
     const options = this.#container.bound('config') ? this.#container.make('config').get('router', {}) : {}
 
@@ -65,6 +84,11 @@ export class RoutingServiceProvider {
     return this
   }
 
+  /**
+   * Register dispatchers in service container.
+   *
+   * @returns {this}
+   */
   #registerDispatchers () {
     this
       .#container

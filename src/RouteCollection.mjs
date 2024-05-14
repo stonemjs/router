@@ -1,7 +1,6 @@
 import { Route } from './Route.mjs'
-import { HttpError } from '@stone-js/common'
-import { RouteDefinition } from './RouteDefinition.mjs'
-import { HTTP_METHODS } from './enums/http-methods.mjs'
+import { HttpError, HTTP_METHODS } from '@stone-js/common'
+import { RouteDefinition } from './definition/RouteDefinition.mjs'
 
 /**
  * Class representing a RouteCollection.
@@ -29,16 +28,16 @@ export class RouteCollection {
   }
 
   /**
-   * Check matched route against request.
+   * Check matched route against event.
    *
-   * @param  {external:Request} request
+   * @param  {IncomingEvent} event
    * @param  {boolean} [includingMethod=true]
    * @return {Route}
    */
-  match (request, includingMethod = true) {
-    const routes = this.getByMethod(request.method)
-    const route = this.#matchAgainstRoutes(routes, request, includingMethod)
-    return this.#handleMatchedRoute(request, route)
+  match (event, includingMethod = true) {
+    const routes = this.getByMethod(event.method)
+    const route = this.#matchAgainstRoutes(routes, event, includingMethod)
+    return this.#handleMatchedRoute(event, route)
   }
 
   /**
@@ -179,33 +178,33 @@ export class RouteCollection {
     return this
   }
 
-  #matchAgainstRoutes (routes, request, includingMethod) {
+  #matchAgainstRoutes (routes, event, includingMethod) {
     return routes
       .sort((a, b) => Boolean(a.fallback) - Boolean(b.fallback))
-      .find(route => route.matches(request, includingMethod))
+      .find(route => route.matches(event, includingMethod))
   }
 
-  #handleMatchedRoute (request, route) {
+  #handleMatchedRoute (event, route) {
     if (route) { return route }
 
-    const others = this.#checkForAlternateVerbs(request)
+    const others = this.#checkForAlternateVerbs(event)
 
-    if (others.length > 0) { return this.#getRouteForMethods(request, others) }
+    if (others.length > 0) { return this.#getRouteForMethods(event, others) }
 
-    throw new HttpError(404, 'Not Found', [], `The route ${request.decodedPathname} could not be found.`)
+    throw new HttpError(404, 'Not Found', [], `The route ${event.decodedPathname} could not be found.`)
   }
 
-  #checkForAlternateVerbs (request) {
+  #checkForAlternateVerbs (event) {
     return HTTP_METHODS
-      .filter(method => method.toUpperCase() !== request.method?.toUpperCase())
-      .filter(method => !!this.#matchAgainstRoutes(this.getByMethod(method), request, false))
+      .filter(method => method.toUpperCase() !== event.method?.toUpperCase())
+      .filter(method => !!this.#matchAgainstRoutes(this.getByMethod(method), event, false))
   }
 
-  #getRouteForMethods (request, methods) {
-    if (request.isMethod?.('OPTIONS')) {
+  #getRouteForMethods (event, methods) {
+    if (event.isMethod?.('OPTIONS')) {
       return new Route(new RouteDefinition({
         method: 'OPTIONS',
-        path: request.decodedPathname,
+        path: event.decodedPathname,
         action: () => ({
           statusText: '',
           statusCode: 200,
@@ -214,15 +213,15 @@ export class RouteCollection {
       }))
     }
 
-    this.#requestMethodNotAllowed(request, methods, request.method)
+    this.#eventMethodNotAllowed(event, methods, event.method)
   }
 
-  #requestMethodNotAllowed (request, others, method) {
+  #eventMethodNotAllowed (event, others, method) {
     throw new HttpError(
       405,
       'Not Found',
       [],
-      `The ${method} method is not supported for route ${request.decodedPathname}. Supported methods: ${others.join(', ')}.`
+      `The ${method} method is not supported for route ${event.decodedPathname}. Supported methods: ${others.join(', ')}.`
     )
   }
 

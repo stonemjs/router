@@ -7,22 +7,23 @@ export class CallableDispatcher {
   /**
    * Dispatch.
    *
-   * @param {external:Request}  request
+   * @param {IncomingEvent} event
    * @param {Route}    route
    * @param {Function} callable
    *
    * @return {any}
    */
-  dispatch (request, route, callable) {
+  dispatch (event, route, callable) {
     const params = route.parametersWithoutNulls()
     const context = {
+      event,
       route,
       params,
-      request,
+      request: event,
       parameters: params,
-      body: request.body ?? {},
-      query: request.query ?? {},
-      payload: request.body ?? {}
+      body: event.body ?? {},
+      query: event.query ?? {},
+      payload: event.body ?? {}
     }
 
     return callable(context)

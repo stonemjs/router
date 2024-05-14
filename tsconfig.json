@@ -3,6 +3,7 @@
   "include": [
     "dist/index.js",
     "dist/config.js",
+    "dist/commands.js",
     "dist/decorators.js"
   ],
   "compilerOptions": {
