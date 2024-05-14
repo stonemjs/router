@@ -1,4 +1,4 @@
-import deepmerge from 'deepmerge'
+import { merge } from '@stone-js/common'
 
 /**
  * Passable.
@@ -21,7 +21,7 @@ import deepmerge from 'deepmerge'
 export const RouterPipe = (passable, next) => {
   const module = passable.app.find(module => module.$$metadata$$?.router)
   const options = module?.$$metadata$$?.router ?? {}
-  passable.options = deepmerge(options, passable.options ?? {})
+  passable.options = merge(options, passable.options ?? {})
   return next(passable)
 }
 

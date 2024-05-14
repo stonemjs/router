@@ -1,5 +1,4 @@
-import deepmerge from 'deepmerge'
-import { classLevelDecoratorChecker } from '@stone-js/common'
+import { classLevelDecoratorChecker, merge } from '@stone-js/common'
 
 /**
  * Group decorator, usefull for decorating controller class for group route definition.
@@ -22,7 +21,7 @@ export const Group = (definition = {}) => {
       }
     }
 
-    target.$$metadata$$ = deepmerge(target.$$metadata$$ ?? {}, metadata)
+    target.$$metadata$$ = merge(target.$$metadata$$ ?? {}, metadata)
 
     return target
   }

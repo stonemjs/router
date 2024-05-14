@@ -1,6 +1,5 @@
-import deepmerge from 'deepmerge'
 import { routerOptions } from '@stone-js/router/config'
-import { classLevelDecoratorChecker } from '@stone-js/common'
+import { classLevelDecoratorChecker, merge } from '@stone-js/common'
 
 /**
  * Decorators, usefull for decorating classes.
@@ -35,10 +34,10 @@ export const Router = (options = {}) => {
     classLevelDecoratorChecker(target)
 
     const metadata = {
-      router: deepmerge(routerOptions, { router: { ...options } })
+      router: merge(routerOptions, { router: { ...options } })
     }
 
-    target.$$metadata$$ = deepmerge(target.$$metadata$$ ?? {}, metadata)
+    target.$$metadata$$ = merge(target.$$metadata$$ ?? {}, metadata)
 
     return target
   }

@@ -67,7 +67,6 @@
   "dependencies": {
     "@stone-js/common": "^0.0.1",
     "@stone-js/pipeline": "^0.0.1",
-    "deepmerge": "^4.3.1",
     "lodash-es": "^4.17.21"
   },
   "devDependencies": {

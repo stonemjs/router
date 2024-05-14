@@ -1,5 +1,4 @@
-import deepmerge from 'deepmerge'
-import { classLevelDecoratorChecker } from '@stone-js/common'
+import { classLevelDecoratorChecker, merge } from '@stone-js/common'
 
 /**
  * Controller options.
@@ -29,7 +28,7 @@ export const Controller = (options = {}) => {
       service: { singleton: true, ...options }
     }
 
-    target.$$metadata$$ = deepmerge(target.$$metadata$$ ?? {}, metadata)
+    target.$$metadata$$ = merge(target.$$metadata$$ ?? {}, metadata)
 
     return target
   }
