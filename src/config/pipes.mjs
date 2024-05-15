@@ -42,4 +42,7 @@ export const ControllerPipe = (passable, next) => {
 }
 
 /** @returns {Array} */
-export const routerPipes = [RouterPipe, ControllerPipe]
+export const routerPipes = [
+  { pipe: RouterPipe, priority: 1 },
+  { pipe: ControllerPipe, priority: 1 }
+]

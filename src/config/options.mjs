@@ -1,3 +1,4 @@
+import { routerPipes } from './pipes.mjs'
 import { RoutingServiceProvider } from '@stone-js/router'
 
 /**
@@ -38,6 +39,13 @@ export const routerOptions = {
 
     // Here you can decide to skip middleware.
     skipMiddleware: false
+  },
+
+  // Config/Options builder namespace.
+  builder: {
+
+    // Here you can define pipes to build the app options.
+    pipes: routerPipes
   },
 
   // App namespace.

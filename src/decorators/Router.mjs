@@ -34,6 +34,7 @@ export const Router = (options = {}) => {
     classLevelDecoratorChecker(target)
 
     const metadata = {
+      builder: routerOptions.builder,
       router: merge(routerOptions, { router: { ...options } })
     }
 
