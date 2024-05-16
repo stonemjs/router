@@ -798,6 +798,7 @@ export class Router {
       .setRouter(this)
       .addRules(this.#rules)
       .setStrict(this.#strict)
+      .setPrefix(this.#prefix)
       .addBindings(this.#bindings)
       .addDefaults(this.#defaults)
       .setContainer(this.#container)

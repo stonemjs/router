@@ -8,6 +8,7 @@ import { HttpError, isPlainObject, isFunction, isConstructor, isNumeric, isBrows
  * @author Mr. Stone <evensstone@gmail.com>
  */
 export class Route {
+  #path
   #router
   #matchers
   #container
@@ -62,7 +63,8 @@ export class Route {
 
   /** @return {string} */
   get path () {
-    return `/${this.get('path', '').trim()}`.replaceAll(/\/+/g, '/')
+    this.#path ??= ['/', this.get('prefix', '').trim(), this.get('path', '').trim()].join('/').replaceAll(/\/+/g, '/')
+    return this.#path
   }
 
   /** @return {string} */
@@ -319,6 +321,17 @@ export class Route {
    */
   setStrict (value) {
     this.#definition.set('strict', value)
+    return this
+  }
+
+  /**
+   * Set global routes prefix.
+   *
+   * @param  {string} prefix
+   * @return {this}
+   */
+  setPrefix (value) {
+    this.#definition.set('prefix', value)
     return this
   }
 
