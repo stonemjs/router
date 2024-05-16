@@ -1,7 +1,7 @@
 import { MetaProperty } from '@stone-js/common'
 
 /**
- * Decorators, usefull for decorating class for route definitions.
+ * Decorators, Useful for decorating class for route definitions.
  *
  * @author Mr. Stone <evensstone@gmail.com>
  *
@@ -34,7 +34,7 @@ import { MetaProperty } from '@stone-js/common'
  */
 
 /**
- * Match decorator, usefull for decorating controller method for any route definition.
+ * Match decorator, Useful for decorating controller method for any route definition.
  *
  * @memberOf Decorators
  * @param  {definition} definition

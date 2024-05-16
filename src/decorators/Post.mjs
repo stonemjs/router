@@ -1,7 +1,7 @@
 import { Match } from './Match.mjs'
 
 /**
- * Post decorator, usefull for decorating controller method for POST route definition.
+ * Post decorator, Useful for decorating controller method for POST route definition.
  *
  * @author Mr. Stone <evensstone@gmail.com>
  *

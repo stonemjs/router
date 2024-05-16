@@ -10,7 +10,7 @@ import { classLevelDecoratorChecker, merge } from '@stone-js/common'
  */
 
 /**
- * Controller decorator, usefull for decorating controller class and define it as a controller.
+ * Controller decorator, Useful for decorating controller class and define it as a controller.
  *
  * @author Mr. Stone <evensstone@gmail.com>
  *

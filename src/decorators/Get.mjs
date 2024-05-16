@@ -1,7 +1,7 @@
 import { Match } from './Match.mjs'
 
 /**
- * Get decorator, usefull for decorating controller method for GET route definition.
+ * Get decorator, Useful for decorating controller method for GET route definition.
  *
  * @author Mr. Stone <evensstone@gmail.com>
  *

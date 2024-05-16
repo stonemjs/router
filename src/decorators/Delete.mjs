@@ -1,7 +1,7 @@
 import { Match } from './Match.mjs'
 
 /**
- * Delete decorator, usefull for decorating controller method for DELETE route definition.
+ * Delete decorator, Useful for decorating controller method for DELETE route definition.
  *
  * @author Mr. Stone <evensstone@gmail.com>
  *

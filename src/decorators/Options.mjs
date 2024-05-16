@@ -1,7 +1,7 @@
 import { Match } from './Match.mjs'
 
 /**
- * Options decorator, usefull for decorating controller method for OPTIONS route definition.
+ * Options decorator, Useful for decorating controller method for OPTIONS route definition.
  *
  * @author Mr. Stone <evensstone@gmail.com>
  *

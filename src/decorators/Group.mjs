@@ -1,7 +1,7 @@
 import { classLevelDecoratorChecker, merge } from '@stone-js/common'
 
 /**
- * Group decorator, usefull for decorating controller class for group route definition.
+ * Group decorator, Useful for decorating controller class for group route definition.
  *
  * @author Mr. Stone <evensstone@gmail.com>
  *

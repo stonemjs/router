@@ -1,7 +1,7 @@
 import { Match } from './Match.mjs'
 
 /**
- * Put decorator, usefull for decorating controller method for PUT route definition.
+ * Put decorator, Useful for decorating controller method for PUT route definition.
  *
  * @author Mr. Stone <evensstone@gmail.com>
  *

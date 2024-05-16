@@ -2,7 +2,7 @@ import { Match } from './Match.mjs'
 import { HTTP_METHODS } from '@stone-js/common'
 
 /**
- * Any decorator, usefull for decorating controller method for any route definition.
+ * Any decorator, Useful for decorating controller method for any route definition.
  *
  * @author Mr. Stone <evensstone@gmail.com>
  *

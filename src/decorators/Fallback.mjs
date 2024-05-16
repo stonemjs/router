@@ -1,7 +1,7 @@
 import { Match } from './Match.mjs'
 
 /**
- * Fallback decorator, usefull for decorating controller method as fallback.
+ * Fallback decorator, Useful for decorating controller method as fallback.
  *
  * @author Mr. Stone <evensstone@gmail.com>
  *
