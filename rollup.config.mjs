@@ -13,6 +13,7 @@ const inputs = {
     'src/Event.mjs',
     'src/Route.mjs',
     'src/Router.mjs',
+    'src/pipes/*.mjs',
     'src/RouteCollection.mjs',
     'src/RoutingServiceProvider.mjs',
     'src/definition/RouteDefinition.mjs',

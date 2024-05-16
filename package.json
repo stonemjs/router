@@ -91,7 +91,7 @@
   "stone": {
     "config": {
       "make": {
-        "app": "dist/options.mjs"
+        "router": "dist/options.mjs"
       }
     }
   },

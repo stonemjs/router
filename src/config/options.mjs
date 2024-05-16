@@ -1,5 +1,4 @@
-import { routerPipes } from './pipes.mjs'
-import { RoutingServiceProvider } from '@stone-js/router'
+import { RoutingServiceProvider, routerPipes } from '@stone-js/router'
 
 /**
  * Router object options.
