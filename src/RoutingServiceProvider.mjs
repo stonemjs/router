@@ -54,12 +54,13 @@ export class RoutingServiceProvider {
     const response = this.#container.bound('response') ? this.#container.make('response') : null
 
     const route = event?.route?.()
-    const middleware = route ? router?.gatherRouteMiddleware?.(route) : []
+    const middleware = (route ? router?.gatherRouteMiddleware?.(route) : [])
+      .filter(mid => mid.prototype?.terminate || mid.pipe?.prototype.terminate)
 
     if (middleware.length) {
       await Pipeline
         .create(this.#container)
-        .send(event, response)
+        .send({ event, response })
         .through(middleware)
         .via('terminate')
         .thenReturn()

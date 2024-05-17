@@ -783,9 +783,9 @@ export class Router {
 
     return Pipeline
       .create(this.#container)
-      .send(event)
+      .send({ event })
       .through(middleware)
-      .then(ev => this.#bindAndRun(route, ev))
+      .then((v) => this.#bindAndRun(route, v.event))
   }
 
   async #bindAndRun (route, event) {
