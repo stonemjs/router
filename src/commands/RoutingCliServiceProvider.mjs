@@ -1,5 +1,5 @@
 import { RouterCommand } from './RouterCommand.mjs'
-import { NODE_CONSOLE_PLATFORM } from '@stone-js/common'
+import { NODE_CONSOLE_PLATFORM } from '@stone-js/cli'
 
 /**
  * Class representing a RoutingCliServiceProvider.

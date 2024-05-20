@@ -1,4 +1,5 @@
-import { isString, isConstructor, HTTP_METHODS } from '@stone-js/common'
+import { HTTP_METHODS } from '@stone-js/event-foundation'
+import { isString, isConstructor } from '@stone-js/common'
 
 /**
  * Prepend path definition.

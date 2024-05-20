@@ -1,4 +1,5 @@
-import { isString, GET, HEAD, HTTP_METHODS } from '@stone-js/common'
+import { isString } from '@stone-js/common'
+import { GET, HEAD, HTTP_METHODS } from '@stone-js/event-foundation'
 
 /**
  * Class representing a RouteDefinition.

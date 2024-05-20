@@ -10,7 +10,7 @@ import { classLevelDecoratorChecker, merge } from '@stone-js/common'
  */
 
 /**
- * Router Decorator: Useful for customizing classes for router using.
+ * RouterProvider Decorator: Useful for customizing classes for router using.
  *
  * @author Mr. Stone <evensstone@gmail.com>
  *
@@ -28,7 +28,7 @@ import { classLevelDecoratorChecker, merge } from '@stone-js/common'
  * @param  {boolean} [options.skipMiddleware=false]
  * @return {Function}
  */
-export const Router = (options = {}) => {
+export const RouterProvider = (options = {}) => {
   return (target) => {
     classLevelDecoratorChecker(target)
 
