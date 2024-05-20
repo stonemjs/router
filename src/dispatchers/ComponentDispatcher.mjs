@@ -14,6 +14,8 @@ export class ComponentDispatcher {
    */
   dispatch (event, route) {
     const params = route.parametersWithoutNulls()
+
+    /** @type {EventContext} */
     const context = {
       event,
       route,

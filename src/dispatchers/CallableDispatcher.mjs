@@ -15,6 +15,8 @@ export class CallableDispatcher {
    */
   dispatch (event, route, callable) {
     const params = route.parametersWithoutNulls()
+
+    /** @type {EventContext} */
     const context = {
       event,
       route,

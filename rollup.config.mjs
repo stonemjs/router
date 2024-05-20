@@ -28,7 +28,7 @@ export default Object.entries(inputs).map(([name, input]) => ({
   plugins: [
     multi(),
     nodeExternals({
-      include: [/^[@stone-js/router]/]
+      include: [/^@stone-js\/router/]
     }), // Must always be before `nodeResolve()`.
     nodeResolve({
       exportConditions: ['node', 'import', 'require', 'default']

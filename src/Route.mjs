@@ -1,6 +1,7 @@
+import { HttpError } from '@stone-js/event-foundation'
 import { MethodMatcher } from './matchers/MethodMatcher.mjs'
 import { RouteDefinition } from './definition/RouteDefinition.mjs'
-import { HttpError, isPlainObject, isFunction, isConstructor, isNumeric, isBrowser, RuntimeError } from '@stone-js/common'
+import { isPlainObject, isFunction, isConstructor, isNumeric, isBrowser, RuntimeError } from '@stone-js/common'
 
 /**
  * Class representing a Route.
@@ -1011,11 +1012,12 @@ export class Route {
    */
   toJSON () {
     return {
-      name: this.name ?? 'Empty',
       path: this.path,
+      method: this.methods[0],
       methods: this.methods,
       action: this.isControllerAction() ? this.getControllerActionFullname() : this.getActionType(),
-      domain: this.domain ?? 'Empty',
+      name: this.name ?? 'N/A',
+      domain: this.domain ?? 'N/A',
       fallback: this.isFallback
     }
   }

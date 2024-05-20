@@ -1,11 +1,12 @@
 import { Route } from './Route.mjs'
-import { Event } from './Event.mjs'
 import { Pipeline } from '@stone-js/pipeline'
+import { RouteEvent } from './RouteEvent.mjs'
 import { UriMatcher } from './matchers/UriMatcher.mjs'
 import { RouteCollection } from './RouteCollection.mjs'
 import { HostMatcher } from './matchers/HostMatcher.mjs'
 import { MethodMatcher } from './matchers/MethodMatcher.mjs'
 import { FlattenMapper } from './definition/FlattenMapper.mjs'
+import { isConstructor, isPlainObject } from '@stone-js/common'
 import { ProtocolMatcher } from './matchers/ProtocolMatcher.mjs'
 import { RouteDefinition } from './definition/RouteDefinition.mjs'
 import { DecoratorBuilder } from './definition/DecoratorBuilder.mjs'
@@ -13,13 +14,13 @@ import { DefinitionBuilder } from './definition/DefinitionBuilder.mjs'
 import { CallableDispatcher } from './dispatchers/CallableDispatcher.mjs'
 import { ComponentDispatcher } from './dispatchers/ComponentDispatcher.mjs'
 import { ControllerDispatcher } from './dispatchers/ControllerDispatcher.mjs'
-import { HttpError, isConstructor, isPlainObject, DELETE, GET, HTTP_METHODS, OPTIONS, PATCH, POST, PUT } from '@stone-js/common'
+import { HttpError, HTTP_METHODS, DELETE, GET, OPTIONS, PATCH, POST, PUT } from '@stone-js/event-foundation'
 
 /**
  * IncomingEvent.
  *
  * @external IncomingEvent
- * @see {@link https://github.com/stonemjs/common/blob/main/src/IncomingEvent.mjs|IncomingEvent}
+ * @see {@link https://github.com/stonemjs/event-foundation'/blob/main/src/IncomingEvent.mjs|IncomingEvent}
  */
 
 /**
@@ -324,7 +325,7 @@ export class Router {
    * @return {Route}
    */
   findRoute (event) {
-    this.#eventEmitter?.emit(Event.ROUTING, new Event(Event.ROUTING, this, { event, request: event }))
+    this.#eventEmitter?.emit(RouteEvent.ROUTING, new RouteEvent(RouteEvent.ROUTING, this, { event, request: event }))
 
     this.#current = this.#routes.match(event)
     this.#container?.instance(Route, this.#current)?.alias(Route, 'route')
@@ -351,7 +352,7 @@ export class Router {
    * @listens Event#ROUTING
    * @listens Event#ROUTE_MATCHED
    *
-   * @param  {(Event.ROUTING|Event.ROUTE_MATCHED)} eventName
+   * @param  {(RouteEvent.ROUTING|RouteEvent.ROUTE_MATCHED)} eventName
    * @param  {Function} callback
    * @return {this}
    */
@@ -773,7 +774,7 @@ export class Router {
 
     this.#currentEvent = event
 
-    this.#eventEmitter?.emit(Event.ROUTE_MATCHED, new Event(Event.ROUTE_MATCHED, this, { event, route, request: event }))
+    this.#eventEmitter?.emit(RouteEvent.ROUTE_MATCHED, new RouteEvent(RouteEvent.ROUTE_MATCHED, this, { event, route, request: event }))
 
     return this.#runRouteWithMiddleware(event, route)
   }

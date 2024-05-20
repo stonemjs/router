@@ -1,13 +1,13 @@
-import { AbstractEvent } from '@stone-js/common'
+import { CustomEvent } from '@stone-js/core'
 
 /**
  * Class representing a Route Event.
  *
  * @author Mr. Stone <evensstone@gmail.com>
  *
- * @extends AbstractEvent
+ * @extends CustomEvent
  */
-export class Event extends AbstractEvent {
+export class RouteEvent extends CustomEvent {
   /**
    * ROUTING Event name, fires before event match route.
    *

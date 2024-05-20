@@ -1,6 +1,6 @@
 import { Route } from './Route.mjs'
-import { HttpError, HTTP_METHODS } from '@stone-js/common'
 import { RouteDefinition } from './definition/RouteDefinition.mjs'
+import { HTTP_METHODS, HttpError } from '@stone-js/event-foundation'
 
 /**
  * Class representing a RouteCollection.
@@ -122,7 +122,8 @@ export class RouteCollection {
             .from(routeMap.values())
             .filter(route => !(method === 'HEAD' && route.methods.includes('GET')))
             .map(route => {
-              const json = { ...route.toJSON(), method }
+              const json = { ...route.toJSON() }
+              json.method = method
               Reflect.deleteProperty(json, 'methods')
               return json
             })

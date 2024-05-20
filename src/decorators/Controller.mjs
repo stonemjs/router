@@ -5,8 +5,8 @@ import { classLevelDecoratorChecker, merge } from '@stone-js/common'
  *
  * @memberOf Decorators
  * @typedef  {Object} Decorators.options
- * @property {boolean} singleton
- * @property {(string|string[])} alias
+ * @property {boolean} [singleton]
+ * @property {(string|string[])} [alias]
  */
 
 /**
@@ -15,7 +15,7 @@ import { classLevelDecoratorChecker, merge } from '@stone-js/common'
  * @author Mr. Stone <evensstone@gmail.com>
  *
  * @memberOf Decorators
- * @param  {Decorators.options} options
+ * @param  {Decorators.options} [options]
  * @return {Function}
  */
 export const Controller = (options = {}) => {
