@@ -1,6 +1,5 @@
 import { Router } from './Router.mjs'
 import { Pipeline } from '@stone-js/pipeline'
-import { NODE_CONSOLE_PLATFORM } from '@stone-js/cli'
 import { CallableDispatcher } from './dispatchers/CallableDispatcher.mjs'
 import { ComponentDispatcher } from './dispatchers/ComponentDispatcher.mjs'
 import { ControllerDispatcher } from './dispatchers/ControllerDispatcher.mjs'
@@ -29,7 +28,7 @@ export class RoutingServiceProvider {
    * @returns {boolean}
    */
   mustSkip () {
-    return this.#container.make('platformName') === NODE_CONSOLE_PLATFORM
+    return this.#container.has('cliPlatform')
   }
 
   /**
