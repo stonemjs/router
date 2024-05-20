@@ -1,4 +1,4 @@
-import { HTTP_METHODS } from '@stone-js/event-foundation'
+import { HTTP_METHODS } from '@stone-js/http-core'
 import { isString, isConstructor } from '@stone-js/common'
 
 /**

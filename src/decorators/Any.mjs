@@ -1,5 +1,5 @@
 import { Match } from './Match.mjs'
-import { HTTP_METHODS } from '@stone-js/event-foundation'
+import { HTTP_METHODS } from '@stone-js/http-core'
 
 /**
  * Any decorator, Useful for decorating controller method for any route definition.

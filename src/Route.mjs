@@ -1,4 +1,4 @@
-import { HttpError } from '@stone-js/event-foundation'
+import { HttpError } from '@stone-js/http-core'
 import { MethodMatcher } from './matchers/MethodMatcher.mjs'
 import { RouteDefinition } from './definition/RouteDefinition.mjs'
 import { isPlainObject, isFunction, isConstructor, isNumeric, isBrowser, RuntimeError } from '@stone-js/common'

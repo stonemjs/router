@@ -14,13 +14,13 @@ import { DefinitionBuilder } from './definition/DefinitionBuilder.mjs'
 import { CallableDispatcher } from './dispatchers/CallableDispatcher.mjs'
 import { ComponentDispatcher } from './dispatchers/ComponentDispatcher.mjs'
 import { ControllerDispatcher } from './dispatchers/ControllerDispatcher.mjs'
-import { HttpError, HTTP_METHODS, DELETE, GET, OPTIONS, PATCH, POST, PUT } from '@stone-js/event-foundation'
+import { HttpError, HTTP_METHODS, DELETE, GET, OPTIONS, PATCH, POST, PUT } from '@stone-js/http-core'
 
 /**
  * IncomingEvent.
  *
  * @external IncomingEvent
- * @see {@link https://github.com/stonemjs/event-foundation'/blob/main/src/IncomingEvent.mjs|IncomingEvent}
+ * @see {@link https://github.com/stonemjs/core/blob/main/src/IncomingEvent.mjs|IncomingEvent}
  */
 
 /**

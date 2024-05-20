@@ -1,6 +1,6 @@
 import { Route } from './Route.mjs'
+import { HTTP_METHODS, HttpError } from '@stone-js/http-core'
 import { RouteDefinition } from './definition/RouteDefinition.mjs'
-import { HTTP_METHODS, HttpError } from '@stone-js/event-foundation'
 
 /**
  * Class representing a RouteCollection.

@@ -1,5 +1,5 @@
 import { isString } from '@stone-js/common'
-import { GET, HEAD, HTTP_METHODS } from '@stone-js/event-foundation'
+import { GET, HEAD, HTTP_METHODS } from '@stone-js/http-core'
 
 /**
  * Class representing a RouteDefinition.
