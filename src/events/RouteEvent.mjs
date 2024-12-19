@@ -1,4 +1,4 @@
-import { Event } from '@stone-js/core'
+import { Event } from '../../node_modules/@stone-js/core'
 
 /**
  * Class representing a Route Event.

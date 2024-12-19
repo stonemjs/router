@@ -1,23 +1,13 @@
-import copy from 'rollup-plugin-copy'
-import babel from '@rollup/plugin-babel'
+import del from 'rollup-plugin-delete'
+import { dts } from 'rollup-plugin-dts'
 import multi from '@rollup/plugin-multi-entry'
 import commonjs from '@rollup/plugin-commonjs'
+import typescript from '@rollup/plugin-typescript'
 import nodeResolve from '@rollup/plugin-node-resolve'
 import nodeExternals from 'rollup-plugin-node-externals'
 
 const inputs = {
-  config: 'src/config/*.mjs',
-  commands: 'src/commands/*.mjs',
-  decorators: 'src/decorators/*.mjs',
-  index: [
-    'src/Event.mjs',
-    'src/Route.mjs',
-    'src/Router.mjs',
-    'src/pipes/*.mjs',
-    'src/RouteCollection.mjs',
-    'src/RoutingServiceProvider.mjs',
-    'src/definition/RouteDefinition.mjs',
-  ],
+  index: 'src/**/*.ts'
 }
 
 export default Object.entries(inputs).map(([name, input]) => ({
@@ -27,18 +17,33 @@ export default Object.entries(inputs).map(([name, input]) => ({
   ],
   plugins: [
     multi(),
-    nodeExternals({
-      include: [/^@stone-js\/router/]
-    }), // Must always be before `nodeResolve()`.
+    nodeExternals(), // Must always be before `nodeResolve()`.
     nodeResolve({
+      extensions: ['.js', '.ts', '.ts'],
       exportConditions: ['node', 'import', 'require', 'default']
     }),
-    babel({ babelHelpers: 'bundled' }),
+    typescript({
+      noEmitOnError: true,
+      tsconfig: './tsconfig.build.json',
+    }),
     commonjs(),
-    copy({
-      targets: [
-        { src: 'src/config/options.mjs', dest: 'dist' }
-      ]
-    })
   ]
-}))
+})).concat([
+  {
+    input: 'dist/**/*.d.ts',
+    output: [{ format: 'es' , file: 'dist/index.d.ts' }],
+    plugins: [
+      multi(),
+      nodeExternals(), // Must always be before `nodeResolve()`.
+      dts(),
+      del({
+        targets: [
+          'dist/**/',
+          'dist/**/*.d.ts',
+          '!dist/index.d.ts'
+        ],
+        hook: 'buildEnd'
+      })
+    ],
+  },
+])

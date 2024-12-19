@@ -1,29 +1,24 @@
 {
-  // https://www.typescriptlang.org/docs/handbook/declaration-files/dts-from-js.html
   "include": [
-    "dist/index.js",
-    "dist/config.js",
-    "dist/commands.js",
-    "dist/decorators.js"
+    "src/**/*.ts",
+    "tests/**/*.ts", "src/bundler/rollup.config.mjs",
+  ],
+  "exclude": [
+    "node_modules"
   ],
   "compilerOptions": {
-    "skipLibCheck": true,
-    // Tells TypeScript to read JS files, as
-    // normally they are ignored as source files
+    "strict": true,
+    "noEmit": true,
     "allowJs": true,
-    // Target ES Version
-    "target": "ES2022",
-    // Generate d.ts files
-    "declaration": true,
-    // This compiler run should
-    // only output d.ts files
-    "emitDeclarationOnly": true,
-    // Types should go into this directory.
-    // Removing this would place the .d.ts files
-    // next to the .js files
-    "outDir": "dist/types",
-    // go to js file when using IDE functions like
-    // "Go to Definition" in VSCode
-    "declarationMap": true
+    "module": "ESNext",
+    "target": "ESNext",
+    "declaration": false,
+    "skipLibCheck": true,
+    "declarationMap": false,
+    "esModuleInterop": true,
+    "moduleResolution": "node",
+    "types": ["node", "vitest/globals"],
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true
   }
 }

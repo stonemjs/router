@@ -1,6 +1,6 @@
 import { Route } from './Route.mjs'
 import { Pipeline } from '@stone-js/pipeline'
-import { RouteEvent } from './RouteEvent.mjs'
+import { RouteEvent } from './events/RouteEvent.mjs'
 import { UriMatcher } from './matchers/UriMatcher.mjs'
 import { RouteCollection } from './RouteCollection.mjs'
 import { HostMatcher } from './matchers/HostMatcher.mjs'
@@ -325,7 +325,7 @@ export class Router {
    * @return {Route}
    */
   findRoute (event) {
-    this.#eventEmitter?.emit(RouteEvent.ROUTING, new RouteEvent(RouteEvent.ROUTING, this, { event, request: event }))
+    this.#eventEmitter?.emit(new RouteEvent(RouteEvent.ROUTING, this, { event, request: event }))
 
     this.#current = this.#routes.match(event)
     this.#container?.instance(Route, this.#current)?.alias(Route, 'route')
@@ -774,7 +774,7 @@ export class Router {
 
     this.#currentEvent = event
 
-    this.#eventEmitter?.emit(RouteEvent.ROUTE_MATCHED, new RouteEvent(RouteEvent.ROUTE_MATCHED, this, { event, route, request: event }))
+    this.#eventEmitter?.emit(new RouteEvent(RouteEvent.ROUTE_MATCHED, this, { event, route, request: event }))
 
     return this.#runRouteWithMiddleware(event, route)
   }
