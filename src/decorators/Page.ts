@@ -1,6 +1,6 @@
-import { Match } from './Match';
-import { GET } from '../constants';
-import { DecoratorRouteDefinition } from '../declarations';
+import { Match } from './Match'
+import { GET } from '../constants'
+import { DecoratorRouteDefinition } from '../declarations'
 
 /**
  * Options for configuring the `Page` decorator.
@@ -19,7 +19,7 @@ export interface PageOptions extends Omit<DecoratorRouteDefinition, 'methods'> {
  * @example
  * ```typescript
  * import { Page } from '@stone-js/router';
- * 
+ *
  * class UserController {
  *   @Page({ path: '/users', name: 'getUsers' })
  *   getUsers() {
@@ -28,4 +28,4 @@ export interface PageOptions extends Omit<DecoratorRouteDefinition, 'methods'> {
  * }
  * ```
  */
-export const Page = (path: string, options?: PageOptions): MethodDecorator => Match(path, { ...options, methods: [GET] });
+export const Page = (path: string, options?: PageOptions): MethodDecorator => Match(path, { ...options, methods: [GET] })

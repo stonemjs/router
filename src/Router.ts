@@ -1,152 +1,153 @@
-import { Route } from "./Route";
-import { RouteEvent } from "./events/RouteEvent";
-import { RouterError } from "./errors/RouterError";
-import { RouteCollection } from "./RouteCollection";
-import { RouterConfig } from "./config/RouterBlueprint";
-import { RouteMapper, RouteMapperOptions } from "./RouteMapper";
-import { RouteNotFoundError } from "./errors/RouteNotFoundError";
-import { DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT } from "./constants";
-import { IBlueprint, IListener, isConstructor, IRouter } from "@stone-js/core";
-import { RouterHandlerMiddleware } from "./middleware/RouterHandlerMiddleware";
-import { MetaPipe, MixedPipe, Pipe, PipeInstance, Pipeline, PipelineOptions } from "@stone-js/pipeline";
-import { FunctionalRouteDefinition, IIncomingEvent, IOutgoingResponse, RouterAction, RouteDefinition, RouteParams, RouterContext, NavigateOptions, GenerateOptions, IEventEmitter, IContainer, FunctionalRouteGroupDefinition, HttpMethod } from "./declarations";
+import { Route } from './Route'
+import { RouteEvent } from './events/RouteEvent'
+import { RouterError } from './errors/RouterError'
+import { RouteCollection } from './RouteCollection'
+import { RouterConfig } from './config/RouterBlueprint'
+import { RouteMapper, RouteMapperOptions } from './RouteMapper'
+import { RouteNotFoundError } from './errors/RouteNotFoundError'
+import { DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT } from './constants'
+import { IBlueprint, IListener, isConstructor, IRouter } from '@stone-js/core'
+import { MixedPipe, Pipe, PipeInstance, Pipeline, PipelineOptions } from '@stone-js/pipeline'
+import { FunctionalRouteDefinition, IOutgoingResponse, RouterAction, RouteDefinition, RouteParams, RouterContext, NavigateOptions, GenerateOptions, IEventEmitter, IContainer, FunctionalRouteGroupDefinition, HttpMethod, IIncomingHttpEvent, IOutgoingHttpResponse } from './declarations'
 
 export interface RouterOptions {
-  blueprint: IBlueprint;
-  container: IContainer;
-  eventEmitter?: IEventEmitter;
+  blueprint: IBlueprint
+  container: IContainer
+  eventEmitter?: IEventEmitter
 }
 
 export class Router<
-  IncomingEventType extends IIncomingEvent = IIncomingEvent,
-  OutgoingResponseType extends IOutgoingResponse = IOutgoingResponse
-> implements IRouter<IncomingEventType, OutgoingResponseType>  {
-  private readonly blueprint: IBlueprint;
-  private readonly container?: IContainer;
-  private readonly eventEmitter?: IEventEmitter;
-  private readonly routeMapper: RouteMapper<IncomingEventType, OutgoingResponseType>;
+  IncomingEventType extends IIncomingHttpEvent = IIncomingHttpEvent,
+  OutgoingResponseType extends IOutgoingResponse = IOutgoingHttpResponse
+> implements IRouter<IncomingEventType, OutgoingResponseType> {
+  private readonly blueprint: IBlueprint
+  private readonly container?: IContainer
+  private readonly eventEmitter?: IEventEmitter
+  private readonly routeMapper: RouteMapper<IncomingEventType, OutgoingResponseType>
 
-  private groupDefinition?: FunctionalRouteGroupDefinition;
-  private currentRoute?: Route<IncomingEventType, OutgoingResponseType>;
+  private groupDefinition?: FunctionalRouteGroupDefinition
+  private currentRoute?: Route<IncomingEventType, OutgoingResponseType>
 
-  private routes: RouteCollection<IncomingEventType, OutgoingResponseType>;
+  private routes: RouteCollection<IncomingEventType, OutgoingResponseType>
 
   static create<
-    IIncomingEventType extends IIncomingEvent = IIncomingEvent,
-    OutgoingEventType extends IOutgoingResponse = IOutgoingResponse
-  >(options: RouterOptions): Router<IIncomingEventType, OutgoingEventType> {
-    return new this(options);
+    IncomingEventType extends IIncomingHttpEvent = IIncomingHttpEvent,
+    OutgoingEventType extends IOutgoingResponse = IOutgoingHttpResponse
+  >(options: RouterOptions): Router<IncomingEventType, OutgoingEventType> {
+    return new this(options)
   }
 
-  constructor({ blueprint, container, eventEmitter }: RouterOptions) {
-    if (blueprint === undefined) { throw new RouterError('Router blueprint is required to create a Router instance'); }
+  constructor ({ blueprint, container, eventEmitter }: RouterOptions) {
+    this.validateBlueprint(blueprint)
 
-    this.container = container;
-    this.blueprint = blueprint;
-    this.eventEmitter = eventEmitter;
+    this.container = container
+    this.blueprint = blueprint
+    this.eventEmitter = eventEmitter
 
-    const routeMapperOptions = this.blueprint.get<RouteMapperOptions>('stone.router');
-    const definitions = this.blueprint.get<RouteDefinition[]>('stone.router.definitions', []);
+    const routeMapperOptions = this.blueprint.get<RouteMapperOptions>('stone.router')
+    const definitions = this.blueprint.get<RouteDefinition[]>('stone.router.definitions', [])
 
-    this.routeMapper = RouteMapper.create<IncomingEventType, OutgoingResponseType>(routeMapperOptions);
-    this.routes = RouteCollection.create<IncomingEventType, OutgoingResponseType>(this.routeMapper.toRoutes(definitions));
+    this.routeMapper = RouteMapper.create<IncomingEventType, OutgoingResponseType>(routeMapperOptions, container)
+    this.routes = RouteCollection
+      .create<IncomingEventType, OutgoingResponseType>(this.routeMapper.toRoutes(definitions))
+      .setOutgoingResponseResolver(routeMapperOptions.responseResolver)
   }
 
-  group(path: string, definition?: Omit<FunctionalRouteGroupDefinition, 'path'>): this {
-    this.groupDefinition = { ...definition, path };
-    return this;
+  group (path: string, definition?: Omit<FunctionalRouteGroupDefinition, 'path'>): this {
+    this.groupDefinition = { ...definition, path }
+    return this
   }
 
-  noGroup(): this {
-    this.groupDefinition = undefined;
-    return this;
+  noGroup (): this {
+    this.groupDefinition = undefined
+    return this
   }
 
-  options(path: string, actionOrDefintion: RouterAction | FunctionalRouteDefinition): this {
-    return this.match(path, actionOrDefintion, [OPTIONS]);
+  options (path: string, actionOrDefintion: RouterAction | FunctionalRouteDefinition): this {
+    return this.match(path, actionOrDefintion, [OPTIONS])
   }
 
-  get(path: string, actionOrDefintion: RouterAction | FunctionalRouteDefinition): this {
+  get (path: string, actionOrDefintion: RouterAction | FunctionalRouteDefinition): this {
     return this
       .match(path, actionOrDefintion, [GET])
-      .match(path, { ...actionOrDefintion, isInternalHeader: true }, [HEAD]);
+      .match(path, { ...actionOrDefintion, isInternalHeader: true }, [HEAD])
   }
 
-  add(path: string, actionOrDefintion: RouterAction | FunctionalRouteDefinition): this {
-    return this.get(path, actionOrDefintion);
+  add (path: string, actionOrDefintion: RouterAction | FunctionalRouteDefinition): this {
+    return this.get(path, actionOrDefintion)
   }
 
-  page(path: string, actionOrDefintion: RouterAction | FunctionalRouteDefinition): this {
-    return this.get(path, actionOrDefintion);
+  page (path: string, actionOrDefintion: RouterAction | FunctionalRouteDefinition): this {
+    return this.get(path, actionOrDefintion)
   }
 
-  post(path: string, actionOrDefintion: RouterAction | FunctionalRouteDefinition): this {
-    return this.match(path, actionOrDefintion, [POST]);
+  post (path: string, actionOrDefintion: RouterAction | FunctionalRouteDefinition): this {
+    return this.match(path, actionOrDefintion, [POST])
   }
 
-  put(path: string, actionOrDefintion: RouterAction | FunctionalRouteDefinition): this {
-    return this.match(path, actionOrDefintion, [PUT]);
+  put (path: string, actionOrDefintion: RouterAction | FunctionalRouteDefinition): this {
+    return this.match(path, actionOrDefintion, [PUT])
   }
 
-  patch(path: string, actionOrDefintion: RouterAction | FunctionalRouteDefinition): this {
-    return this.match(path, actionOrDefintion, [PATCH]);
+  patch (path: string, actionOrDefintion: RouterAction | FunctionalRouteDefinition): this {
+    return this.match(path, actionOrDefintion, [PATCH])
   }
 
-  delete(path: string, actionOrDefintion: RouterAction | FunctionalRouteDefinition): this {
-    return this.match(path, actionOrDefintion, [DELETE]);
+  delete (path: string, actionOrDefintion: RouterAction | FunctionalRouteDefinition): this {
+    return this.match(path, actionOrDefintion, [DELETE])
   }
 
-  any(path: string, actionOrDefintion: RouterAction | FunctionalRouteDefinition): this {
-    return this.match(path, actionOrDefintion, [GET, POST, PUT, PATCH, DELETE, OPTIONS]);
+  any (path: string, actionOrDefintion: RouterAction | FunctionalRouteDefinition): this {
+    return this.match(path, actionOrDefintion, [GET, POST, PUT, PATCH, DELETE, OPTIONS])
   }
 
-  fallback(action: RouterAction): this {
+  fallback (action: RouterAction): this {
     return this.get('/:__fallback__(.*)*', { action, fallback: true })
   }
 
-  match(path: string, actionOrDefintion: RouterAction | FunctionalRouteDefinition, methods: HttpMethod[]): this {
+  match (path: string, actionOrDefintion: RouterAction | FunctionalRouteDefinition, methods: HttpMethod[]): this {
     const child: RouteDefinition = typeof actionOrDefintion === 'function'
       ? { path, action: actionOrDefintion, methods }
       : { ...actionOrDefintion, path, methods }
     const definition = this.groupDefinition === undefined ? child : { ...this.groupDefinition, children: [child] }
 
-    this.blueprint.add('stone.router.definitions', definition);
+    this.blueprint.add('stone.router.definitions', definition)
     this.routeMapper.toRoutes([definition]).forEach((route) => this.routes.add(route))
 
-    return this;
+    return this
   }
 
-  define(definitions: RouteDefinition[]): this {
-    this.blueprint.add('stone.router.definitions', definitions);
+  define (definitions: RouteDefinition[]): this {
+    this.blueprint.add('stone.router.definitions', definitions)
     this.routeMapper.toRoutes(definitions).forEach((route) => this.routes.add(route))
-    return this;
+    return this
   }
 
-  setRoutes(routes: RouteCollection<IncomingEventType, OutgoingResponseType>): this {
+  setRoutes (routes: RouteCollection<IncomingEventType, OutgoingResponseType>): this {
     if (!(routes instanceof RouteCollection)) {
       throw new RouterError('Parameter must be an instance of RouteCollection')
     }
-    
-    this.routes = routes;
 
-    return this;
+    this.routes = routes
+
+    return this
   }
 
-  use(middleware: MixedPipe | MixedPipe[]): this {
-    this.blueprint.add('stone.router.middleware', middleware);
-    return this;
+  use (middleware: MixedPipe | MixedPipe[]): this {
+    this.blueprint.add('stone.router.middleware', middleware)
+    return this
   }
 
-  useOn(name: string | string[], middleware: MixedPipe | MixedPipe[]): this {
+  useOn (name: string | string[], middleware: MixedPipe | MixedPipe[]): this {
     const definitions = this.blueprint.get<RouteDefinition[]>('stone.router.definitions', [])
 
     Array(name).flat().forEach((name) => {
       definitions
         .filter((v) => v.name === name)
-        .forEach((v) => v.middleware = [middleware].flat());
+        .forEach((v) => v.middleware = [middleware].flat())
     })
 
-    return this;
+    return this
   }
 
   on (eventName: string, listener: IListener): this {
@@ -154,23 +155,23 @@ export class Router<
     return this
   }
 
-  configure(options: Partial<RouterConfig>): this {
-    this.blueprint.add('stone.router', options);
+  configure (options: Partial<RouterConfig>): this {
+    this.blueprint.add('stone.router', options)
     return this
   }
 
-  dispatch(event: IncomingEventType): Promise<OutgoingResponseType> {
-    return this.runRoute(event, this.findRoute(event))
+  async dispatch (event: IncomingEventType): Promise<OutgoingResponseType> {
+    return await this.runRoute(event, this.findRoute(event))
   }
 
-  respondWithRouteName (event: IncomingEventType, name: string): Promise<OutgoingResponseType> {
+  async respondWithRouteName (event: IncomingEventType, name: string): Promise<OutgoingResponseType> {
     const route = this.routes.getByName(name)
 
     if (route === undefined) {
       throw new RouteNotFoundError(`No routes found with this name ${name}`)
     }
 
-    return this.runRoute(event, route)
+    return await this.runRoute(event, route)
   }
 
   findRoute (event: IncomingEventType): Route<IncomingEventType, OutgoingResponseType> {
@@ -207,17 +208,14 @@ export class Router<
     this.eventEmitter?.emit(new CustomEvent('@stonejs/router.navigate', { detail: { path, options } }))
   }
 
-  gatherRouteMiddleware (route: Route): MixedPipe[] {
+  gatherRouteMiddleware (route: Route<IncomingEventType, OutgoingResponseType>): MixedPipe[] {
     const skipMiddleware = this.blueprint.get<boolean>('stone.router.skipMiddleware', false)
 
     return this.blueprint
       .get<MixedPipe[]>('stone.router.middleware', [])
-      .concat(route.getOption('middleware', []))
-      .filter(v => v !== undefined && !route.isMiddlewareExcluded(v))
-      .filter(v => {
-        return !skipMiddleware || v === RouterHandlerMiddleware || (v as MetaPipe).pipe === RouterHandlerMiddleware
-      })
-      .reduce((acc, middleware) => acc.includes(middleware) ? acc : acc.concat(middleware), [] as MixedPipe[])
+      .concat(route.getOption('middleware') ?? [])
+      .filter(v => !skipMiddleware && v !== undefined && !route.isMiddlewareExcluded(v))
+      .reduce<MixedPipe[]>((acc, middleware) => acc.includes(middleware) ? acc : acc.concat(middleware), [])
   }
 
   hasRoute (name: string | string[]): boolean {
@@ -228,37 +226,37 @@ export class Router<
   }
 
   getParameters (): RouteParams | undefined {
-    return this.currentRoute?.parameters()
+    return this.currentRoute?.params
   }
 
-  getParameter (name: string, fallback?: string): string | undefined {
-    return this.getParameters()?.[name] ?? fallback
+  getParameter<TReturn = unknown>(name: string, fallback?: TReturn): TReturn | undefined {
+    return this.currentRoute?.getParam(name, fallback)
   }
 
-  getCurrentRoute (): Route | undefined {
+  getCurrentRoute (): Route<IncomingEventType, OutgoingResponseType> | undefined {
     return this.currentRoute
   }
 
   getCurrentRouteName (): string | undefined {
-    return this.currentRoute?.name
+    return this.currentRoute?.getOption('name')
   }
 
   isCurrentRouteNamed (name: string): boolean {
     return this.getCurrentRouteName() === name
   }
 
-  getRoutes (): RouteCollection {
+  getRoutes (): RouteCollection<IncomingEventType, OutgoingResponseType> {
     return this.routes
   }
 
-  dumpRoutes (): Record<string, unknown>[] {
+  dumpRoutes (): Array<Record<string, unknown>> {
     return this.routes.dump()
   }
 
-  private runRoute (event: IncomingEventType, route: Route<IncomingEventType, OutgoingResponseType>): Promise<OutgoingResponseType> {
+  private async runRoute (event: IncomingEventType, route: Route<IncomingEventType, OutgoingResponseType>): Promise<OutgoingResponseType> {
     event.setRouteResolver?.(() => route)
     this.eventEmitter?.emit(RouteEvent.create({ type: RouteEvent.ROUTE_MATCHED, source: this, metadata: { event, route } }))
-    return this.runRouteWithMiddleware(event, route)
+    return await this.runRouteWithMiddleware(event, route)
   }
 
   private async runRouteWithMiddleware (event: IncomingEventType, route: Route<IncomingEventType, OutgoingResponseType>): Promise<OutgoingResponseType> {
@@ -266,7 +264,12 @@ export class Router<
       .create<RouterContext<IncomingEventType, OutgoingResponseType>, OutgoingResponseType>(this.makePipelineOptions())
       .send({ event, route })
       .through(this.gatherRouteMiddleware(route))
-      .then((v) => v.response!)
+      .then(async (v) => await this.bindAndRun(v.route, v.event))
+  }
+
+  private async bindAndRun (route: Route<IncomingEventType, OutgoingResponseType>, event: IncomingEventType) {
+    await route.bind(event)
+    return await route.run(event)
   }
 
   private makePipelineOptions (): PipelineOptions<RouterContext<IncomingEventType, OutgoingResponseType>, OutgoingResponseType> {
@@ -277,5 +280,9 @@ export class Router<
         }
       }
     }
+  }
+
+  private validateBlueprint (blueprint: IBlueprint) {
+    if (blueprint === undefined) { throw new RouterError('Router blueprint is required to create a Router instance') }
   }
 }

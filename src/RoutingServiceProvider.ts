@@ -1,39 +1,39 @@
-import { IContainer } from "./declarations";
-import { Router, RouterOptions } from "./Router";
-import { RouterError } from "./errors/RouterError";
-import { MetaPipe, Pipe, PipeInstance, Pipeline, PipelineOptions } from "@stone-js/pipeline";
-import { IncomingEvent, isConstructor, KernelContext, OutgoingResponse } from "@stone-js/core";
+import { Router, RouterOptions } from './Router'
+import { RouterError } from './errors/RouterError'
+import { isConstructor, KernelContext, OutgoingResponse } from '@stone-js/core'
+import { IContainer, IIncomingHttpEvent, IOutgoingHttpResponse } from './declarations'
+import { MetaPipe, Pipe, PipeInstance, Pipeline, PipelineOptions } from '@stone-js/pipeline'
 
 /**
  * RoutingServiceProviderOptions options.
  */
 export interface RoutingServiceProviderOptions {
-  container: IContainer;
+  container: IContainer
 }
 
 /**
  * Class representing a RoutingServiceProvider.
  * Responsible for registering router components and dispatchers into the service container.
  * Also provides hooks for lifecycle events like termination.
- * 
+ *
  * @author
  * Mr. Stone <evensstone@gmail.com>
  */
 export class RoutingServiceProvider<
-  IncomingEventType extends IncomingEvent = IncomingEvent,
-  OutgoingResponseType extends OutgoingResponse = OutgoingResponse
+  IncomingEventType extends IIncomingHttpEvent = IIncomingHttpEvent,
+  OutgoingResponseType extends OutgoingResponse = IOutgoingHttpResponse
 > {
-  private readonly container: IContainer;
+  private readonly container: IContainer
 
   /**
    * Create a new instance of RoutingServiceProvider.
    *
    * @param container - The service container instance.
    */
-  constructor({ container }: RoutingServiceProviderOptions) {
-    if (container === undefined) { throw new RouterError('Container is required to create a RoutingServiceProvider instance'); }
+  constructor ({ container }: RoutingServiceProviderOptions) {
+    if (container === undefined) { throw new RouterError('Container is required to create a RoutingServiceProvider instance') }
 
-    this.container = container;
+    this.container = container
   }
 
   /**
@@ -41,7 +41,7 @@ export class RoutingServiceProvider<
    *
    * @returns `void`
    */
-  public register(): void {
+  public register (): void {
     this.registerRouter()
   }
 
@@ -50,7 +50,7 @@ export class RoutingServiceProvider<
    *
    * @returns The current instance for chaining.
    */
-  private registerRouter(): void {
+  private registerRouter (): void {
     this.container
       .singletonIf(Router, container => Router.create(container.make<RouterOptions>('container')))
       .alias(Router, 'router')
@@ -61,14 +61,14 @@ export class RoutingServiceProvider<
    * Useful for performing cleanup tasks.
    * Invokes router and current route terminate middlewares.
    */
-  public async onTerminate(): Promise<void> {
-    const router = this.container.make<Router>(Router);
+  public async onTerminate (): Promise<void> {
+    const router = this.container.make<Router>(Router)
 
     if (router !== undefined) {
-      const route = router.getCurrentRoute();
-      const event = this.container.has('event') ? this.container.make<IncomingEventType>('event') : undefined;
-      const response = this.container.has('response') ? this.container.make<OutgoingResponseType>('response') : undefined;
-  
+      const route = router.getCurrentRoute()
+      const event = this.container.has('event') ? this.container.make<IncomingEventType>('event') : undefined
+      const response = this.container.has('response') ? this.container.make<OutgoingResponseType>('response') : undefined
+
       const terminateMiddleware = (route !== undefined ? router.gatherRouteMiddleware(route) : [])
         .filter((middleware) => {
           const pipe: Function | undefined = typeof (middleware as MetaPipe).pipe === 'function'
@@ -76,7 +76,7 @@ export class RoutingServiceProvider<
             : (typeof middleware === 'function' ? middleware : undefined)
           return typeof pipe?.prototype?.terminate === 'function'
         })
-  
+
       if (terminateMiddleware.length > 0) {
         const pipelineOptions = this.makePipelineOptions() as PipelineOptions<Partial<KernelContext<IncomingEventType, OutgoingResponseType>>, OutgoingResponseType>
 

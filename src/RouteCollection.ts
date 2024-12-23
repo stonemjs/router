@@ -1,27 +1,30 @@
-import { Route } from "./Route";
-import { HTTP_METHODS } from "./constants";
-import { RouteNotFoundError } from "./errors/RouteNotFoundError";
-import { IIncomingEvent, IOutgoingResponse } from "./declarations";
-import { MethodNotAllowedError } from "./errors/MethodNotAllowedError";
+import { Route } from './Route'
+import { HTTP_METHODS } from './constants'
+import { RouterError } from './errors/RouterError'
+import { OutgoingResponseOptions } from '@stone-js/core'
+import { RouteNotFoundError } from './errors/RouteNotFoundError'
+import { MethodNotAllowedError } from './errors/MethodNotAllowedError'
+import { IIncomingHttpEvent, IOutgoingHttpResponse, IOutgoingResponse, OutgoingResponseResolver, RouterCallableAction } from './declarations'
 
 export class RouteCollection <
-  IncomingEventType extends IIncomingEvent = IIncomingEvent,
-  OutgoingResponseType extends IOutgoingResponse = IOutgoingResponse
+  IncomingEventType extends IIncomingHttpEvent = IIncomingHttpEvent,
+  OutgoingResponseType extends IOutgoingResponse = IOutgoingHttpResponse
 > {
-  private readonly routes: Map<string, Route<IncomingEventType, OutgoingResponseType>> = new Map();
-  private readonly nameList: Map<string, Route<IncomingEventType, OutgoingResponseType>> = new Map();
-  private readonly methodList: Map<string, Map<string, Route<IncomingEventType, OutgoingResponseType>>> = new Map();
+  private outgoingResponseResolver?: OutgoingResponseResolver
+  private readonly routes: Map<string, Route<IncomingEventType, OutgoingResponseType>> = new Map()
+  private readonly nameList: Map<string, Route<IncomingEventType, OutgoingResponseType>> = new Map()
+  private readonly methodList: Map<string, Map<string, Route<IncomingEventType, OutgoingResponseType>>> = new Map()
 
   static create<
-    IncomingEventType extends IIncomingEvent = IIncomingEvent,
-    OutgoingResponseType extends IOutgoingResponse = IOutgoingResponse
-  >(routes?: Route<IncomingEventType, OutgoingResponseType>[]): RouteCollection<IncomingEventType, OutgoingResponseType> {
-    return new this(routes);
+    IncomingEventType extends IIncomingHttpEvent = IIncomingHttpEvent,
+    OutgoingResponseType extends IOutgoingResponse = IOutgoingHttpResponse
+  >(routes?: Array<Route<IncomingEventType, OutgoingResponseType>>): RouteCollection<IncomingEventType, OutgoingResponseType> {
+    return new this(routes)
   }
 
-  constructor(routes?: Route<IncomingEventType, OutgoingResponseType>[]) {
+  constructor (routes?: Array<Route<IncomingEventType, OutgoingResponseType>>) {
     if (Array.isArray(routes)) {
-      routes.forEach(route => this.add(route));
+      routes.forEach(route => this.add(route))
     }
   }
 
@@ -31,11 +34,11 @@ export class RouteCollection <
    * @param route - The route to add.
    * @returns The updated RouteCollection instance.
    */
-  public add(route: Route<IncomingEventType, OutgoingResponseType>): this {
-    this.addToCollections(route);
-    this.addToMethodList(route);
-    this.addToNameList(route);
-    return this;
+  public add (route: Route<IncomingEventType, OutgoingResponseType>): this {
+    this.addToCollections(route)
+    this.addToMethodList(route)
+    this.addToNameList(route)
+    return this
   }
 
   /**
@@ -45,10 +48,10 @@ export class RouteCollection <
    * @param includingMethod - Whether to include HTTP method in the match (default: true).
    * @returns The matched route or throws an error.
    */
-  public match(event: IncomingEventType, includingMethod: boolean = true): Route<IncomingEventType, OutgoingResponseType> {
-    const routes = this.getByMethod(event.method);
-    const route = this.matchAgainstRoutes(routes, event, includingMethod);
-    return this.handleMatchedRoute(event, route);
+  public match (event: IncomingEventType, includingMethod: boolean = true): Route<IncomingEventType, OutgoingResponseType> {
+    const routes = this.getByMethod(event.method)
+    const route = this.matchAgainstRoutes(routes, event, includingMethod)
+    return this.handleMatchedRoute(event, route)
   }
 
   /**
@@ -57,8 +60,8 @@ export class RouteCollection <
    * @param name - The name of the route.
    * @returns True if the named route exists, false otherwise.
    */
-  public hasNamedRoute(name: string): boolean {
-    return this.nameList.has(name);
+  public hasNamedRoute (name: string): boolean {
+    return this.nameList.has(name)
   }
 
   /**
@@ -67,8 +70,8 @@ export class RouteCollection <
    * @param name - The name of the route.
    * @returns The corresponding route or undefined.
    */
-  public getByName(name: string): Route<IncomingEventType, OutgoingResponseType> | undefined {
-    return this.nameList.get(name);
+  public getByName (name: string): Route<IncomingEventType, OutgoingResponseType> | undefined {
+    return this.nameList.get(name)
   }
 
   /**
@@ -77,8 +80,8 @@ export class RouteCollection <
    * @param method - The HTTP method.
    * @returns An array of routes matching the method.
    */
-  public getByMethod(method: string): Route<IncomingEventType, OutgoingResponseType>[] {
-    return Array.from(this.methodList.get(method.toUpperCase())?.values() ?? []);
+  public getByMethod (method: string): Array<Route<IncomingEventType, OutgoingResponseType>> {
+    return Array.from(this.methodList.get(method.toUpperCase())?.values() ?? [])
   }
 
   /**
@@ -86,8 +89,8 @@ export class RouteCollection <
    *
    * @returns An array of all routes.
    */
-  public getRoutes(): Route<IncomingEventType, OutgoingResponseType>[] {
-    return Array.from(this.routes.values());
+  public getRoutes (): Array<Route<IncomingEventType, OutgoingResponseType>> {
+    return Array.from(this.routes.values())
   }
 
   /**
@@ -95,8 +98,8 @@ export class RouteCollection <
    *
    * @returns A Map of routes grouped by method.
    */
-  public getRoutesByMethod(): ReadonlyMap<string, Map<string, Route<IncomingEventType, OutgoingResponseType>>> {
-    return this.methodList;
+  public getRoutesByMethod (): ReadonlyMap<string, Map<string, Route<IncomingEventType, OutgoingResponseType>>> {
+    return this.methodList
   }
 
   /**
@@ -104,8 +107,19 @@ export class RouteCollection <
    *
    * @returns A Map of routes grouped by name.
    */
-  public getRoutesByName(): ReadonlyMap<string, Route<IncomingEventType, OutgoingResponseType>> {
-    return this.nameList;
+  public getRoutesByName (): ReadonlyMap<string, Route<IncomingEventType, OutgoingResponseType>> {
+    return this.nameList
+  }
+
+  /**
+   * Sets the outgoing response resolver.
+   *
+   * @param resolver - The resolver to set.
+   * @returns The RouteCollection instance.
+   */
+  public setOutgoingResponseResolver (resolver?: OutgoingResponseResolver): this {
+    this.outgoingResponseResolver = resolver
+    return this
   }
 
   /**
@@ -113,19 +127,19 @@ export class RouteCollection <
    *
    * @returns An array of route definitions.
    */
-  public dump(): Record<string, unknown>[] {
+  public dump (): Array<Record<string, unknown>> {
     return Array.from(this.methodList.entries())
-      .reduce<Record<string, string>[]>((prev, [method, routeMap]) => {
-        return prev.concat(
-          Array.from(routeMap.values())
-            .filter(route => !(method === 'HEAD' && route.getOption<boolean>('isInternalHeader', false) === true))
-            .map(route => {
-              const json = { ...route.toJSON(), method };
-              return json;
-            })
-        );
-      }, [])
-      .sort((a, b) => a.path?.localeCompare(b.path));
+      .reduce<Array<Record<string, string>>>((prev, [method, routeMap]) => {
+      return prev.concat(
+        Array.from(routeMap.values())
+          .filter(route => !(method === 'HEAD' && route.getOption<boolean>('isInternalHeader', false) === true))
+          .map(route => {
+            const json = { ...route.toJSON(), method }
+            return json
+          })
+      )
+    }, [])
+      .sort((a, b) => a.path?.localeCompare(b.path))
   }
 
   /**
@@ -133,8 +147,8 @@ export class RouteCollection <
    *
    * @returns An array of JSON objects representing the routes.
    */
-  public toJSON(): Record<string, unknown>[] {
-    return this.getRoutes().map(route => route.toJSON());
+  public toJSON (): Array<Record<string, unknown>> {
+    return this.getRoutes().map(route => route.toJSON())
   }
 
   /**
@@ -142,86 +156,96 @@ export class RouteCollection <
    *
    * @returns A JSON string representing all routes.
    */
-  public toString(): string {
-    return JSON.stringify(this.toJSON());
+  public toString (): string {
+    return JSON.stringify(this.toJSON())
   }
 
-  private addToCollections(route: Route<IncomingEventType, OutgoingResponseType>): void {
-    this.routes.set(`${String(route.getOption('method'))}.${String(route.getOption('path'))}`, route);
+  private makeRouteAction<OptionsType extends OutgoingResponseOptions>(options: OptionsType): RouterCallableAction {
+    return async () => {
+      if (typeof this.outgoingResponseResolver === 'function') {
+        return await this.outgoingResponseResolver(options)
+      } else {
+        throw new RouterError('Outgoing response resolver is not set.')
+      }
+    }
   }
 
-  private addToNameList(route: Route<IncomingEventType, OutgoingResponseType>): void {
+  private addToCollections (route: Route<IncomingEventType, OutgoingResponseType>): void {
+    this.routes.set(`${String(route.getOption('method'))}.${String(route.getOption('path'))}`, route)
+  }
+
+  private addToNameList (route: Route<IncomingEventType, OutgoingResponseType>): void {
     const name = route.getOption<string>('name')
-    name !== undefined && this.nameList.set(name, route);
+    name !== undefined && this.nameList.set(name, route)
   }
 
-  private addToMethodList(route: Route<IncomingEventType, OutgoingResponseType>): void {
+  private addToMethodList (route: Route<IncomingEventType, OutgoingResponseType>): void {
     const path = route.getOption<string>('path')
     const method = route.getOption<string>('method')
 
     if (method !== undefined && path !== undefined) {
-      !this.methodList.has(method) && this.methodList.set(method, new Map());
-      this.methodList.get(method)?.set(path, route);
+      !this.methodList.has(method) && this.methodList.set(method, new Map())
+      this.methodList.get(method)?.set(path, route)
     }
   }
 
-  private matchAgainstRoutes(
-    routes: Route<IncomingEventType, OutgoingResponseType>[],
+  private matchAgainstRoutes (
+    routes: Array<Route<IncomingEventType, OutgoingResponseType>>,
     event: IncomingEventType,
     includingMethod: boolean
   ): Route<IncomingEventType, OutgoingResponseType> | undefined {
     return routes
       .sort((a, b) => Number(a.getOption<boolean>('fallback')) - Number(b.getOption<boolean>('fallback')))
-      .find(route => route.matches(event, includingMethod));
+      .find(route => route.matches(event, includingMethod))
   }
 
-  private handleMatchedRoute(event: IncomingEventType, route?: Route<IncomingEventType, OutgoingResponseType>): Route<IncomingEventType, OutgoingResponseType> {
-    if (route !== undefined) return route;
+  private handleMatchedRoute (event: IncomingEventType, route?: Route<IncomingEventType, OutgoingResponseType>): Route<IncomingEventType, OutgoingResponseType> {
+    if (route !== undefined) return route
 
-    const others = this.checkForAlternateVerbs(event);
+    const others = this.checkForAlternateVerbs(event)
 
-    if (others.length > 0) return this.getRouteForMethods(event, others);
+    if (others.length > 0) return this.getRouteForMethods(event, others)
 
-    throw new RouteNotFoundError(`Route ${String(event.decodedPathname)} could not be found.`);
+    throw new RouteNotFoundError(`Route ${String(event.decodedPathname)} could not be found.`)
   }
 
-  private checkForAlternateVerbs(event: IncomingEventType): string[] {
+  private checkForAlternateVerbs (event: IncomingEventType): string[] {
     return HTTP_METHODS.filter(
       method =>
         method.toUpperCase() !== event.method?.toUpperCase() &&
         this.matchAgainstRoutes(this.getByMethod(method), event, false) !== undefined
-    );
+    )
   }
 
-  private getRouteForMethods(event: IncomingEventType, methods: string[]): Route<IncomingEventType, OutgoingResponseType> {
+  private getRouteForMethods (event: IncomingEventType, methods: string[]): Route<IncomingEventType, OutgoingResponseType> {
     if (event.isMethod?.('OPTIONS')) {
-      return new Route({
+      return Route.create<IncomingEventType, OutgoingResponseType>({
         method: 'OPTIONS',
-        path: event.decodedPathname,
-        action: () => ({
+        path: event.decodedPathname ?? event.pathname,
+        action: this.makeRouteAction({
           statusText: '',
           statusCode: 200,
-          content: { Allow: methods.join(',') },
-        }),
-      });
+          content: { Allow: methods.join(',') }
+        })
+      })
     }
 
-    throw new MethodNotAllowedError(`Method ${String(event.method)} is not supported for ${String(event.decodedPathname)}. Supported methods: ${String(methods.join(', '))}.`);
+    throw new MethodNotAllowedError(`Method ${String(event.method)} is not supported for ${String(event.decodedPathname)}. Supported methods: ${String(methods.join(', '))}.`)
   }
 
-  public get size(): number {
-    return this.getRoutes().length;
+  public get size (): number {
+    return this.getRoutes().length
   }
 
-  public [Symbol.iterator](): Iterator<Route<IncomingEventType, OutgoingResponseType>> {
-    let index = -1;
-    const routes = this.getRoutes();
+  public [Symbol.iterator] (): Iterator<Route<IncomingEventType, OutgoingResponseType>> {
+    let index = -1
+    const routes = this.getRoutes()
 
     return {
       next: (): IteratorResult<Route<IncomingEventType, OutgoingResponseType>> => ({
         value: routes[++index],
-        done: !(index in routes),
-      }),
-    };
+        done: !(index in routes)
+      })
+    }
   }
 }

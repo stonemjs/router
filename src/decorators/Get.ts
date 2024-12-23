@@ -1,6 +1,6 @@
-import { Match } from './Match';
-import { GET } from '../constants';
-import { DecoratorRouteDefinition } from '../declarations';
+import { Match } from './Match'
+import { GET } from '../constants'
+import { DecoratorRouteDefinition } from '../declarations'
 
 /**
  * Options for configuring the `Get` decorator.
@@ -19,7 +19,7 @@ export interface GetOptions extends Omit<DecoratorRouteDefinition, 'methods'> {}
  * @example
  * ```typescript
  * import { Get } from '@stone-js/router';
- * 
+ *
  * class UserController {
  *   @Get({ path: '/users', name: 'getUsers' })
  *   getUsers() {
@@ -28,4 +28,4 @@ export interface GetOptions extends Omit<DecoratorRouteDefinition, 'methods'> {}
  * }
  * ```
  */
-export const Get = (path: string, options?: GetOptions): MethodDecorator => Match(path, { ...options, methods: [GET] });
+export const Get = (path: string, options?: GetOptions): MethodDecorator => Match(path, { ...options, methods: [GET] })

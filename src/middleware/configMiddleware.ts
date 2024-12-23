@@ -1,9 +1,9 @@
-import { RouteDefinition } from "../declarations";
-import { MixedPipe, NextPipe } from "@stone-js/pipeline";
-import { GROUP_KEY, MATCH_KEY } from "../decorators/constants";
-import { NodeCliAdapterConfig } from '@stone-js/node-cli-adapter'
-import { RouterCommand, routerCommandOptions } from "../commands/RouterCommand";
-import { ConfigContext, IBlueprint, ClassType, hasMetadata, getMetadata } from "@stone-js/core";
+import { RouteDefinition } from '../declarations'
+import { MixedPipe, NextPipe } from '@stone-js/pipeline'
+import { GROUP_KEY, MATCH_KEY } from '../decorators/constants'
+import { RouterCommand, routerCommandOptions } from '../commands/RouterCommand'
+import { ConfigContext, IBlueprint, ClassType, hasMetadata, getMetadata } from '@stone-js/core'
+import { CommandOptions, NODE_CONSOLE_PLATFORM, NodeCliAdapterConfig } from '@stone-js/node-cli-adapter'
 
 /**
  * Middleware to process route definitions from configured modules.
@@ -21,14 +21,14 @@ export const RouteDefinitionsMiddleware = ({ modules, blueprint }: ConfigContext
   (modules as ClassType[])
     .filter(module => typeof module === 'function' && hasMetadata(module, GROUP_KEY))
     .forEach(module => {
-      const parent: RouteDefinition = getMetadata(module, GROUP_KEY, { path: '/' });
-      const children: RouteDefinition[] = getMetadata(module, MATCH_KEY, []);
-      parent.children = children;
-      parent.action = children.length > 0 ? module : { 'handle': module }; // Add fallback action if no children
-      blueprint.add('stone.router.definitions', parent);
-    });
-  return next({ modules, blueprint });
-};
+      const parent: RouteDefinition = getMetadata(module, GROUP_KEY, { path: '/' })
+      const children: RouteDefinition[] = getMetadata(module, MATCH_KEY, [])
+      parent.children = children
+      parent.action = children.length > 0 ? module : { handle: module } // Add fallback action if no children
+      blueprint.add('stone.router.definitions', parent)
+    })
+  return next({ modules, blueprint })
+}
 
 export const SetRouterCommandsMiddleware = ({ modules, blueprint }: ConfigContext, next: NextPipe<ConfigContext, IBlueprint>): IBlueprint | Promise<IBlueprint> => {
   blueprint
@@ -36,13 +36,13 @@ export const SetRouterCommandsMiddleware = ({ modules, blueprint }: ConfigContex
     .filter(adapter => adapter.platform === NODE_CONSOLE_PLATFORM)
     .map(adapter => {
       adapter.commands = [
-        [RouterCommand, routerCommandOptions]
+        [RouterCommand, routerCommandOptions] as [ClassType, CommandOptions]
       ].concat(adapter.commands)
       return adapter
-    });
+    })
 
-  return next({ modules, blueprint });
-};
+  return next({ modules, blueprint })
+}
 
 /**
  * Configuration for route processing middleware.
@@ -60,5 +60,5 @@ export const SetRouterCommandsMiddleware = ({ modules, blueprint }: ConfigContex
  */
 export const routeConfigMiddleware: MixedPipe[] = [
   { pipe: RouteDefinitionsMiddleware, priority: 3 },
-  { pipe: SetRouterCommandsMiddleware, priority: 5 },
-];
+  { pipe: SetRouterCommandsMiddleware, priority: 5 }
+]

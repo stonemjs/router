@@ -1,5 +1,5 @@
-import { RouteOptions } from "./Route"
-import { RouteSegmentConstraint } from "./declarations"
+import { RouteOptions } from './Route'
+import { RouteSegmentConstraint } from './declarations'
 
 const pathConstraintRegex = /^(.+?)?[:{](.+?)(?:@(.+?))?(?:\((.+?)\))?([?*+]?)(?:=(.+?))?\}?$/
 const domainConstraintRegex = /^(?:\{(.+?)(?:@(.+?))?(?:\((.+?)\))?([?*+]?)(?:=(.+?))?\})?(.+)$/
@@ -62,7 +62,7 @@ export const buildSegmentPattern = (constraint?: Partial<RouteSegmentConstraint>
   }
 }
 
-export const uriConstraints = (options: RouteOptions): Partial<RouteSegmentConstraint>[] => {
+export const uriConstraints = (options: RouteOptions): Array<Partial<RouteSegmentConstraint>> => {
   return [getDomainConstraints(options), getSegmentsConstraints(options)].flat().filter(v => v !== undefined)
 }
 
@@ -88,7 +88,7 @@ export const getDomainConstraints = (options: RouteOptions): Partial<RouteSegmen
   return domainConstraints
 }
 
-export const getSegmentsConstraints = (options: RouteOptions): Partial<RouteSegmentConstraint>[] => {
+export const getSegmentsConstraints = (options: RouteOptions): Array<Partial<RouteSegmentConstraint>> => {
   return options
     .path
     .split('/')

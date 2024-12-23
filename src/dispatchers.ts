@@ -1,66 +1,54 @@
-import { Route } from "./Route";
-import { RouterError } from "./errors/RouterError";
-import { IIncomingEvent, IOutgoingResponse, RouteParams } from "./declarations";
-
-export type RouterCallableAction = <ContextType, OutgoingResponseType extends IOutgoingResponse>(context: ContextType) => OutgoingResponseType
-
-export interface DispatcherContext<
-  IncomingEventType extends IIncomingEvent,
-  OutgoingResponseType extends IOutgoingResponse
-> {
-  body?: unknown
-  params: RouteParams
-  event: IncomingEventType
-  query: Record<string, string>
-  route: Route<IncomingEventType, OutgoingResponseType>
-}
+import { Route } from './Route'
+import { RouterError } from './errors/RouterError'
+import { IControllerInstance, IIncomingHttpEvent, IOutgoingResponse, RouterActionContext, RouterCallableAction } from './declarations'
 
 export interface DispatcherOptions<
-  IncomingEventType extends IIncomingEvent,
+  IncomingEventType extends IIncomingHttpEvent,
   OutgoingResponseType extends IOutgoingResponse
 > {
-  body: unknown
-  method: string
-  params: RouteParams
+  handler?: string
   event: IncomingEventType
-  query: Record<string, string>
-  callable: RouterCallableAction
-  controller: Record<string, RouterCallableAction>
+  callable?: RouterCallableAction
+  controller?: IControllerInstance
   route: Route<IncomingEventType, OutgoingResponseType>
 }
 
 export const callableDispatcher = async <
-  IncomingEventType extends IIncomingEvent,
+  IncomingEventType extends IIncomingHttpEvent,
   OutgoingResponseType extends IOutgoingResponse
 > ({ event, route, callable }: DispatcherOptions<IncomingEventType, OutgoingResponseType>): Promise<OutgoingResponseType> => {
   const params = route.getDefinedParams()
-  const context: DispatcherContext<IncomingEventType, OutgoingResponseType> = {
+  const context: RouterActionContext<IncomingEventType, OutgoingResponseType> = {
     event,
     route,
     params,
     body: event.body,
-    query: event.query ?? {},
+    query: route.query
   }
 
-  return await callable(context) as OutgoingResponseType
+  if (typeof callable === 'function') {
+    return await callable(context)
+  }
+
+  throw new RouterError('No callable function found')
 }
 
 export const controllerDispatcher = async <
-  IncomingEventType extends IIncomingEvent,
+  IncomingEventType extends IIncomingHttpEvent,
   OutgoingResponseType extends IOutgoingResponse
-> ({ event, route, controller, method }: DispatcherOptions<IncomingEventType, OutgoingResponseType>): Promise<OutgoingResponseType> => {
+> ({ event, route, controller, handler }: DispatcherOptions<IncomingEventType, OutgoingResponseType>): Promise<OutgoingResponseType> => {
   const params = route.getDefinedParams()
-  const context: DispatcherContext<IncomingEventType, OutgoingResponseType> = {
+  const context: RouterActionContext<IncomingEventType, OutgoingResponseType> = {
     event,
     route,
     params,
     body: event.body,
-    query: event.query ?? {},
+    query: route.query
   }
 
-  if (method in controller) {
-    return await controller[method](context)
+  if (controller !== undefined && handler !== undefined && handler in controller) {
+    return await controller[handler](context)
   }
-  
-  throw new RouterError(`Method ${method} not found in controller`)
+
+  throw new RouterError(`Handler ${String(handler)} not found in controller`)
 }

@@ -17,4 +17,3 @@ export const GROUP_KEY = Symbol('Group')
  * A unique symbol key to mark activate the router features.
  */
 export const ROUTING_KEY = Symbol('Routing')
-

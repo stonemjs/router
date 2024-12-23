@@ -1,4 +1,4 @@
-import { HttpMethod } from "./declarations"
+import { HttpMethod } from './declarations'
 
 // HTTP Methods
 export const GET: HttpMethod = 'GET'

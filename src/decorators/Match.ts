@@ -1,6 +1,6 @@
-import { MATCH_KEY } from './constants';
-import { DecoratorRouteDefinition } from '../declarations';
-import { methodDecoratorLegacyWrapper, addMetadata } from '@stone-js/core';
+import { MATCH_KEY } from './constants'
+import { DecoratorRouteDefinition } from '../declarations'
+import { methodDecoratorLegacyWrapper, addMetadata } from '@stone-js/core'
 
 /**
  * Options for configuring the `Match` decorator.
@@ -18,7 +18,7 @@ export interface MatchOptions extends DecoratorRouteDefinition {}
  * @example
  * ```typescript
  * import { Match } from '@stone-js/router';
- * 
+ *
  * class UserController {
  *   @Match({ path: '/users', method: 'GET', name: 'getUsers' })
  *   getUsers() {
@@ -29,6 +29,6 @@ export interface MatchOptions extends DecoratorRouteDefinition {}
  */
 export const Match = <T extends Function = Function>(path: string, options?: MatchOptions): MethodDecorator => {
   return methodDecoratorLegacyWrapper<T>((_target: T, context: ClassMethodDecoratorContext<T>): undefined => {
-    addMetadata(context as ClassMethodDecoratorContext, MATCH_KEY, { ...options, path, action: context.name });
+    addMetadata(context as ClassMethodDecoratorContext, MATCH_KEY, { ...options, path, action: context.name })
   })
-};
+}
