@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.3](https://github.com/stonemjs/router/compare/v0.0.2...v0.0.3) (2025-01-21)
+
+
+### Features
+
+* add component route runner ([dcb1dec](https://github.com/stonemjs/router/commit/dcb1dec66c9e996e5c030f78d90c59b8a8a33287))
+
 ## 0.0.2 (2025-01-10)
 
 
