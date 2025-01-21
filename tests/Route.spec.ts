@@ -3,8 +3,9 @@ import { uriConstraints } from '../src/utils'
 import { methodMatcher } from '../src/matchers'
 import { RouteOptions, Route } from '../src/Route'
 import { RouterError } from '../src/errors/RouterError'
-import { IContainer, OutgoingResponseResolver } from '../src/declarations'
 import { RouteNotFoundError } from '../src/errors/RouteNotFoundError'
+import { IContainer, OutgoingResponseResolver } from '../src/declarations'
+import { OutgoingResponse } from '@stone-js/core'
 
 /* eslint-disable @typescript-eslint/no-extraneous-class */
 
@@ -23,6 +24,7 @@ const createRouteOptions = (overrides = {}): RouteOptions => ({
   path: '/test',
   method: 'GET',
   action: vi.fn(),
+  customOptions: 'test',
   excludeMiddleware: ['middleware1', 'middleware2'],
   ...overrides
 })
@@ -107,6 +109,7 @@ describe('Route Class', () => {
     it('test options getters and issers', () => {
       expect(route.getOption('path')).toBe('/test')
       expect(route.getOption('domain', 'sub')).toBe('sub')
+      expect(route.getOption('customOptions')).toBe('test')
       expect(route.isHttpsOnly()).toBe(false)
       expect(route.isFallback()).toBe(false)
       expect(route.isHttpOnly()).toBe(true)
@@ -122,7 +125,9 @@ describe('Route Class', () => {
     })
 
     it('should return false if the middleware is not in the excludeMiddleware list', () => {
+      route.addMiddleware('middleware4')
       expect(route.isMiddlewareExcluded('middleware3')).toBe(false)
+      expect(route.isMiddlewareExcluded('middleware4')).toBe(false)
     })
 
     it('should handle MetaPipe with `pipe` defined', () => {
@@ -291,7 +296,7 @@ describe('Route Class', () => {
   describe('run', () => {
     it('should run callable action', async () => {
       const mockEvent = {}
-      routeOptions.action = vi.fn(async () => 'response')
+      routeOptions.action = vi.fn(async () => OutgoingResponse.create({ content: 'response' }))
       const callable = vi.fn(({ callable }) => callable())
 
       route.setDispatchers({
@@ -301,9 +306,45 @@ describe('Route Class', () => {
 
       const result = await route.run(mockEvent as any)
 
-      expect(result).toBe('response')
+      expect(result.content).toBe('response')
       expect(callable).toHaveBeenCalled()
       expect(routeOptions.action).toHaveBeenCalled()
+    })
+
+    it('should run callable action with response resolver', async () => {
+      const mockEvent = {}
+      routeOptions.action = vi.fn(async () => 'response')
+      const callable = vi.fn(({ callable }) => callable())
+
+      route.setDispatchers({
+        callable,
+        controller: vi.fn()
+      })
+        .setOutgoingResponseResolver(vi.fn((options) => options))
+
+      const result = await route.run(mockEvent as any)
+
+      expect(result.content).toBe('response')
+      expect(callable).toHaveBeenCalled()
+      expect(routeOptions.action).toHaveBeenCalled()
+    })
+
+    it('should run component action with response resolver', async () => {
+      const mockEvent = {}
+      // @ts-expect-error - Testing invalid input
+      routeOptions.action = undefined
+      routeOptions.component = { default: vi.fn() }
+      const callable = vi.fn(({ callable }) => callable())
+
+      route.setDispatchers({
+        callable,
+        controller: vi.fn()
+      })
+        .setOutgoingResponseResolver(vi.fn((options) => options))
+
+      const result = await route.run(mockEvent as any)
+
+      expect(result.content).toBeUndefined()
     })
 
     it('should run controller action', async () => {
@@ -319,17 +360,18 @@ describe('Route Class', () => {
           controller,
           callable: vi.fn()
         })
+        .setOutgoingResponseResolver(vi.fn((options) => options))
 
       const result = await route.run(mockEvent as any)
 
-      expect(result).toBe('response')
+      expect(result.content).toBe('response')
       expect(controller).toHaveBeenCalled()
     })
 
     it('should run controller action resolved with the container', async () => {
       const mockEvent = {}
       class TestController {
-        get = vi.fn(async () => 'response')
+        get = vi.fn(async () => OutgoingResponse.create({ content: 'response' }))
       }
       const container = {
         resolve: vi.fn(() => new TestController())
@@ -346,7 +388,7 @@ describe('Route Class', () => {
 
       const result = await route.run(mockEvent as any)
 
-      expect(result).toBe('response')
+      expect(result.content).toBe('response')
       expect(controller).toHaveBeenCalled()
       expect(container.resolve).toHaveBeenCalledWith(TestController)
     })

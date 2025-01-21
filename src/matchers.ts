@@ -1,6 +1,6 @@
 import { Route } from './Route'
 import { domainRegex, pathRegex } from './utils'
-import { IIncomingEvent, IOutgoingResponse } from './declarations'
+import { IIncomingEvent, IMatcher, IOutgoingResponse } from './declarations'
 
 /**
  * Options for route matchers.
@@ -34,7 +34,7 @@ export interface MatcherOptions<
  * console.log(match); // true or false
  * ```
  */
-export const hostMatcher = <
+export const hostMatcher: IMatcher = <
   IncomingEventType extends IIncomingEvent = IIncomingEvent,
   OutgoingResponseType extends IOutgoingResponse = IOutgoingResponse
 >({ route, event }: MatcherOptions<IncomingEventType, OutgoingResponseType>): boolean => {
@@ -56,7 +56,7 @@ export const hostMatcher = <
  * console.log(match); // true or false
  * ```
  */
-export const methodMatcher = <
+export const methodMatcher: IMatcher = <
   IncomingEventType extends IIncomingEvent = IIncomingEvent,
   OutgoingResponseType extends IOutgoingResponse = IOutgoingResponse
 >({ route, event }: MatcherOptions<IncomingEventType, OutgoingResponseType>): boolean => {
@@ -78,7 +78,7 @@ export const methodMatcher = <
  * console.log(match); // true or false
  * ```
  */
-export const protocolMatcher = <
+export const protocolMatcher: IMatcher = <
   IncomingEventType extends IIncomingEvent = IIncomingEvent,
   OutgoingResponseType extends IOutgoingResponse = IOutgoingResponse
 >({ route, event }: MatcherOptions<IncomingEventType, OutgoingResponseType>): boolean => {
@@ -106,7 +106,7 @@ export const protocolMatcher = <
  * console.log(match); // true or false
  * ```
  */
-export const uriMatcher = <
+export const uriMatcher: IMatcher = <
   IncomingEventType extends IIncomingEvent = IIncomingEvent,
   OutgoingResponseType extends IOutgoingResponse = IOutgoingResponse
 >({ route, event }: MatcherOptions<IncomingEventType, OutgoingResponseType>): boolean => {

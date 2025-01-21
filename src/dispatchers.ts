@@ -1,6 +1,6 @@
 import { Route } from './Route'
 import { RouterError } from './errors/RouterError'
-import { IControllerInstance, IIncomingEvent, IOutgoingResponse, RouterActionContext, RouterCallableAction } from './declarations'
+import { IControllerInstance, IDispacher, IIncomingEvent, IOutgoingResponse, RouterActionContext, RouterCallableAction } from './declarations'
 
 /**
  * Options for dispatching a route handler.
@@ -47,10 +47,10 @@ export interface DispatcherOptions<
  * });
  * ```
  */
-export const callableDispatcher = async <
+export const callableDispatcher: IDispacher = async <
   IncomingEventType extends IIncomingEvent,
   OutgoingResponseType extends IOutgoingResponse
-> ({ event, route, callable }: DispatcherOptions<IncomingEventType, OutgoingResponseType>): Promise<OutgoingResponseType> => {
+> ({ event, route, callable }: DispatcherOptions<IncomingEventType, OutgoingResponseType>): Promise<OutgoingResponseType | unknown> => {
   const params = route.getDefinedParams()
   const context: RouterActionContext<IncomingEventType, OutgoingResponseType> = {
     event,
@@ -61,7 +61,7 @@ export const callableDispatcher = async <
   }
 
   if (typeof callable === 'function') {
-    return await callable(context)
+    return callable(context)
   }
 
   throw new RouterError('No callable function found')
@@ -87,10 +87,10 @@ export const callableDispatcher = async <
  * });
  * ```
  */
-export const controllerDispatcher = async <
+export const controllerDispatcher: IDispacher = async <
   IncomingEventType extends IIncomingEvent,
   OutgoingResponseType extends IOutgoingResponse
-> ({ event, route, controller, handler }: DispatcherOptions<IncomingEventType, OutgoingResponseType>): Promise<OutgoingResponseType> => {
+> ({ event, route, controller, handler }: DispatcherOptions<IncomingEventType, OutgoingResponseType>): Promise<OutgoingResponseType | unknown> => {
   const params = route.getDefinedParams()
   const context: RouterActionContext<IncomingEventType, OutgoingResponseType> = {
     event,
@@ -101,7 +101,7 @@ export const controllerDispatcher = async <
   }
 
   if (controller !== undefined && handler !== undefined && handler in controller) {
-    return await controller[handler](context)
+    return controller[handler](context)
   }
 
   throw new RouterError(`Handler ${String(handler)} not found in controller`)

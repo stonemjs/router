@@ -3,7 +3,7 @@ import { RouterError } from './errors/RouterError'
 import { uriConstraints, uriRegex } from './utils'
 import { MetaPipe, MixedPipe } from '@stone-js/pipeline'
 import { RouteNotFoundError } from './errors/RouteNotFoundError'
-import { ClassType, OutgoingResponseOptions } from '@stone-js/core'
+import { ClassType, OutgoingResponse, OutgoingResponseOptions } from '@stone-js/core'
 import { BindingKey, BindingValue, RouteDefinition, GenerateOptions, HttpMethod, IBoundModel, IContainer, IControllerInstance, IDispacher, IDispachers, IIncomingEvent, IMatcher, IOutgoingResponse, OutgoingResponseResolver, RouteParams, RouterAction, RouterCallableAction, RouteSegmentConstraint } from './declarations'
 
 /**
@@ -275,6 +275,17 @@ export class Route<
   }
 
   /**
+   * Adds a middleware to the route.
+   *
+   * @param middleware - The middleware to add.
+   * @returns The updated `Route` instance.
+   */
+  addMiddleware (middleware: MixedPipe | MixedPipe[]): this {
+    this.options.middleware = (this.options.middleware ?? []).concat(middleware)
+    return this
+  }
+
+  /**
    * Checks if the route requires HTTPS for security.
    *
    * @returns `true` if the route is HTTPS-only, otherwise `false`.
@@ -364,12 +375,14 @@ export class Route<
    * @throws `RouterError` if the route action is invalid.
    */
   async run (event: IncomingEventType): Promise<OutgoingResponseType> {
-    if (this.options.redirect !== undefined) {
+    if (this.isRedirectAction()) {
       return await this.runRedirection(event, this.options.redirect)
     } else if (this.isControllerAction()) {
       return await this.runController(event)
     } else if (this.isCallableAction()) {
       return await this.runCallable(event)
+    } else if (this.isComponent()) {
+      return await this.runComponent(event)
     } else {
       throw new RouterError('Invalid action provided.')
     }
@@ -497,6 +510,10 @@ export class Route<
     }
   }
 
+  private isRedirectAction (): this is this & { options: { redirect: string } } {
+    return this.options.redirect !== undefined
+  }
+
   private isCallableAction (): boolean {
     return this.getActionType() === 'callable'
   }
@@ -505,10 +522,14 @@ export class Route<
     return this.getActionType() === 'controller'
   }
 
+  private isComponent (): boolean {
+    return this.getActionType() === undefined && this.options.component !== undefined
+  }
+
   private getActionType (): string | undefined {
     return typeof this.options.action === 'function'
       ? 'callable'
-      : (typeof Object.values(this.options.action).pop() === 'function' ? 'controller' : undefined)
+      : (typeof Object.values(this.options.action ?? {}).pop() === 'function' ? 'controller' : undefined)
   }
 
   private getCallable (): RouterCallableAction {
@@ -588,11 +609,17 @@ export class Route<
   }
 
   private async runCallable (event: IncomingEventType): Promise<OutgoingResponseType> {
-    return await this.getDispatcher('callable')({ event, route: this, callable: this.getCallable() })
+    const content = await this.getDispatcher('callable')({ event, route: this, callable: this.getCallable() })
+    return (content instanceof OutgoingResponse ? content : await this.makeOutgoingResponse({ content })) as OutgoingResponseType
   }
 
   private async runController (event: IncomingEventType): Promise<OutgoingResponseType> {
-    return await this.getDispatcher('controller')({ event, route: this, controller: this.getControllerInstance(), handler: this.getControllerActionHandler() })
+    const content = await this.getDispatcher('controller')({ event, route: this, controller: this.getControllerInstance(), handler: this.getControllerActionHandler() })
+    return (content instanceof OutgoingResponse ? content : await this.makeOutgoingResponse({ content })) as OutgoingResponseType
+  }
+
+  private async runComponent (_event: IncomingEventType): Promise<OutgoingResponseType> {
+    return await this.makeOutgoingResponse({ component: this.options.component, layout: this.options.layout })
   }
 
   private async runRedirection (event: IncomingEventType, redirect: string | Record<string, unknown> | Function, status: number = 302): Promise<OutgoingResponseType> {

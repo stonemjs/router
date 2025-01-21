@@ -17,5 +17,5 @@ import { IContainer, IIncomingEvent, IOutgoingResponse } from './declarations'
  * ```
  */
 export function routerResolver<U extends IIncomingEvent, V extends IOutgoingResponse> (container: IContainer): Router<U, V> {
-  return container.resolve<Router<U, V>>(Router)
+  return container.resolve<Router<U, V>>(Router, true)
 }

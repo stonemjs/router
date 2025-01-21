@@ -114,11 +114,6 @@ export class RouteMapper<
    * @returns A merged route definition.
    */
   private mergeDefinitions (parent: RouteDefinition, child: RouteDefinition): RouteDefinition {
-    child.domain ??= parent.domain
-    child.method ??= parent.method
-    child.strict ??= parent.strict
-    child.protocol ??= parent.protocol
-    child.redirect ??= parent.redirect
     child.rules = { ...parent.rules, ...child.rules }
     child.action = this.mergeDefinitionsAction(parent, child)
     child.defaults = { ...parent.defaults, ...child.defaults }
@@ -128,7 +123,7 @@ export class RouteMapper<
     child.middleware = [child.middleware, parent.middleware].flat().filter((v) => v !== undefined)
     child.excludeMiddleware = [child.excludeMiddleware, parent.excludeMiddleware].flat().filter((v) => v !== undefined)
 
-    return child
+    return { ...parent, ...child }
   }
 
   /**
@@ -159,13 +154,14 @@ export class RouteMapper<
    */
   private toRouteOptions (definition: RouteDefinition): RouteOptions {
     if (definition.path === undefined) {
-      throw new RouterError(`Route definition is missing 'path': ${JSON.stringify(definition)}`)
-    }
-    if (definition.action === undefined) {
-      throw new RouterError(`Route definition is missing 'action': ${JSON.stringify(definition)}`)
+      throw new RouterError('Route definition must have a path')
     }
     if (definition.method === undefined || !HTTP_METHODS.includes(definition.method)) {
       throw new RouterError(`Invalid method(${String(definition.method)}), valid methods are(${String(HTTP_METHODS.join(','))})`)
+    }
+    // One of the following must be defined
+    if (definition.action === undefined && definition.component === undefined && definition.redirect === undefined) {
+      throw new RouterError('Route definition must have one of the following: action, component, or redirect')
     }
 
     return {

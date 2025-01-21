@@ -8,7 +8,7 @@ import { RouteNotFoundError } from './errors/RouteNotFoundError'
 import { IBlueprint, IListener, isConstructor, IRouter } from '@stone-js/core'
 import { DELETE, GET, HEAD, NAVIGATION_EVENT, OPTIONS, PATCH, POST, PUT } from './constants'
 import { MixedPipe, Pipe, PipeInstance, Pipeline, PipelineOptions } from '@stone-js/pipeline'
-import { FunctionalRouteDefinition, RouterAction, RouteDefinition, RouteParams, RouterContext, NavigateOptions, GenerateOptions, IEventEmitter, IContainer, FunctionalRouteGroupDefinition, HttpMethod, IIncomingEvent, IOutgoingResponse, OutgoingResponseResolver } from './declarations'
+import { FunctionalRouteDefinition, RouterAction, RouteDefinition, RouteParams, RouterContext, NavigateOptions, GenerateOptions, IEventEmitter, IContainer, FunctionalRouteGroupDefinition, HttpMethod, IIncomingEvent, IOutgoingResponse, OutgoingResponseResolver, FunctionalPageRouteDefinition } from './declarations'
 
 export interface RouterOptions {
   blueprint: IBlueprint
@@ -62,23 +62,24 @@ export class Router<
     this.container = container
     this.eventEmitter = eventEmitter
 
+    const responseResolver = this.getResponseResolver()
     const definitions = this.blueprint.get<RouteDefinition[]>(
       'stone.router.definitions',
       []
     )
-    const routeMapperOptions = this.blueprint.get<RouteMapperOptions>(
+    const routerOptions = this.blueprint.get<RouteMapperOptions>(
       'stone.router',
       {} as unknown as RouteMapperOptions
     )
 
     this.routeMapper = RouteMapper.create<IncomingEventType, OutgoingResponseType>(
-      routeMapperOptions,
+      { ...routerOptions, responseResolver },
       container
     )
 
     this.routes = RouteCollection.create<IncomingEventType, OutgoingResponseType>(
       this.routeMapper.toRoutes(definitions)
-    ).setOutgoingResponseResolver(routeMapperOptions.responseResolver)
+    ).setOutgoingResponseResolver(responseResolver)
   }
 
   /**
@@ -144,13 +145,14 @@ export class Router<
 
   /**
    * Registers a route that supports the `GET` and `HEAD` methods.
+   * Route is considered as a page route.
    *
    * @param path - The route path.
-   * @param actionOrDefinition - The route action or functional definition.
+   * @param definition - The route functional definition.
    * @returns The router instance for chaining.
    */
-  page (path: string, actionOrDefinition: RouterAction | FunctionalRouteDefinition): this {
-    return this.get(path, actionOrDefinition)
+  page (path: string, definition: FunctionalPageRouteDefinition): this {
+    return this.get(path, definition)
   }
 
   /**
@@ -262,7 +264,7 @@ export class Router<
       throw new RouterError('Parameter must be an instance of RouteCollection')
     }
 
-    this.routes = routes.setOutgoingResponseResolver(this.blueprint.get<OutgoingResponseResolver>('stone.router.responseResolver'))
+    this.routes = routes.setOutgoingResponseResolver(this.getResponseResolver())
 
     return this
   }
@@ -302,7 +304,10 @@ export class Router<
     Array(name).flat().forEach((name) => {
       definitions
         .filter((v) => v.name === name)
-        .forEach((v) => { v.middleware = [middleware].flat() })
+        .forEach((v) => {
+          v.middleware = (v.middleware ?? []).concat(middleware)
+          this.routes.getByName(name)?.addMiddleware(middleware)
+        })
     })
 
     return this
@@ -532,5 +537,10 @@ export class Router<
 
   private validateBlueprint (blueprint: IBlueprint): void {
     if (blueprint === undefined) { throw new RouterError('Router blueprint is required to create a Router instance') }
+  }
+
+  private getResponseResolver (): OutgoingResponseResolver | undefined {
+    return this.blueprint.get<OutgoingResponseResolver>('stone.router.responseResolver') ??
+      this.blueprint.get<OutgoingResponseResolver>('stone.kernel.responseResolver')
   }
 }

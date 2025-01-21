@@ -53,7 +53,7 @@ export type IMatcher = <
 export type IDispacher = <
   IncomingEventType extends IIncomingEvent,
   OutgoingResponseType extends IOutgoingResponse
-> (options: DispatcherOptions<IncomingEventType, OutgoingResponseType>) => Promise<OutgoingResponseType>
+> (options: DispatcherOptions<IncomingEventType, OutgoingResponseType>) => Promise<OutgoingResponseType | unknown>
 
 /**
  * Collection of dispatchers for route handling.
@@ -76,7 +76,7 @@ export type RouterClassAction = Record<string, ClassType> | ClassType
 export type RouterCallableAction = <
   IncomingEventType extends IIncomingEvent,
   OutgoingResponseType extends IOutgoingResponse
-> (context: RouterActionContext<IncomingEventType, OutgoingResponseType>) => OutgoingResponseType | Promise<OutgoingResponseType>
+> (context: RouterActionContext<IncomingEventType, OutgoingResponseType>) => OutgoingResponseType | unknown | Promise<OutgoingResponseType | unknown>
 
 /**
  * Resolves outgoing HTTP responses.
@@ -108,11 +108,11 @@ export interface IIncomingEvent extends IncomingEvent {
   pathname: string
   method: HttpMethod
   query: URLSearchParams
-  decodedPathname: string
   readonly isSecure: boolean
-  getUri: (withDomain: boolean) => string
+  decodedPathname: string | undefined
   isMethod: (method: HttpMethod) => boolean
-  setRouteResolver: (resolver: (route: Route) => void) => void
+  setRouteResolver: (resolver: () => Route) => void
+  getUri: (withDomain: boolean) => string | undefined
 }
 
 /**
@@ -138,12 +138,22 @@ export interface RouterActionContext<IncomingEventType extends IIncomingEvent, O
 /**
  * Defines a route using a decorator.
  */
-export type DecoratorRouteDefinition = Omit<RouteDefinition, 'path' | 'action' | 'method' | 'children'>
+export type DecoratorRouteDefinition = Omit<RouteDefinition, 'path' | 'action' | 'method' | 'children' | 'layout'>
+
+/**
+ * Defines a page route using a decorator.
+ */
+export type DecoratorPageRouteDefinition = Omit<PageRouteDefinition, 'path' | 'action' | 'method' | 'children'>
 
 /**
  * Defines a functional route without path, methods, or children.
  */
-export type FunctionalRouteDefinition = Omit<RouteDefinition, 'path' | 'methods' | 'method' | 'children'>
+export type FunctionalRouteDefinition = Omit<RouteDefinition, 'path' | 'methods' | 'method' | 'children' | 'layout'>
+
+/**
+ * Defines a functional page route without path, methods, or children.
+ */
+export type FunctionalPageRouteDefinition = Omit<PageRouteDefinition, 'path' | 'methods' | 'method' | 'children' | 'layout'>
 
 /**
  * Defines a decorator route group without fallback, alias, or methods.
@@ -156,11 +166,20 @@ export type DecoratorGroupRouteDefinition = Omit<DecoratorRouteDefinition, 'fall
 export type FunctionalRouteGroupDefinition = Omit<FunctionalRouteDefinition, 'action' | 'fallback' | 'alias'> & { path: string }
 
 /**
+ * Represents a page route definition.
+ */
+export interface PageRouteDefinition extends RouteDefinition {
+  methods?: never
+  component: unknown
+}
+
+/**
  * Represents the structure of a route definition.
  */
 export interface RouteDefinition {
   name?: string
   strict?: boolean
+  layout?: unknown
   fallback?: boolean
   method?: HttpMethod
   action?: RouterAction

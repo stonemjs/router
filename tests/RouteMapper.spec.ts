@@ -141,11 +141,13 @@ describe('RouteMapper', () => {
         path: '/users',
         method: 'GET',
         action: {},
+        pageLayout: 'UserLayout',
         children: [
           {
             path: '/profile',
             method: 'POST',
-            action: vi.fn()
+            action: vi.fn(),
+            customOptions: 'Profile'
           }
         ]
       }
@@ -153,9 +155,10 @@ describe('RouteMapper', () => {
 
     const mapper = RouteMapper.create(options, mockContainer)
     const routes = mapper.toRoutes(definitions)
+    const expectedObject = { path: '/api/users/profile', method: 'POST', action: expect.any(Function), pageLayout: 'UserLayout', customOptions: 'Profile' }
 
     expect(routes).toHaveLength(1)
-    expect(Route.create).toHaveBeenCalledWith(expect.objectContaining({ path: '/api/users/profile', method: 'POST', action: expect.any(Function) }))
+    expect(Route.create).toHaveBeenCalledWith(expect.objectContaining(expectedObject))
   })
 
   it('should throw an error if maxDepth is exceeded', () => {

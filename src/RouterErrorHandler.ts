@@ -42,7 +42,7 @@ export class RouterErrorHandler implements IErrorHandler<IIncomingEvent, IOutgoi
    * @returns The outgoing http response.
    */
   public async handle (error: Error, _event: IIncomingEvent): Promise<IOutgoingResponse> {
-    const responseResolver = this.blueprint.get<OutgoingResponseResolver>('stone.router.responseResolver')
+    const responseResolver = this.getResponseResolver()
 
     this.logger.error(error.message, { error })
 
@@ -56,5 +56,15 @@ export class RouterErrorHandler implements IErrorHandler<IIncomingEvent, IOutgoi
     } else {
       throw new RouterError('ResponseResolver is required to handle errors.')
     }
+  }
+
+  /**
+   * Get the response resolver.
+   *
+   * @returns The response resolver.
+   */
+  private getResponseResolver (): OutgoingResponseResolver | undefined {
+    return this.blueprint.get<OutgoingResponseResolver>('stone.router.responseResolver') ??
+      this.blueprint.get<OutgoingResponseResolver>('stone.kernel.responseResolver')
   }
 }

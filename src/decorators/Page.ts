@@ -1,16 +1,16 @@
 import { Match } from './Match'
 import { GET } from '../constants'
-import { DecoratorRouteDefinition } from '../declarations'
+import { DecoratorPageRouteDefinition } from '../declarations'
 
 /**
  * Options for configuring the `Page` decorator.
- * Extends `DecoratorRouteDefinition` but excludes the `methods` property,
+ * Extends `PageRouteDefinition` but excludes the `methods` property,
  * as it is predefined as `'GET'` by the decorator.
  */
-export interface PageOptions extends Omit<DecoratorRouteDefinition, 'methods'> {}
+export interface PageOptions extends DecoratorPageRouteDefinition {}
 
 /**
- * Decorator to mark a class method as a `GET` route action.
+ * Decorator to mark a class method as a Page route action.
  * Uses the `Match` decorator internally to register the route with the HTTP `GET` method.
  *
  * @param options - Configuration options for the route definition, excluding the `methods` property.

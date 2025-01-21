@@ -103,7 +103,7 @@ describe('Router', () => {
   })
 
   it('should add a GET route with an internal HEAD route for page method', () => {
-    router.page('/test', { action: vi.fn() })
+    router.page('/test', { action: vi.fn(), component: vi.fn() })
     expect(blueprintMock.add).toHaveBeenCalledWith('stone.router.definitions', expect.objectContaining({ methods: ['GET'] }))
     expect(blueprintMock.add).toHaveBeenCalledWith('stone.router.definitions', expect.objectContaining({ methods: ['HEAD'] }))
   })
@@ -155,6 +155,10 @@ describe('Router', () => {
   })
 
   it('should set routes when provided with a valid RouteCollection instance', () => {
+    (blueprintMock.get as Mock).mockImplementation((key) => {
+      if (key === 'stone.router.responseResolver') return undefined
+      if (key === 'stone.kernel.responseResolver') return vi.fn()
+    })
     const routeCollectionMock = RouteCollection.create()
     router.setRoutes(routeCollectionMock as unknown as RouteCollection)
     expect(routeCollectionMock.setOutgoingResponseResolver).toHaveBeenCalled()
@@ -184,9 +188,12 @@ describe('Router', () => {
   })
 
   it('should add middleware to specific route definitions', () => {
-    const definitions = [{ name: 'route1' }, { name: 'route2' }] as unknown as RouteDefinition[];
+    const addMiddleware = vi.fn()
+    router.getRoutes().getByName = vi.fn(() => ({ addMiddleware })) as any
+    const definitions = [{ name: 'route1' }, { name: 'route2' }] as unknown as RouteDefinition[]
     (blueprintMock.get as Mock).mockReturnValue(definitions)
     router.useOn('route1', vi.fn())
+    expect(addMiddleware).toHaveBeenCalled()
     expect(definitions[0].middleware).toBeDefined()
   })
 

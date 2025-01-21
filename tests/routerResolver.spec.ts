@@ -20,7 +20,7 @@ describe('routerResolver', () => {
   it('should resolve and return an instance of Router from the container', () => {
     const result = routerResolver<IIncomingEvent, IOutgoingResponse>(mockContainer)
 
-    expect(mockContainer.resolve).toHaveBeenCalledWith(Router)
+    expect(mockContainer.resolve).toHaveBeenCalledWith(Router, true)
     expect(result).toBe(mockRouter)
   })
 
@@ -30,6 +30,6 @@ describe('routerResolver', () => {
     })
 
     expect(() => routerResolver<IIncomingEvent, IOutgoingResponse>(mockContainer)).toThrowError('Failed to resolve Router')
-    expect(mockContainer.resolve).toHaveBeenCalledWith(Router)
+    expect(mockContainer.resolve).toHaveBeenCalledWith(Router, true)
   })
 })
