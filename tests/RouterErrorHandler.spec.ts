@@ -1,7 +1,6 @@
 import { IBlueprint, ILogger } from '@stone-js/core'
 import { RouterError } from '../src/errors/RouterError'
 import { RouterErrorHandler } from '../src/RouterErrorHandler'
-import { OutgoingResponseResolver } from '../src/declarations'
 import { RouteNotFoundError } from '../src/errors/RouteNotFoundError'
 import { MethodNotAllowedError } from '../src/errors/MethodNotAllowedError'
 
@@ -10,17 +9,14 @@ describe('RouterErrorHandler', () => {
   let mockLogger: ILogger
   let mockBlueprint: IBlueprint
   let handler: RouterErrorHandler
-  let responseResolver: OutgoingResponseResolver
 
   beforeEach(() => {
-    responseResolver = vi.fn(async (options) => await Promise.resolve(options))
-
     mockLogger = {
       error: vi.fn()
     } as unknown as ILogger
 
     mockBlueprint = {
-      get: vi.fn().mockReturnValue(responseResolver)
+      get: vi.fn().mockReturnValue()
     } as unknown as IBlueprint
 
     handler = new RouterErrorHandler({ logger: mockLogger, blueprint: mockBlueprint })

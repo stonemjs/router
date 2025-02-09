@@ -1,7 +1,7 @@
 import { Route } from '../src/Route'
 import { GET, POST, PUT } from '../src/constants'
+import { DependencyResolver, RouteDefinition } from '../src/declarations'
 import { RouterError } from '../src/errors/RouterError'
-import { IContainer, RouteDefinition } from '../src/declarations'
 import { RouteMapperOptions, RouteMapper } from '../src/RouteMapper'
 
 // Mocking Route class
@@ -23,9 +23,9 @@ class UserController {
 
 describe('RouteMapper', () => {
   let parent: RouteDefinition
-  let mockContainer: IContainer
   let children: RouteDefinition[]
   let options: RouteMapperOptions
+  let mockContainer: DependencyResolver
 
   beforeEach(() => {
     parent = {
@@ -35,7 +35,7 @@ describe('RouteMapper', () => {
       defaults: { id: 12 },
       rules: { id: /^\d+$/ },
       throttle: ['throttle'],
-      action: UserController,
+      handler: UserController,
       bindings: { id: vi.fn() },
       middleware: ['middleware'],
       domain: '{domain}.example.com',
@@ -52,14 +52,14 @@ describe('RouteMapper', () => {
           name: 'get',
           method: GET,
           path: '/:profileId',
-          action: 'get',
+          handler: 'get',
           redirect: '/users',
           alias: []
         }, {
           name: 'post',
           method: POST,
           path: '/:profileId',
-          action: 'save',
+          handler: 'save',
           redirect: '/users',
           alias: []
         }]
@@ -69,12 +69,12 @@ describe('RouteMapper', () => {
       path: '/:id',
       method: PUT,
       redirect: '/users',
-      action: 'edit'
+      handler: 'edit'
     }, {
       path: '/',
       method: GET,
       fallback: true,
-      action: 'fallback'
+      handler: 'fallback'
     }]
 
     options = {
@@ -91,7 +91,7 @@ describe('RouteMapper', () => {
 
     mockContainer = {
       resolve: vi.fn()
-    } as unknown as IContainer
+    } as unknown as DependencyResolver
   })
 
   it('should create an instance of RouteMapper', () => {
@@ -140,13 +140,13 @@ describe('RouteMapper', () => {
       {
         path: '/users',
         method: 'GET',
-        action: {},
+        handler: {},
         pageLayout: 'UserLayout',
         children: [
           {
             path: '/profile',
             method: 'POST',
-            action: vi.fn(),
+            handler: vi.fn(),
             customOptions: 'Profile'
           }
         ]

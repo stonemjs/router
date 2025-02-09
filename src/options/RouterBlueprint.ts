@@ -1,67 +1,39 @@
-import { routerResolver } from '../resolvers'
-import { MixedPipe } from '@stone-js/pipeline'
 import { RouterErrorHandler } from '../RouterErrorHandler'
-import { AppConfig, StoneBlueprint } from '@stone-js/core'
+import { RouterServiceProvider } from '../RouterServiceProvider'
+import { RouterOptions, StoneIncomingEvent } from '../declarations'
 import { routeConfigMiddleware } from '../middleware/configMiddleware'
-import { callableDispatcher, controllerDispatcher } from '../dispatchers'
+import { AppConfig, OutgoingResponse, StoneBlueprint } from '@stone-js/core'
 import { hostMatcher, methodMatcher, protocolMatcher, uriMatcher } from '../matchers'
-import { IDispachers, IIncomingEvent, IMatcher, IOutgoingResponse, OutgoingResponseResolver, RouteDefinition } from '../declarations'
+import { callableDispatcher, componentDispatcher, handlerDispatcher } from '../dispatchers'
 
 /**
  * Defines the configuration options for the router.
  */
-export interface RouterConfig {
-  /** Base path prefix applied to all routes. */
-  prefix?: string
-
-  /** Enables strict path matching. */
-  strict?: boolean
-
-  /** Maximum depth allowed in route definitions. */
-  maxDepth?: number
-
-  /** List of matchers used to validate and match routes. */
-  matchers?: IMatcher[]
-
-  /** List of middleware applied during route resolution. */
-  middleware?: MixedPipe[]
-
-  /** Skips middleware execution for specific routes. */
-  skipMiddleware?: boolean
-
-  /** Dispatchers used for handling callable and controller-based routes. */
-  dispatchers?: IDispachers
-
-  /** Custom rules for route matching, defined as regular expressions. */
-  rules?: Record<string, RegExp>
-
-  /** Array of route definitions to be included in the router. */
-  definitions?: RouteDefinition[]
-
-  /** Default parameter values for routes. */
-  defaults?: Record<string, unknown>
-
-  /** Custom function bindings for specific route behaviors. */
-  bindings?: Record<string, Function>
-
-  /** Resolver used to create outgoing responses. */
-  responseResolver?: OutgoingResponseResolver
-}
+export interface RouterConfig<
+  IncomingEventType extends StoneIncomingEvent = StoneIncomingEvent,
+  OutgoingResponseType extends OutgoingResponse = OutgoingResponse
+> extends RouterOptions<IncomingEventType, OutgoingResponseType> {}
 
 /**
  * Extends the base application configuration to include router-specific settings.
  */
-export interface RouterAppConfig extends Partial<AppConfig<IIncomingEvent, IOutgoingResponse>> {
+export interface RouterAppConfig<
+  IncomingEventType extends StoneIncomingEvent = StoneIncomingEvent,
+  OutgoingResponseType extends OutgoingResponse = OutgoingResponse
+> extends Partial<AppConfig<IncomingEventType, OutgoingResponseType>> {
   /** Router-specific configuration. */
-  router: RouterConfig
+  router: RouterConfig<IncomingEventType, OutgoingResponseType>
 }
 
 /**
  * Blueprint for defining router-specific behavior and configuration.
  */
-export interface RouterBlueprint extends StoneBlueprint<IIncomingEvent, IOutgoingResponse> {
+export interface RouterBlueprint<
+  IncomingEventType extends StoneIncomingEvent = StoneIncomingEvent,
+  OutgoingResponseType extends OutgoingResponse = OutgoingResponse
+> extends StoneBlueprint<IncomingEventType, OutgoingResponseType> {
   /** Configuration and behavior definitions for the router application. */
-  stone: RouterAppConfig
+  stone: RouterAppConfig<IncomingEventType, OutgoingResponseType>
 }
 
 /**
@@ -73,13 +45,24 @@ export const routerBlueprint: RouterBlueprint = {
       middleware: routeConfigMiddleware
     },
     kernel: {
-      routerResolver,
       errorHandlers: {
-        RouterError: RouterErrorHandler,
-        RouteNotFoundError: RouterErrorHandler,
-        MethodNotAllowedError: RouterErrorHandler
+        RouterError: {
+          isClass: true,
+          module: RouterErrorHandler
+        },
+        RouteNotFoundError: {
+          isClass: true,
+          module: RouterErrorHandler
+        },
+        MethodNotAllowedError: {
+          isClass: true,
+          module: RouterErrorHandler
+        }
       }
     },
+    providers: [
+      RouterServiceProvider
+    ],
     router: {
       rules: {},
       maxDepth: 5,
@@ -95,8 +78,9 @@ export const routerBlueprint: RouterBlueprint = {
       middleware: [],
       definitions: [],
       dispatchers: {
+        handler: handlerDispatcher,
         callable: callableDispatcher,
-        controller: controllerDispatcher
+        component: componentDispatcher
       },
       skipMiddleware: false
     }

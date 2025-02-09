@@ -49,8 +49,9 @@
     "prepare": "husky"
   },
   "peerDependencies": {
-    "@stone-js/core": "^0.0.4",
-    "@stone-js/pipeline": "^0.0.46"
+    "@stone-js/core": "file:/Users/evenspierre/Projects/StoneJS/core",
+    "@stone-js/pipeline": "file:/Users/evenspierre/Projects/StoneJS/pipeline",
+    "@stone-js/service-container": "file:/Users/evenspierre/Projects/StoneJS/service-container"
   },
   "dependencies": {
     "lodash-es": "^4.17.21"

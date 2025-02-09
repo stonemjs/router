@@ -1,10 +1,8 @@
-import { Route } from './Route'
+import { Route, RouteOptions } from './Route'
 import { HTTP_METHODS } from './constants'
-import { RouterError } from './errors/RouterError'
-import { OutgoingResponseOptions } from '@stone-js/core'
+import { IIncomingEvent } from './declarations'
 import { RouteNotFoundError } from './errors/RouteNotFoundError'
 import { MethodNotAllowedError } from './errors/MethodNotAllowedError'
-import { IIncomingEvent, IOutgoingResponse, OutgoingResponseResolver, RouterCallableAction } from './declarations'
 
 /**
  * Manages a collection of `Route` instances.
@@ -14,13 +12,8 @@ import { IIncomingEvent, IOutgoingResponse, OutgoingResponseResolver, RouterCall
  */
 export class RouteCollection<
   IncomingEventType extends IIncomingEvent = IIncomingEvent,
-  OutgoingResponseType extends IOutgoingResponse = IOutgoingResponse
+  OutgoingResponseType = unknown
 > {
-  /**
-   * The resolver for generating outgoing responses.
-   */
-  private outgoingResponseResolver?: OutgoingResponseResolver
-
   /**
    * A map of all routes using a unique key combining method and path.
    */
@@ -44,7 +37,7 @@ export class RouteCollection<
    */
   static create<
     IncomingEventType extends IIncomingEvent = IIncomingEvent,
-    OutgoingResponseType extends IOutgoingResponse = IOutgoingResponse
+    OutgoingResponseType = unknown
   >(routes?: Array<Route<IncomingEventType, OutgoingResponseType>>): RouteCollection<IncomingEventType, OutgoingResponseType> {
     return new this(routes)
   }
@@ -78,6 +71,21 @@ export class RouteCollection<
     this.addToMethodList(route)
     this.addToNameList(route)
     return this
+  }
+
+  /**
+   * Matches a `Route` based on a set of options.
+   *
+   * @param options - The options to match against.
+   * @returns The matched `Route`, or `undefined` if no match is found.
+  */
+  matchOptions (options: Partial<RouteOptions<IncomingEventType, OutgoingResponseType>>): Route<IncomingEventType, OutgoingResponseType> | undefined {
+    const { method, path } = options
+    const methodPath = `${String(method)}.${String(path)}`
+
+    return this.routes.has(methodPath)
+      ? this.routes.get(methodPath)
+      : this.routes.values().find(route => route.matchesOptions(options))
   }
 
   /**
@@ -134,33 +142,22 @@ export class RouteCollection<
   }
 
   /**
-   * Sets the outgoing response resolver.
-   *
-   * @param resolver - The resolver to set.
-   * @returns The RouteCollection instance.
-   */
-  public setOutgoingResponseResolver (resolver?: OutgoingResponseResolver): this {
-    this.outgoingResponseResolver = resolver
-    return this
-  }
-
-  /**
    * Dumps all routes as an array of JSON objects.
    *
    * @returns An array of route definitions.
    */
-  public dump (): Array<Record<string, unknown>> {
-    return Array
-      .from(this.methodList.entries())
-      .reduce<Array<Record<string, string>>>((prev, [method, routeMap]) => {
-      return prev.concat(
-        Array
-          .from(routeMap.values())
-          .filter(route => !(method === 'HEAD' && route.getOption<boolean>('isInternalHeader', false)))
-          .map(route => ({ ...route.toJSON(), method }))
-      )
-    }, [])
-      .sort((a, b) => a.path?.localeCompare(b.path))
+  public async dump (): Promise<Array<Record<string, unknown>>> {
+    const result: Array<Record<string, string>> = []
+
+    for (const [method, routeMap] of this.methodList.entries()) {
+      const routes = this.removeInternalHeaders(Array.from(routeMap.values()))
+      for (const route of routes) {
+        const routeJson = await route.toJSON()
+        result.push({ ...routeJson, method })
+      }
+    }
+
+    return result.sort((a, b) => a.path?.localeCompare(b.path))
   }
 
   /**
@@ -168,8 +165,8 @@ export class RouteCollection<
    *
    * @returns A JSON string representing all routes.
    */
-  public toString (): string {
-    return JSON.stringify(this.dump())
+  public async toString (): Promise<string> {
+    return JSON.stringify(await this.dump())
   }
 
   /**
@@ -232,8 +229,16 @@ export class RouteCollection<
     return HTTP_METHODS.filter(
       method =>
         method.toUpperCase() !== event.method?.toUpperCase() &&
-        this.matchAgainstRoutes(this.getRoutesByMethod(method), event, false) !== undefined
+        this.matchAgainstRoutes(
+          this.removeInternalHeaders(this.getRoutesByMethod(method)),
+          event,
+          false
+        ) !== undefined
     )
+  }
+
+  private removeInternalHeaders (routes: Array<Route<IncomingEventType, OutgoingResponseType>>): Array<Route<IncomingEventType, OutgoingResponseType>> {
+    return routes.filter(route => !route.getOption<boolean>('isInternalHeader', false))
   }
 
   private getRouteForMethods (event: IncomingEventType, methods: string[]): Route<IncomingEventType, OutgoingResponseType> {
@@ -241,24 +246,16 @@ export class RouteCollection<
       return Route.create<IncomingEventType, OutgoingResponseType>({
         method: 'OPTIONS',
         path: event.decodedPathname ?? event.pathname,
-        action: this.makeRouteAction({
+        handler: (_event: IncomingEventType) => ({
           statusText: '',
           statusCode: 200,
           content: { Allow: methods.join(',') }
-        })
+        } as unknown as OutgoingResponseType)
       })
     }
 
-    throw new MethodNotAllowedError(`Method ${String(event.method)} is not supported for ${String(event.decodedPathname)}. Supported methods: ${String(methods.join(', '))}.`)
-  }
-
-  private makeRouteAction<OptionsType extends OutgoingResponseOptions>(options: OptionsType): RouterCallableAction {
-    return async () => {
-      if (typeof this.outgoingResponseResolver === 'function') {
-        return await this.outgoingResponseResolver(options)
-      } else {
-        throw new RouterError('Outgoing response resolver is not set.')
-      }
-    }
+    throw new MethodNotAllowedError(
+      `Method ${String(event.method)} is not supported for ${String(event.decodedPathname)}. Supported methods: ${String(methods.join(', '))}.`
+    )
   }
 }

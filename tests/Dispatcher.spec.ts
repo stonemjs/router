@@ -1,7 +1,7 @@
 import { Route } from '../src/Route'
 import { RouterError } from '../src/errors/RouterError'
-import { IIncomingEvent, IOutgoingResponse, RouterCallableAction, IControllerInstance } from '../src/declarations'
-import { DispatcherOptions, callableDispatcher, controllerDispatcher } from '../src/dispatchers'
+import { FunctionalEventHandler, IEventHandler, IIncomingEvent, IOutgoingResponse } from '../src/declarations'
+import { DispatcherOptions, callableDispatcher, handlerDispatcher } from '../src/dispatchers'
 
 // Mock dependencies
 vi.mock('../src/Route', () => ({
@@ -34,17 +34,16 @@ describe('Dispatcher Tests', () => {
    */
   describe('callableDispatcher', () => {
     it('should execute callable and return response', async () => {
-      const callable: RouterCallableAction = vi.fn().mockResolvedValue(mockResponse)
+      const handler: FunctionalEventHandler<IIncomingEvent, IOutgoingResponse> = vi.fn().mockResolvedValue(mockResponse)
 
       const options: DispatcherOptions<IIncomingEvent, IOutgoingResponse> = {
         event: mockEvent,
-        route: mockRoute,
-        callable
+        handler
       }
 
       const result = await callableDispatcher(options)
 
-      expect(callable).toHaveBeenCalledWith({
+      expect(handler).toHaveBeenCalledWith({
         event: mockEvent,
         route: mockRoute,
         params: { id: '123' },
@@ -57,7 +56,7 @@ describe('Dispatcher Tests', () => {
     it('should throw RouterError if callable is not provided', async () => {
       const options: DispatcherOptions<IIncomingEvent, IOutgoingResponse> = {
         event: mockEvent,
-        route: mockRoute
+        handler: undefined
       }
 
       await expect(callableDispatcher(options)).rejects.toThrow(RouterError)
@@ -70,18 +69,17 @@ describe('Dispatcher Tests', () => {
    */
   describe('controllerDispatcher', () => {
     it('should execute controller handler and return response', async () => {
-      const controller: IControllerInstance = {
+      const controller: IEventHandler<IIncomingEvent, IOutgoingResponse> = {
         handleRequest: vi.fn().mockResolvedValue(mockResponse)
       }
 
       const options: DispatcherOptions<IIncomingEvent, IOutgoingResponse> = {
         event: mockEvent,
-        route: mockRoute,
-        controller,
-        handler: 'handleRequest'
+        handler: controller,
+        action: 'handleRequest'
       }
 
-      const result = await controllerDispatcher(options)
+      const result = await handlerDispatcher(options)
 
       expect(controller.handleRequest).toHaveBeenCalledWith({
         event: mockEvent,
@@ -94,25 +92,23 @@ describe('Dispatcher Tests', () => {
     })
 
     it('should throw RouterError if controller or handler is missing', async () => {
-      const controller: IControllerInstance = {
+      const controller: IEventHandler<IIncomingEvent, IOutgoingResponse> = {
         handleRequest: vi.fn()
       }
 
       const optionsWithoutHandler: DispatcherOptions<IIncomingEvent, IOutgoingResponse> = {
         event: mockEvent,
-        route: mockRoute,
-        controller
+        handler: controller
       }
 
       const optionsWithInvalidHandler: DispatcherOptions<IIncomingEvent, IOutgoingResponse> = {
         event: mockEvent,
-        route: mockRoute,
-        controller,
-        handler: 'invalidHandler'
+        handler: controller,
+        action: 'invalidHandler'
       }
 
-      await expect(controllerDispatcher(optionsWithoutHandler)).rejects.toThrow(RouterError)
-      await expect(controllerDispatcher(optionsWithInvalidHandler)).rejects.toThrow(
+      await expect(handlerDispatcher(optionsWithoutHandler)).rejects.toThrow(RouterError)
+      await expect(handlerDispatcher(optionsWithInvalidHandler)).rejects.toThrow(
         'Handler invalidHandler not found in controller'
       )
     })

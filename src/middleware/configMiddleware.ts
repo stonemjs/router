@@ -1,9 +1,10 @@
 import { NODE_CONSOLE_PLATFORM } from '../constants'
-import { MixedPipe, NextPipe } from '@stone-js/pipeline'
+import { MetaPipe, NextPipe } from '@stone-js/pipeline'
+import { RouterEventHandler } from '../RouterEventHandler'
 import { GROUP_KEY, MATCH_KEY } from '../decorators/constants'
 import { RouterCommand, routerCommandOptions } from '../commands/RouterCommand'
-import { CommandOptions, NodeCliAdapterConfig, RouteDefinition } from '../declarations'
 import { ConfigContext, IBlueprint, ClassType, hasMetadata, getMetadata } from '@stone-js/core'
+import { EventHandlerClass, IIncomingEvent, NodeCliAdapterConfig, RouteDefinition } from '../declarations'
 
 /**
  * Middleware to process and register route definitions from modules.
@@ -17,18 +18,46 @@ import { ConfigContext, IBlueprint, ClassType, hasMetadata, getMetadata } from '
  * RouteDefinitionsMiddleware(context, next)
  * ```
  */
-export const RouteDefinitionsMiddleware = ({ modules, blueprint }: ConfigContext, next: NextPipe<ConfigContext, IBlueprint>): IBlueprint | Promise<IBlueprint> => {
-  (modules as ClassType[])
+export async function RouteDefinitionsMiddleware<
+  IncomingEventType extends IIncomingEvent,
+  OutgoingResponseType = unknown
+> (
+  context: ConfigContext<IBlueprint, EventHandlerClass<IncomingEventType, OutgoingResponseType>>,
+  next: NextPipe<ConfigContext<IBlueprint, EventHandlerClass<IncomingEventType, OutgoingResponseType>>, IBlueprint>
+): Promise<IBlueprint> {
+  context
+    .modules
     .filter(module => hasMetadata(module, GROUP_KEY))
     .forEach(module => {
-      const children = getMetadata<ClassType, RouteDefinition[]>(module, MATCH_KEY, [])
-      const parent = getMetadata<ClassType, RouteDefinition>(module, GROUP_KEY, { path: '/' })
+      const children = getMetadata<ClassType, Array<RouteDefinition<IncomingEventType, OutgoingResponseType>>>(module, MATCH_KEY, [])
+      const parent = getMetadata<ClassType, RouteDefinition<IncomingEventType, OutgoingResponseType>>(module, GROUP_KEY, { path: '/' })
       parent.children = children
-      parent.action = children.length > 0 ? module : { handle: module } // Add fallback action if no children
-      blueprint.add('stone.router.definitions', parent)
+      parent.handler = { ...parent.handler, module }
+      context.blueprint.add('stone.router.definitions', [parent])
     })
 
-  return next({ modules, blueprint })
+  return await next(context)
+}
+
+/**
+ * Middleware to set the router as the main event handler for the application.
+ *
+ * @param context - The configuration context containing modules and blueprint.
+ * @param next - The next function in the pipeline.
+ * @returns The updated blueprint.
+ *
+ * @example
+ * ```typescript
+ * SetRouterEventHandlerMiddleware({ modules, blueprint }, next);
+ * ```
+ */
+export async function SetRouterEventHandlerMiddleware (
+  context: ConfigContext<IBlueprint, ClassType>,
+  next: NextPipe<ConfigContext<IBlueprint, ClassType>, IBlueprint>
+): Promise<IBlueprint> {
+  context.blueprint.set('stone.handler', { module: RouterEventHandler, isClass: true })
+
+  return await next(context)
 }
 
 /**
@@ -43,18 +72,20 @@ export const RouteDefinitionsMiddleware = ({ modules, blueprint }: ConfigContext
  * SetRouterCommandsMiddleware(context, next)
  * ```
  */
-export const SetRouterCommandsMiddleware = ({ modules, blueprint }: ConfigContext, next: NextPipe<ConfigContext, IBlueprint>): IBlueprint | Promise<IBlueprint> => {
-  blueprint
+export const SetRouterCommandsMiddleware = async (
+  context: ConfigContext<IBlueprint, ClassType>,
+  next: NextPipe<ConfigContext<IBlueprint, ClassType>, IBlueprint>
+): Promise<IBlueprint> => {
+  context
+    .blueprint
     .get<NodeCliAdapterConfig[]>('stone.adapters', [])
     .filter(adapter => adapter.platform === NODE_CONSOLE_PLATFORM)
     .map(adapter => {
-      adapter.commands = [
-        [RouterCommand, routerCommandOptions] as [ClassType, CommandOptions]
-      ].concat(adapter.commands)
+      adapter.commands.push({ options: routerCommandOptions, isClass: true, module: RouterCommand })
       return adapter
     })
 
-  return next({ modules, blueprint })
+  return await next(context)
 }
 
 /**
@@ -71,7 +102,8 @@ export const SetRouterCommandsMiddleware = ({ modules, blueprint }: ConfigContex
  * });
  * ```
  */
-export const routeConfigMiddleware: MixedPipe[] = [
-  { pipe: RouteDefinitionsMiddleware, priority: 3 },
-  { pipe: SetRouterCommandsMiddleware, priority: 5 }
+export const routeConfigMiddleware: Array<MetaPipe<ConfigContext<IBlueprint, ClassType>, IBlueprint>> = [
+  { module: RouteDefinitionsMiddleware, priority: 3 },
+  { module: SetRouterCommandsMiddleware, priority: 5 },
+  { module: SetRouterEventHandlerMiddleware, priority: 2 }
 ]

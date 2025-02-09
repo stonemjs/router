@@ -1,21 +1,25 @@
-import { Route } from './Route'
+import { Route, RouteOptions } from './Route'
+import { RouteMapper } from './RouteMapper'
 import { RouteEvent } from './events/RouteEvent'
 import { RouterError } from './errors/RouterError'
 import { RouteCollection } from './RouteCollection'
-import { RouterConfig } from './options/RouterBlueprint'
-import { RouteMapper, RouteMapperOptions } from './RouteMapper'
+import { FunctionalEventListener } from '@stone-js/core'
 import { RouteNotFoundError } from './errors/RouteNotFoundError'
-import { IBlueprint, IListener, isConstructor, IRouter } from '@stone-js/core'
-import { DELETE, GET, HEAD, NAVIGATION_EVENT, OPTIONS, PATCH, POST, PUT } from './constants'
-import { MixedPipe, Pipe, PipeInstance, Pipeline, PipelineOptions } from '@stone-js/pipeline'
-import { FunctionalRouteDefinition, RouterAction, RouteDefinition, RouteParams, RouterContext, NavigateOptions, GenerateOptions, IEventEmitter, IContainer, FunctionalRouteGroupDefinition, HttpMethod, IIncomingEvent, IOutgoingResponse, OutgoingResponseResolver, FunctionalPageRouteDefinition } from './declarations'
-
-export interface RouterOptions {
-  blueprint: IBlueprint
-  container: IContainer
-  eventEmitter?: IEventEmitter
-}
-
+import { DELETE, GET, NAVIGATION_EVENT, OPTIONS, PATCH, POST, PUT } from './constants'
+import { isAliasPipe, isClassPipe, isFactoryPipe, MetaPipe, MixedPipe, PipeInstance, Pipeline, PipelineOptions } from '@stone-js/pipeline'
+import {
+  HttpMethod,
+  RouteParams,
+  RouterOptions,
+  IIncomingEvent,
+  RouteDefinition,
+  GenerateOptions,
+  NavigateOptions,
+  FunctionalEventHandler,
+  FunctionalRouteDefinition,
+  FunctionalPageRouteDefinition,
+  FunctionalRouteGroupDefinition
+} from './declarations'
 /**
  * Represents a configurable router for managing HTTP routes and handling incoming events.
  *
@@ -24,16 +28,12 @@ export interface RouterOptions {
  */
 export class Router<
   IncomingEventType extends IIncomingEvent = IIncomingEvent,
-  OutgoingResponseType extends IOutgoingResponse = IOutgoingResponse
-> implements IRouter<IncomingEventType, OutgoingResponseType> {
-  private readonly blueprint: IBlueprint
-  private readonly container?: IContainer
-  private readonly eventEmitter?: IEventEmitter
+  OutgoingResponseType = unknown
+> {
   private readonly routeMapper: RouteMapper<IncomingEventType, OutgoingResponseType>
 
   private groupDefinition?: FunctionalRouteGroupDefinition
   private currentRoute?: Route<IncomingEventType, OutgoingResponseType>
-
   private routes: RouteCollection<IncomingEventType, OutgoingResponseType>
 
   /**
@@ -44,42 +44,21 @@ export class Router<
    */
   static create<
     IncomingEventType extends IIncomingEvent = IIncomingEvent,
-    OutgoingEventType extends IOutgoingResponse = IOutgoingResponse
-  >(options: RouterOptions): Router<IncomingEventType, OutgoingEventType> {
+    OutgoingResponseType = unknown
+  >(options: RouterOptions<IncomingEventType, OutgoingResponseType>): Router<IncomingEventType, OutgoingResponseType> {
     return new this(options)
   }
 
   /**
    * Constructs a `Router` instance.
    *
-   * @param options - The router options including blueprint, container, and event emitter.
-   * @throws {RouterError} If the blueprint is invalid.
+   * @param routerOptions - Configuration options for the router.
    */
-  protected constructor ({ blueprint, container, eventEmitter }: RouterOptions) {
-    this.validateBlueprint(blueprint)
-
-    this.blueprint = blueprint
-    this.container = container
-    this.eventEmitter = eventEmitter
-
-    const responseResolver = this.getResponseResolver()
-    const definitions = this.blueprint.get<RouteDefinition[]>(
-      'stone.router.definitions',
-      []
-    )
-    const routerOptions = this.blueprint.get<RouteMapperOptions>(
-      'stone.router',
-      {} as unknown as RouteMapperOptions
-    )
-
-    this.routeMapper = RouteMapper.create<IncomingEventType, OutgoingResponseType>(
-      { ...routerOptions, responseResolver },
-      container
-    )
-
+  protected constructor (private routerOptions: RouterOptions<IncomingEventType, OutgoingResponseType>) {
+    this.routeMapper = RouteMapper.create<IncomingEventType, OutgoingResponseType>(routerOptions)
     this.routes = RouteCollection.create<IncomingEventType, OutgoingResponseType>(
-      this.routeMapper.toRoutes(definitions)
-    ).setOutgoingResponseResolver(responseResolver)
+      this.routeMapper.toRoutes(routerOptions.definitions)
+    )
   }
 
   /**
@@ -89,7 +68,10 @@ export class Router<
    * @param definition - Optional group-specific route definitions.
    * @returns The router instance for chaining.
    */
-  group (path: string, definition?: Omit<FunctionalRouteGroupDefinition, 'path'>): this {
+  group (
+    path: string,
+    definition?: Omit<FunctionalRouteGroupDefinition<IncomingEventType, OutgoingResponseType>, 'path'>
+  ): this {
     this.groupDefinition = { ...definition, path }
     return this
   }
@@ -108,39 +90,42 @@ export class Router<
    * Registers a route that supports the `OPTIONS` method.
    *
    * @param path - The route path.
-   * @param actionOrDefinition - The route action or functional definition.
+   * @param handlerOrDefinition - The route handler or functional definition.
    * @returns The router instance for chaining.
    */
-  options (path: string, actionOrDefinition: RouterAction | FunctionalRouteDefinition): this {
-    return this.match(path, actionOrDefinition, [OPTIONS])
+  options (
+    path: string,
+    handlerOrDefinition: FunctionalEventHandler<IncomingEventType, OutgoingResponseType> | FunctionalRouteDefinition<IncomingEventType, OutgoingResponseType>
+  ): this {
+    return this.match(path, handlerOrDefinition, [OPTIONS])
   }
 
   /**
    * Registers a route that supports the `GET` and `HEAD` methods.
    *
    * @param path - The route path.
-   * @param actionOrDefinition - The route action or functional definition.
+   * @param handlerOrDefinition - The route handler or functional definition.
    * @returns The router instance for chaining.
    */
-  get (path: string, actionOrDefinition: RouterAction | FunctionalRouteDefinition): this {
-    const definition = typeof actionOrDefinition === 'object'
-      ? actionOrDefinition
-      : { action: actionOrDefinition }
-
-    return this
-      .match(path, actionOrDefinition, [GET])
-      .match(path, { ...definition, isInternalHeader: true }, [HEAD])
+  get (
+    path: string,
+    handlerOrDefinition: FunctionalEventHandler<IncomingEventType, OutgoingResponseType> | FunctionalRouteDefinition<IncomingEventType, OutgoingResponseType>
+  ): this {
+    return this.match(path, handlerOrDefinition, [GET])
   }
 
   /**
    * Registers a route that supports the `GET` and `HEAD` methods.
    *
    * @param path - The route path.
-   * @param actionOrDefinition - The route action or functional definition.
+   * @param handlerOrDefinition - The route handler or functional definition.
    * @returns The router instance for chaining.
    */
-  add (path: string, actionOrDefinition: RouterAction | FunctionalRouteDefinition): this {
-    return this.get(path, actionOrDefinition)
+  add (
+    path: string,
+    handlerOrDefinition: FunctionalEventHandler<IncomingEventType, OutgoingResponseType> | FunctionalRouteDefinition<IncomingEventType, OutgoingResponseType>
+  ): this {
+    return this.get(path, handlerOrDefinition)
   }
 
   /**
@@ -151,7 +136,7 @@ export class Router<
    * @param definition - The route functional definition.
    * @returns The router instance for chaining.
    */
-  page (path: string, definition: FunctionalPageRouteDefinition): this {
+  page (path: string, definition: FunctionalPageRouteDefinition<IncomingEventType, OutgoingResponseType>): this {
     return this.get(path, definition)
   }
 
@@ -159,64 +144,79 @@ export class Router<
    * Registers a route that supports the `POST` method.
    *
    * @param path - The route path.
-   * @param actionOrDefinition - The route action or functional definition.
+   * @param handlerOrDefinition - The route handler or functional definition.
    * @returns The router instance for chaining.
    */
-  post (path: string, actionOrDefinition: RouterAction | FunctionalRouteDefinition): this {
-    return this.match(path, actionOrDefinition, [POST])
+  post (
+    path: string,
+    handlerOrDefinition: FunctionalEventHandler<IncomingEventType, OutgoingResponseType> | FunctionalRouteDefinition<IncomingEventType, OutgoingResponseType>
+  ): this {
+    return this.match(path, handlerOrDefinition, [POST])
   }
 
   /**
    * Registers a route that supports the `PUT` method.
    *
    * @param path - The route path.
-   * @param actionOrDefinition - The route action or functional definition.
+   * @param handlerOrDefinition - The route handler or functional definition.
    * @returns The router instance for chaining.
    */
-  put (path: string, actionOrDefinition: RouterAction | FunctionalRouteDefinition): this {
-    return this.match(path, actionOrDefinition, [PUT])
+  put (
+    path: string,
+    handlerOrDefinition: FunctionalEventHandler<IncomingEventType, OutgoingResponseType> | FunctionalRouteDefinition<IncomingEventType, OutgoingResponseType>
+  ): this {
+    return this.match(path, handlerOrDefinition, [PUT])
   }
 
   /**
    * Registers a route that supports the `PATCH` method.
    *
    * @param path - The route path.
-   * @param actionOrDefinition - The route action or functional definition.
+   * @param handlerOrDefinition - The route handler or functional definition.
    * @returns The router instance for chaining.
    */
-  patch (path: string, actionOrDefinition: RouterAction | FunctionalRouteDefinition): this {
-    return this.match(path, actionOrDefinition, [PATCH])
+  patch (
+    path: string,
+    handlerOrDefinition: FunctionalEventHandler<IncomingEventType, OutgoingResponseType> | FunctionalRouteDefinition<IncomingEventType, OutgoingResponseType>
+  ): this {
+    return this.match(path, handlerOrDefinition, [PATCH])
   }
 
   /**
    * Registers a route that supports the `DELETE` method.
    *
    * @param path - The route path.
-   * @param actionOrDefinition - The route action or functional definition.
+   * @param handlerOrDefinition - The route handler or functional definition.
    * @returns The router instance for chaining.
    */
-  delete (path: string, actionOrDefinition: RouterAction | FunctionalRouteDefinition): this {
-    return this.match(path, actionOrDefinition, [DELETE])
+  delete (
+    path: string,
+    handlerOrDefinition: FunctionalEventHandler<IncomingEventType, OutgoingResponseType> | FunctionalRouteDefinition<IncomingEventType, OutgoingResponseType>
+  ): this {
+    return this.match(path, handlerOrDefinition, [DELETE])
   }
 
   /**
    * Registers a route that supports all HTTP methods.
    *
    * @param path - The route path.
-   * @param actionOrDefinition - The route action or functional definition.
+   * @param handlerOrDefinition - The route handler or functional definition.
    * @returns The router instance for chaining.
    */
-  any (path: string, actionOrDefinition: RouterAction | FunctionalRouteDefinition): this {
-    return this.match(path, actionOrDefinition, [GET, POST, PUT, PATCH, DELETE, OPTIONS])
+  any (
+    path: string,
+    handlerOrDefinition: FunctionalEventHandler<IncomingEventType, OutgoingResponseType> | FunctionalRouteDefinition<IncomingEventType, OutgoingResponseType>
+  ): this {
+    return this.match(path, handlerOrDefinition, [GET, POST, PUT, PATCH, DELETE, OPTIONS])
   }
 
   /**
    * Registers a fallback route to handle unmatched requests.
    *
-   * @param action - The action to execute for the fallback route.
+   * @param action - The handler to execute for the fallback route.
    * @returns The current `Router` instance.
    */
-  fallback (action: RouterAction): this {
+  fallback (action: FunctionalEventHandler<IncomingEventType, OutgoingResponseType>): this {
     return this.get('/:__fallback__(.*)*', { action, fallback: true })
   }
 
@@ -224,17 +224,21 @@ export class Router<
    * Adds a route to the router for specific HTTP methods.
    *
    * @param path - The path for the route.
-   * @param actionOrDefinition - The action to execute or a route definition object.
+   * @param handlerOrDefinition - The handler to execute or a route definition object.
    * @param methods - An array of HTTP methods this route should handle.
    * @returns The current `Router` instance.
    */
-  match (path: string, actionOrDefinition: RouterAction | FunctionalRouteDefinition, methods: HttpMethod[]): this {
-    const child: RouteDefinition = typeof actionOrDefinition === 'object'
-      ? { ...actionOrDefinition, path, methods }
-      : { path, action: actionOrDefinition, methods }
+  match (
+    path: string,
+    handlerOrDefinition: FunctionalEventHandler<IncomingEventType, OutgoingResponseType> | FunctionalRouteDefinition<IncomingEventType, OutgoingResponseType>,
+    methods: HttpMethod[]
+  ): this {
+    const child: RouteDefinition<IncomingEventType, OutgoingResponseType> = typeof handlerOrDefinition === 'object'
+      ? { ...handlerOrDefinition, path, methods }
+      : { path, handler: handlerOrDefinition, methods }
     const definition = this.groupDefinition === undefined ? child : { ...this.groupDefinition, children: [child] }
 
-    this.blueprint.add('stone.router.definitions', definition)
+    this.routerOptions.definitions = this.routerOptions.definitions.concat(definition)
     this.routeMapper.toRoutes([definition]).forEach((route) => this.routes.add(route))
 
     return this
@@ -246,8 +250,8 @@ export class Router<
    * @param definitions - An array of route definitions to add.
    * @returns The current `Router` instance.
    */
-  define (definitions: RouteDefinition[]): this {
-    this.blueprint.add('stone.router.definitions', definitions)
+  define (definitions: Array<RouteDefinition<IncomingEventType, OutgoingResponseType>>): this {
+    this.routerOptions.definitions = definitions
     this.routeMapper.toRoutes(definitions).forEach((route) => this.routes.add(route))
     return this
   }
@@ -264,7 +268,7 @@ export class Router<
       throw new RouterError('Parameter must be an instance of RouteCollection')
     }
 
-    this.routes = routes.setOutgoingResponseResolver(this.getResponseResolver())
+    this.routes = routes
 
     return this
   }
@@ -275,8 +279,8 @@ export class Router<
    * @param options - A partial configuration object for the router.
    * @returns The current `Router` instance.
    */
-  configure (options: Partial<RouterConfig>): this {
-    this.blueprint.add('stone.router', options)
+  configure (options: Partial<RouterOptions<IncomingEventType, OutgoingResponseType>>): this {
+    this.routerOptions = { ...this.routerOptions, ...options }
     return this
   }
 
@@ -286,8 +290,9 @@ export class Router<
    * @param middleware - A single middleware or an array of middleware to add.
    * @returns The current `Router` instance.
    */
-  use (middleware: MixedPipe | MixedPipe[]): this {
-    this.blueprint.add('stone.router.middleware', middleware)
+  use (middleware: MixedPipe<IncomingEventType, OutgoingResponseType> | Array<MixedPipe<IncomingEventType, OutgoingResponseType>>): this {
+    this.routerOptions.middleware ??= []
+    this.routerOptions.middleware = this.routerOptions.middleware.concat(middleware)
     return this
   }
 
@@ -298,11 +303,11 @@ export class Router<
    * @param middleware - A single middleware or an array of middleware to attach.
    * @returns The current `Router` instance.
    */
-  useOn (name: string | string[], middleware: MixedPipe | MixedPipe[]): this {
-    const definitions = this.blueprint.get<RouteDefinition[]>('stone.router.definitions', [])
-
+  useOn (name: string | string[], middleware: MixedPipe<IncomingEventType, OutgoingResponseType> | Array<MixedPipe<IncomingEventType, OutgoingResponseType>>): this {
     Array(name).flat().forEach((name) => {
-      definitions
+      this
+        .routerOptions
+        .definitions
         .filter((v) => v.name === name)
         .forEach((v) => {
           v.middleware = (v.middleware ?? []).concat(middleware)
@@ -320,8 +325,8 @@ export class Router<
    * @param listener - The listener function to execute when the event is emitted.
    * @returns The current `Router` instance.
    */
-  on (eventName: string, listener: IListener): this {
-    this.eventEmitter?.on(eventName, listener)
+  on (eventName: string, listener: FunctionalEventListener): this {
+    this.routerOptions.eventEmitter?.on(eventName, listener)
     return this
   }
 
@@ -332,7 +337,7 @@ export class Router<
    * @returns A promise resolving to the outgoing response after executing the matched route.
    */
   async dispatch (event: IncomingEventType): Promise<OutgoingResponseType> {
-    return await this.runRoute(event, this.findRoute(event))
+    return await this.runRoute(event, await this.findRoute(event))
   }
 
   /**
@@ -360,15 +365,26 @@ export class Router<
    * @returns The matched route.
    * @throws {RouteNotFoundError} If no route matches the given event.
    */
-  findRoute (event: IncomingEventType): Route<IncomingEventType, OutgoingResponseType> {
-    this.eventEmitter?.emit(
+  async findRoute (event: IncomingEventType): Promise<Route<IncomingEventType, OutgoingResponseType>> {
+    await this.routerOptions.eventEmitter?.emit(
       RouteEvent.create({ type: RouteEvent.ROUTING, source: this, metadata: { event } })
     )
 
     this.currentRoute = this.routes.match(event)
-    this.currentRoute !== undefined && this.container?.instance(Route, this.currentRoute)?.alias(Route, 'route')
 
     return this.currentRoute
+  }
+
+  /**
+   * Finds a route based on the provided options.
+   *
+   * @param options - Options to match against the routes.
+   * @returns The matched route, or `undefined` if no match is found.
+  */
+  findRouteByOptions (
+    options: Partial<RouteOptions<IncomingEventType, OutgoingResponseType>>
+  ): Route<IncomingEventType, OutgoingResponseType> | undefined {
+    return this.routes.matchOptions(options)
   }
 
   /**
@@ -416,14 +432,15 @@ export class Router<
    * @param route - The route for which middleware should be gathered.
    * @returns An array of middleware to execute for the route.
    */
-  gatherRouteMiddleware (route: Route<IncomingEventType, OutgoingResponseType>): MixedPipe[] {
-    const skipMiddleware = this.blueprint.get<boolean>('stone.router.skipMiddleware', false)
-
-    return this.blueprint
-      .get<MixedPipe[]>('stone.router.middleware', [])
-      .concat(route.getOption('middleware', []))
-      .filter((v) => !skipMiddleware && v !== undefined && !route.isMiddlewareExcluded(v))
-      .reduce<MixedPipe[]>((acc, middleware) => (acc.includes(middleware) ? acc : acc.concat(middleware)), [])
+  gatherRouteMiddleware (route: Route<IncomingEventType, OutgoingResponseType>): Array<MixedPipe<IncomingEventType, OutgoingResponseType>> {
+    return this
+      .routerOptions
+      .middleware
+      ?.concat(route.getOption('middleware', []))
+      .filter((v) => this.routerOptions.skipMiddleware !== true && v !== undefined && !route.isMiddlewareExcluded(v))
+      .reduce<Array<MixedPipe<IncomingEventType, OutgoingResponseType>>>(
+      (acc, middleware) => (acc.includes(middleware) ? acc : acc.concat(middleware)), []
+    ) ?? []
   }
 
   /**
@@ -502,45 +519,42 @@ export class Router<
    *
    * @returns An array of JSON objects representing the routes.
    */
-  dumpRoutes (): Array<Record<string, unknown>> {
-    return this.routes.dump()
+  async dumpRoutes (): Promise<Array<Record<string, unknown>>> {
+    return await this.routes.dump()
   }
 
   private async runRoute (event: IncomingEventType, route: Route<IncomingEventType, OutgoingResponseType>): Promise<OutgoingResponseType> {
     event.setRouteResolver?.(() => route)
-    this.eventEmitter?.emit(RouteEvent.create({ type: RouteEvent.ROUTE_MATCHED, source: this, metadata: { event, route } }))
+    await this.routerOptions.eventEmitter?.emit(RouteEvent.create({ type: RouteEvent.ROUTE_MATCHED, source: this, metadata: { event, route } }))
     return await this.runRouteWithMiddleware(event, route)
   }
 
   private async runRouteWithMiddleware (event: IncomingEventType, route: Route<IncomingEventType, OutgoingResponseType>): Promise<OutgoingResponseType> {
     return await Pipeline
-      .create<RouterContext<IncomingEventType, OutgoingResponseType>, OutgoingResponseType>(this.makePipelineOptions())
-      .send({ event, route })
-      .through(this.gatherRouteMiddleware(route))
-      .then(async (v) => await this.bindAndRun(v.route, v.event))
+      .create<IncomingEventType, OutgoingResponseType>(this.makePipelineOptions())
+      .send(event)
+      .through(...this.gatherRouteMiddleware(route))
+      .then(async (ev) => await this.bindAndRun(route, ev))
   }
 
   private async bindAndRun (route: Route<IncomingEventType, OutgoingResponseType>, event: IncomingEventType): Promise<OutgoingResponseType> {
-    await route.bind(event)
+    await route
+      .setDispatchers(this.routerOptions.dispatchers)
+      .setResolver(this.routerOptions.dependencyResolver)
+      .bind(event)
+
     return await route.run(event)
   }
 
-  private makePipelineOptions (): PipelineOptions<RouterContext<IncomingEventType, OutgoingResponseType>, OutgoingResponseType> {
+  private makePipelineOptions (): PipelineOptions<IncomingEventType, OutgoingResponseType> {
     return {
-      resolver: (middleware: Pipe) => {
-        if (isConstructor(middleware) || this.container?.has(middleware) === true) {
-          return this.container?.resolve<PipeInstance<RouterContext<IncomingEventType, OutgoingResponseType>, OutgoingResponseType>>(middleware, true)
+      resolver: (metaPipe: MetaPipe<IncomingEventType, OutgoingResponseType>) => {
+        if (isClassPipe(metaPipe) || isAliasPipe(metaPipe)) {
+          return this.routerOptions.dependencyResolver?.resolve<PipeInstance<IncomingEventType, OutgoingResponseType>>(metaPipe.module, true)
+        } else if (isFactoryPipe(metaPipe)) {
+          return metaPipe.module(this.routerOptions.dependencyResolver)
         }
       }
     }
-  }
-
-  private validateBlueprint (blueprint: IBlueprint): void {
-    if (blueprint === undefined) { throw new RouterError('Router blueprint is required to create a Router instance') }
-  }
-
-  private getResponseResolver (): OutgoingResponseResolver | undefined {
-    return this.blueprint.get<OutgoingResponseResolver>('stone.router.responseResolver') ??
-      this.blueprint.get<OutgoingResponseResolver>('stone.kernel.responseResolver')
   }
 }

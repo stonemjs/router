@@ -1,6 +1,6 @@
 import { Route } from './Route'
+import { IIncomingEvent } from './declarations'
 import { domainRegex, pathRegex } from './utils'
-import { IIncomingEvent, IMatcher, IOutgoingResponse } from './declarations'
 
 /**
  * Options for route matchers.
@@ -11,10 +11,7 @@ import { IIncomingEvent, IMatcher, IOutgoingResponse } from './declarations'
  * @property event - The incoming HTTP event to be matched.
  * @property route - The route definition to match against.
  */
-export interface MatcherOptions<
-  IncomingEventType extends IIncomingEvent = IIncomingEvent,
-  OutgoingResponseType extends IOutgoingResponse = IOutgoingResponse
-> {
+export interface MatcherOptions<IncomingEventType extends IIncomingEvent = IIncomingEvent, OutgoingResponseType = unknown> {
   event: IncomingEventType
   route: Route<IncomingEventType, OutgoingResponseType>
 }
@@ -34,10 +31,10 @@ export interface MatcherOptions<
  * console.log(match); // true or false
  * ```
  */
-export const hostMatcher: IMatcher = <
+export function hostMatcher<
   IncomingEventType extends IIncomingEvent = IIncomingEvent,
-  OutgoingResponseType extends IOutgoingResponse = IOutgoingResponse
->({ route, event }: MatcherOptions<IncomingEventType, OutgoingResponseType>): boolean => {
+  OutgoingResponseType = unknown
+> ({ route, event }: MatcherOptions<IncomingEventType, OutgoingResponseType>): boolean {
   return domainRegex(route.options) === undefined || domainRegex(route.options)?.test(event.host) === true
 }
 
@@ -56,10 +53,10 @@ export const hostMatcher: IMatcher = <
  * console.log(match); // true or false
  * ```
  */
-export const methodMatcher: IMatcher = <
+export function methodMatcher<
   IncomingEventType extends IIncomingEvent = IIncomingEvent,
-  OutgoingResponseType extends IOutgoingResponse = IOutgoingResponse
->({ route, event }: MatcherOptions<IncomingEventType, OutgoingResponseType>): boolean => {
+  OutgoingResponseType = unknown
+> ({ route, event }: MatcherOptions<IncomingEventType, OutgoingResponseType>): boolean {
   return route.getOption('method') === event.method
 }
 
@@ -78,14 +75,14 @@ export const methodMatcher: IMatcher = <
  * console.log(match); // true or false
  * ```
  */
-export const protocolMatcher: IMatcher = <
+export function protocolMatcher<
   IncomingEventType extends IIncomingEvent = IIncomingEvent,
-  OutgoingResponseType extends IOutgoingResponse = IOutgoingResponse
->({ route, event }: MatcherOptions<IncomingEventType, OutgoingResponseType>): boolean => {
+  OutgoingResponseType = unknown
+> ({ route, event }: MatcherOptions<IncomingEventType, OutgoingResponseType>): boolean {
   if (route.isHttpOnly()) {
-    return !event.isSecure
+    return event.isSecure !== true
   } else if (route.isHttpsOnly()) {
-    return event.isSecure
+    return event.isSecure === true
   } else {
     return true
   }
@@ -106,9 +103,9 @@ export const protocolMatcher: IMatcher = <
  * console.log(match); // true or false
  * ```
  */
-export const uriMatcher: IMatcher = <
+export function uriMatcher<
   IncomingEventType extends IIncomingEvent = IIncomingEvent,
-  OutgoingResponseType extends IOutgoingResponse = IOutgoingResponse
->({ route, event }: MatcherOptions<IncomingEventType, OutgoingResponseType>): boolean => {
+  OutgoingResponseType = unknown
+> ({ route, event }: MatcherOptions<IncomingEventType, OutgoingResponseType>): boolean {
   return pathRegex(route.options).test(event.decodedPathname ?? event.pathname)
 }

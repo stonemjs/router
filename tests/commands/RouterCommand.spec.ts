@@ -1,12 +1,11 @@
 import { Router } from '../../src/Router'
-import { IContainer } from '../../src/declarations'
 import { RouterError } from '../../src/errors/RouterError'
-import { IncomingEvent, OutgoingResponse } from '@stone-js/core'
+import { IncomingEvent, OutgoingResponse, Container } from '@stone-js/core'
 import { RouterCommand, routerCommandOptions } from '../../src/commands/RouterCommand'
 
 describe('RouterCommand', () => {
   let routerMock: Router
-  let containerMock: IContainer
+  let containerMock: Container
   let routerCommand: RouterCommand
   let incomingEventMock: IncomingEvent
 
@@ -20,17 +19,18 @@ describe('RouterCommand', () => {
 
     containerMock = {
       resolve: vi.fn(() => routerMock)
-    } as unknown as IContainer
+    } as unknown as Container
 
     incomingEventMock = {
       getMetadataValue: vi.fn()
     } as unknown as IncomingEvent
 
-    routerCommand = new RouterCommand({ container: containerMock })
+    routerCommand = new RouterCommand(containerMock)
   })
 
   it('should throw RouterError if container is not provided', () => {
-    expect(() => new RouterCommand({ container: undefined as any })).toThrowError(RouterError)
+    // @ts-expect-error - Testing invalid input
+    expect(() => new RouterCommand()).toThrowError(RouterError)
   })
 
   it('should resolve Router from the container and call dumpRoutes when action is list', async () => {

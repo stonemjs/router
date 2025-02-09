@@ -1,22 +1,45 @@
 import { methodMatcher } from './matchers'
 import { RouterError } from './errors/RouterError'
-import { uriConstraints, uriRegex } from './utils'
-import { MetaPipe, MixedPipe } from '@stone-js/pipeline'
 import { RouteNotFoundError } from './errors/RouteNotFoundError'
-import { ClassType, OutgoingResponse, OutgoingResponseOptions } from '@stone-js/core'
-import { BindingKey, BindingValue, RouteDefinition, GenerateOptions, HttpMethod, IBoundModel, IContainer, IControllerInstance, IDispacher, IDispachers, IIncomingEvent, IMatcher, IOutgoingResponse, OutgoingResponseResolver, RouteParams, RouterAction, RouterCallableAction, RouteSegmentConstraint } from './declarations'
+import { isFunctionPipe, MetaPipe, MixedPipe } from '@stone-js/pipeline'
+import { isMetaComponentModule, uriConstraints, uriRegex } from './utils'
+import { isFunctionModule, isMetaClassModule, isMetaFactoryModule, isMetaFunctionModule, isNotEmpty, isObjectLikeModule, Promiseable } from '@stone-js/core'
+import {
+  IMatcher,
+  BindingKey,
+  IDispacher,
+  HttpMethod,
+  IBoundModel,
+  IDispachers,
+  RouteParams,
+  BindingValue,
+  IEventHandler,
+  IIncomingEvent,
+  RouteDefinition,
+  GenerateOptions,
+  MetaEventHandler,
+  EventHandlerClass,
+  DependencyResolver,
+  FactoryEventHandler,
+  FunctionalEventHandler,
+  RouteSegmentConstraint,
+  MetaComponentEventHandler,
+  LazyComponentEventHandler
+} from './declarations'
 
 /**
  * Defines the options for creating a `Route` instance.
  */
-export interface RouteOptions extends RouteDefinition {
+export interface RouteOptions<
+  IncomingEventType extends IIncomingEvent = IIncomingEvent,
+  OutgoingResponseType = unknown
+> extends RouteDefinition<IncomingEventType, OutgoingResponseType> {
   path: string
   domain?: string
   methods?: never
   children?: never
   protocol?: string
   method: HttpMethod
-  action: RouterAction
 }
 
 /**
@@ -25,17 +48,13 @@ export interface RouteOptions extends RouteDefinition {
  * @template IncomingEventType - The type of the incoming event.
  * @template OutgoingResponseType - The type of the outgoing response.
  */
-export class Route<
-  IncomingEventType extends IIncomingEvent = IIncomingEvent,
-  OutgoingResponseType extends IOutgoingResponse = IOutgoingResponse
-> {
+export class Route<IncomingEventType extends IIncomingEvent = IIncomingEvent, OutgoingResponseType = unknown> {
   private eventUrl?: URL
-  private matchers: IMatcher[]
-  private container?: IContainer
   private routeParams?: RouteParams
-  private dispatchers?: IDispachers
+  private resolver?: DependencyResolver
   private eventQuery?: Record<string, string>
-  private outgoingResponseResolver?: OutgoingResponseResolver
+  private matchers: Array<IMatcher<IncomingEventType, OutgoingResponseType>>
+  private dispatchers?: IDispachers<IncomingEventType, OutgoingResponseType>
 
   private readonly uriConstraints: Array<Partial<RouteSegmentConstraint>>
 
@@ -47,8 +66,8 @@ export class Route<
    */
   static create<
     IncomingEventType extends IIncomingEvent = IIncomingEvent,
-    OutgoingResponseType extends IOutgoingResponse = IOutgoingResponse
-  >(options: RouteOptions): Route<IncomingEventType, OutgoingResponseType> {
+    OutgoingResponseType = unknown
+  >(options: RouteOptions<IncomingEventType, OutgoingResponseType>): Route<IncomingEventType, OutgoingResponseType> {
     return new this(options)
   }
 
@@ -58,7 +77,7 @@ export class Route<
    * @param options - Configuration options for the route.
    * @returns A new `Route` instance.
    */
-  constructor (public readonly options: RouteOptions) {
+  constructor (public readonly options: RouteOptions<IncomingEventType, OutgoingResponseType>) {
     this.validateOptions(options)
 
     this.matchers = []
@@ -275,12 +294,24 @@ export class Route<
   }
 
   /**
+   * Retrieves a specified options from the route configuration.
+   *
+   * @param keys - The kesy of the option to retrieve.
+   * @returns The values of the option.
+   */
+  getOptions<TReturn = unknown>(keys: string[]): Record<string, TReturn> {
+    return Object.fromEntries(keys.map(key => [key, this.options[key] as TReturn]))
+  }
+
+  /**
    * Adds a middleware to the route.
    *
    * @param middleware - The middleware to add.
    * @returns The updated `Route` instance.
    */
-  addMiddleware (middleware: MixedPipe | MixedPipe[]): this {
+  addMiddleware (
+    middleware: MixedPipe<IncomingEventType, OutgoingResponseType> | Array<MixedPipe<IncomingEventType, OutgoingResponseType>>
+  ): this {
     this.options.middleware = (this.options.middleware ?? []).concat(middleware)
     return this
   }
@@ -336,10 +367,24 @@ export class Route<
    * @param mixedMiddleware - The middleware to check.
    * @returns `true` if the middleware is excluded, otherwise `false`.
    */
-  isMiddlewareExcluded (mixedMiddleware: MixedPipe): boolean {
-    const metaMid = mixedMiddleware as MetaPipe
-    const middleware = metaMid.pipe === undefined ? mixedMiddleware : metaMid.pipe
-    return this.getOption<MixedPipe[]>('excludeMiddleware')?.includes(middleware) === true
+  isMiddlewareExcluded (mixedMiddleware: MixedPipe<IncomingEventType, OutgoingResponseType>): boolean {
+    const metaMid = mixedMiddleware as MetaPipe<IncomingEventType, OutgoingResponseType>
+    const middleware = isFunctionPipe(metaMid) ? mixedMiddleware : metaMid.module
+    return this.getOption<Array<MixedPipe<IncomingEventType, OutgoingResponseType>>>(
+      'excludeMiddleware'
+    )?.includes(middleware) === true
+  }
+
+  /**
+   * Checks if the route matches the provided options.
+   *
+   * @param options - The options to match against the route.
+   * @returns `true` if the route matches the options, otherwise `false`.
+  */
+  matchesOptions (options: Partial<RouteOptions<IncomingEventType, OutgoingResponseType>>): boolean {
+    return Object
+      .entries(options)
+      .reduce((matched, [key, value]) => matched && this.options[key] === value, true)
   }
 
   /**
@@ -352,7 +397,7 @@ export class Route<
   matches (event: IncomingEventType, includingMethod: boolean): boolean {
     return this.matchers
       .filter(matcher => !(!includingMethod && matcher === methodMatcher)) // Skip method matcher if not needed
-      .reduce((matched, matcher) => !matched ? matched : matcher({ route: this, event }), true)
+      .reduce((matched, matcher) => matched && matcher({ route: this, event }), true)
   }
 
   /**
@@ -364,27 +409,29 @@ export class Route<
   async bind (event: IncomingEventType): Promise<void> {
     this.eventUrl = event.url
     this.routeParams = await this.bindParameters(event)
-    this.eventQuery = Object.fromEntries(event.query.entries())
+    this.eventQuery = Object.fromEntries(event.query?.entries() ?? [])
   }
 
   /**
    * Executes the route's action based on the provided event.
+   *
+   * Note: The order of execution is important and should not be changed.
    *
    * @param event - The incoming event to handle.
    * @returns A promise that resolves to the outgoing response generated by the route's action.
    * @throws `RouterError` if the route action is invalid.
    */
   async run (event: IncomingEventType): Promise<OutgoingResponseType> {
-    if (this.isRedirectAction()) {
+    if (this.isRedirection()) {
       return await this.runRedirection(event, this.options.redirect)
-    } else if (this.isControllerAction()) {
-      return await this.runController(event)
-    } else if (this.isCallableAction()) {
-      return await this.runCallable(event)
     } else if (this.isComponent()) {
       return await this.runComponent(event)
+    } else if (this.isHandler()) {
+      return await this.runHandler(event)
+    } else if (this.isCallable()) {
+      return await this.runCallable(event)
     } else {
-      throw new RouterError('Invalid action provided.')
+      throw new RouterError('Invalid handler provided.')
     }
   }
 
@@ -434,13 +481,14 @@ export class Route<
   }
 
   /**
-   * Sets the dependency injection container for the route.
+   * Sets the resolver for the route.
+   * The resolver is used to resolve the route's handler.
    *
-   * @param container - The dependency injection container to set.
+   * @param resolver - The resolver to set.
    * @returns The updated `Route` instance.
    */
-  setContainer (container?: IContainer): this {
-    this.container = container
+  setResolver (resolver?: DependencyResolver): this {
+    this.resolver = resolver
     return this
   }
 
@@ -450,30 +498,19 @@ export class Route<
    * @param matchers - An array of matchers to set.
    * @returns The updated `Route` instance.
    */
-  setMatchers (matchers: IMatcher[]): this {
+  setMatchers (matchers: Array<IMatcher<IncomingEventType, OutgoingResponseType>>): this {
     this.matchers = matchers
     return this
   }
 
   /**
-   * Sets the dispatchers for handling callable or controller actions.
+   * Sets the dispatchers for handling callable or handler actions.
    *
    * @param dispatchers - The dispatchers to set.
    * @returns The updated `Route` instance.
    */
-  setDispatchers (dispatchers: IDispachers): this {
+  setDispatchers (dispatchers: IDispachers<IncomingEventType, OutgoingResponseType>): this {
     this.dispatchers = dispatchers
-    return this
-  }
-
-  /**
-   * Sets the resolver for outgoing responses.
-   *
-   * @param resolver - The resolver to set.
-   * @returns The updated `Route` instance.
-   */
-  setOutgoingResponseResolver (resolver?: OutgoingResponseResolver): this {
-    this.outgoingResponseResolver = resolver
     return this
   }
 
@@ -482,11 +519,11 @@ export class Route<
    *
    * @returns A JSON object representing the route.
    */
-  toJSON (): Record<string, unknown> {
+  async toJSON (): Promise<Record<string, unknown>> {
     return {
       path: this.options.path,
       method: this.options.method,
-      action: this.isControllerAction() ? this.getControllerActionFullname() : this.getActionType(),
+      handler: this.isHandler() ? (await this.getHandlerFullname()) : 'callable',
       name: this.options.name ?? 'N/A',
       domain: this.options.domain ?? 'N/A',
       fallback: this.isFallback()
@@ -498,58 +535,8 @@ export class Route<
    *
    * @returns A JSON string representing the route.
    */
-  toString (): string {
-    return JSON.stringify(this.toJSON())
-  }
-
-  private makeOutgoingResponse<OptionsType extends OutgoingResponseOptions>(options: OptionsType): OutgoingResponseType | Promise<OutgoingResponseType> {
-    if (this.outgoingResponseResolver === undefined) {
-      throw new RouterError('Outgoing response resolver is not set.')
-    } else {
-      return this.outgoingResponseResolver(options)
-    }
-  }
-
-  private isRedirectAction (): this is this & { options: { redirect: string } } {
-    return this.options.redirect !== undefined
-  }
-
-  private isCallableAction (): boolean {
-    return this.getActionType() === 'callable'
-  }
-
-  private isControllerAction (): boolean {
-    return this.getActionType() === 'controller'
-  }
-
-  private isComponent (): boolean {
-    return this.getActionType() === undefined && this.options.component !== undefined
-  }
-
-  private getActionType (): string | undefined {
-    return typeof this.options.action === 'function'
-      ? 'callable'
-      : (typeof Object.values(this.options.action ?? {}).pop() === 'function' ? 'controller' : undefined)
-  }
-
-  private getCallable (): RouterCallableAction {
-    return this.options.action as RouterCallableAction
-  }
-
-  private getController (): ClassType {
-    return Object.values(this.options.action).pop() as ClassType
-  }
-
-  private getControllerInstance (): IControllerInstance {
-    return this.resolveService<IControllerInstance>(this.getController())
-  }
-
-  private getControllerActionHandler (): string {
-    return Object.keys(this.options.action).pop() as string
-  }
-
-  private getControllerActionFullname (): string {
-    return `${this.getController().name}@${this.getControllerActionHandler()}`
+  async toString (): Promise<string> {
+    return JSON.stringify(await this.toJSON())
   }
 
   private async bindParameters (event: IncomingEventType): Promise<RouteParams> {
@@ -565,9 +552,8 @@ export class Route<
       ?.filter((_v, i) => i > 0)
       .map(v => !isNaN(Number(v)) ? parseFloat(v) : v)
 
-    for (const [i] of this.uriConstraints.entries()) {
+    for (const [i, constraint] of this.uriConstraints.filter(({ param }) => param !== undefined).entries()) {
       let value: unknown = matches?.[i]
-      const constraint = this.uriConstraints[i]
 
       if (constraint.param !== undefined) {
         value = this.hasModelBinding(constraint.param) ? await this.bindValue(constraint.param, value, constraint.alias) : value
@@ -588,55 +574,145 @@ export class Route<
     return this.options.bindings?.[key] !== undefined
   }
 
-  private bindValue (field: string, value: unknown, alias?: string): unknown | Promise<unknown> {
+  private bindValue (field: string, value: unknown, alias?: string): Promiseable<unknown> {
     const key = alias ?? field
     const bindingOptions = this.options.bindings?.[field]
     const bindingResolver = (bindingOptions as IBoundModel)?.resolveRouteBinding ?? bindingOptions
 
     if (typeof bindingResolver === 'function') {
-      return bindingResolver(key, value, this.container)
+      return bindingResolver(key, value, this.resolver)
     } else {
       throw new RouterError('Binding must be either a class with a static bindingResolver method or a function.')
     }
   }
 
-  private getDispatcher (type: 'callable' | 'controller'): IDispacher {
-    if (this.dispatchers?.[type] === undefined) {
-      throw new RouterError(`Dispatcher for ${type} not found`)
+  private isRedirection (): this is this & { options: { redirect: string } } {
+    return this.options.redirect !== undefined
+  }
+
+  private isCallable (): boolean {
+    return (
+      isMetaFactoryModule(this.options.handler) ||
+      isMetaFunctionModule(this.options.handler) ||
+      isFunctionModule(this.options.handler)
+    )
+  }
+
+  private isHandler (): boolean {
+    return isMetaClassModule(this.options.handler)
+  }
+
+  private isComponent (): boolean {
+    return isMetaComponentModule(this.options.handler)
+  }
+
+  private async getCallable (): Promise<FunctionalEventHandler<IncomingEventType, OutgoingResponseType>> {
+    if (isMetaFactoryModule<FactoryEventHandler<IncomingEventType, OutgoingResponseType>>(this.options.handler)) {
+      return (await this.resolveHandlerModule<FactoryEventHandler<IncomingEventType, OutgoingResponseType>>(this.options.handler))(this.resolver)
+    } else if (isMetaFunctionModule<FunctionalEventHandler<IncomingEventType, OutgoingResponseType>>(this.options.handler)) {
+      return await this.resolveHandlerModule<FunctionalEventHandler<IncomingEventType, OutgoingResponseType>>(this.options.handler)
+    } else if (isFunctionModule<FunctionalEventHandler<IncomingEventType, OutgoingResponseType>>(this.options.handler)) {
+      return this.options.handler
     } else {
+      throw new RouterError('Invalid callable provided.')
+    }
+  }
+
+  private async getHandlerClass (): Promise<EventHandlerClass<IncomingEventType, OutgoingResponseType>> {
+    if (isMetaClassModule<EventHandlerClass<IncomingEventType, OutgoingResponseType>>(this.options.handler)) {
+      return await this.resolveHandlerModule<EventHandlerClass<IncomingEventType, OutgoingResponseType>>(this.options.handler)
+    } else {
+      throw new RouterError('Invalid event handler provided.')
+    }
+  }
+
+  /**
+   * Resolves the handler module if it is a lazy-loaded module.
+   * Lazy module are modules that are loaded only when needed.
+   * They are defined using dynamic imports `import('lazy-module.mjs').then(v => v.myModule)`.
+   * Note: Lazy-loaded only applies to class and functional handlers.
+   *
+   * @param handler - The handler to resolve.
+   * @returns The resolved handler module.
+  */
+  private async resolveHandlerModule<HandlerType>(handler: unknown): Promise<HandlerType> {
+    if (
+      isObjectLikeModule<MetaComponentEventHandler<IncomingEventType, OutgoingResponseType>>(handler) &&
+      isFunctionModule<LazyComponentEventHandler<IncomingEventType, OutgoingResponseType>>(handler.module) &&
+      handler.lazy === true
+    ) {
+      return await handler.module() as HandlerType
+    }
+    return (handler as MetaComponentEventHandler<IncomingEventType, OutgoingResponseType>).module as HandlerType
+  }
+
+  private async getHandlerInstance (): Promise<IEventHandler<IncomingEventType, OutgoingResponseType>> {
+    return this.resolveModule<IEventHandler<IncomingEventType, OutgoingResponseType>>(await this.getHandlerClass())
+  }
+
+  private getHandlerAction (): string {
+    if (isObjectLikeModule<MetaEventHandler<IncomingEventType, OutgoingResponseType>>(this.options.handler)) {
+      return this.options.handler.action ?? 'handle'
+    }
+    return 'handle'
+  }
+
+  private async getHandlerFullname (): Promise<string> {
+    return `${(await this.getHandlerClass()).name}@${String(this.getHandlerAction())}`
+  }
+
+  private getDispatcher (type: 'callable' | 'handler' | 'component'): IDispacher<IncomingEventType, OutgoingResponseType> {
+    if (isNotEmpty<IDispacher<IncomingEventType, OutgoingResponseType>>(this.dispatchers?.[type])) {
       return this.dispatchers[type]
+    } else {
+      throw new RouterError(`Dispatcher for ${type} not found`)
     }
   }
 
   private async runCallable (event: IncomingEventType): Promise<OutgoingResponseType> {
-    const content = await this.getDispatcher('callable')({ event, route: this, callable: this.getCallable() })
-    return (content instanceof OutgoingResponse ? content : await this.makeOutgoingResponse({ content })) as OutgoingResponseType
+    return await this.getDispatcher('callable')({
+      event,
+      resolver: this.resolver,
+      handler: await this.getCallable()
+    })
   }
 
-  private async runController (event: IncomingEventType): Promise<OutgoingResponseType> {
-    const content = await this.getDispatcher('controller')({ event, route: this, controller: this.getControllerInstance(), handler: this.getControllerActionHandler() })
-    return (content instanceof OutgoingResponse ? content : await this.makeOutgoingResponse({ content })) as OutgoingResponseType
+  private async runHandler (event: IncomingEventType): Promise<OutgoingResponseType> {
+    return await this.getDispatcher('handler')({
+      event,
+      resolver: this.resolver,
+      action: this.getHandlerAction(),
+      handler: await this.getHandlerInstance()
+    })
   }
 
-  private async runComponent (_event: IncomingEventType): Promise<OutgoingResponseType> {
-    return await this.makeOutgoingResponse({ component: this.options.component, layout: this.options.layout })
+  /**
+   * For the component we don't resolve the handler here.
+   * So Component third party library can handle all the logic.
+  */
+  private async runComponent (event: IncomingEventType): Promise<OutgoingResponseType> {
+    return await this.getDispatcher('component')({
+      event,
+      resolver: this.resolver,
+      handler: this.options.handler
+    })
   }
 
-  private async runRedirection (event: IncomingEventType, redirect: string | Record<string, unknown> | Function, status: number = 302): Promise<OutgoingResponseType> {
+  private async runRedirection (event: IncomingEventType, redirect: string | Record<string, unknown> | Function, statusCode: number = 302): Promise<OutgoingResponseType> {
     if (typeof redirect === 'object') {
       return await this.runRedirection(event, redirect.location as string, parseInt(redirect.status as string))
     } else if (typeof redirect === 'function') {
       return await this.runRedirection(event, await redirect(this, event))
     } else {
-      return await this.makeOutgoingResponse({ status, statusCode: status, headers: { Location: redirect } })
+      return { statusCode, headers: { Location: redirect } } as unknown as OutgoingResponseType
     }
   }
 
-  private resolveService <T extends BindingValue>(Class: BindingKey): T {
-    return this.container?.resolve<T>(Class) ?? new (Class as new () => T)()
+  private resolveModule <T extends BindingValue>(Class: BindingKey): T {
+    return this.resolver?.resolve<T>(Class) ?? new (Class as new () => T)()
   }
 
-  private validateOptions (options: RouteOptions): void {
+  private validateOptions (options: RouteOptions<IncomingEventType, OutgoingResponseType>): void {
     if (options === undefined) {
       throw new RouterError('Route options are required to create a Route instance')
     }

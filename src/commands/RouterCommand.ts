@@ -1,7 +1,7 @@
 import { Router } from '../Router'
 import { RouterError } from '../errors/RouterError'
-import { IncomingEvent, OutgoingResponse } from '@stone-js/core'
-import { CommandOptions, IArgv, IContainer } from '../declarations'
+import { IncomingEvent, IBlueprint, IContainer } from '@stone-js/core'
+import { CommandOptions, IArgv, RouterOptions } from '../declarations'
 
 /**
  * Configuration for the `router` command.
@@ -26,20 +26,16 @@ export const routerCommandOptions: CommandOptions = {
  * Handles router-related commands by interacting with the Router instance.
  */
 export class RouterCommand {
-  private readonly container: IContainer
-
   /**
    * Initializes a new instance of `RouterCommand`.
    *
    * @param container - The dependency injection container for resolving the Router instance.
    * @throws {RouterError} If the container is not provided.
    */
-  constructor ({ container }: { container: IContainer }) {
+  constructor (private readonly container: IContainer) {
     if (container === undefined) {
       throw new RouterError('Container is required to create a RouterCommand instance.')
     }
-
-    this.container = container
   }
 
   /**
@@ -48,14 +44,16 @@ export class RouterCommand {
    * @param event - The event containing metadata for router actions.
    * @returns A promise resolving to an `OutgoingResponse`.
    */
-  async handle (event: IncomingEvent): Promise<OutgoingResponse> {
+  async handle (event: IncomingEvent): Promise<void> {
     const action = event.getMetadataValue<string>('action')
 
     if (action === 'list') {
-      const router = this.container.resolve<Router>(Router)
-      console.table(router.dumpRoutes())
+      console.table(await Router.create(this.getRouterOptions()).dumpRoutes())
     }
+  }
 
-    return OutgoingResponse.create({ statusCode: 0 })
+  private getRouterOptions (): RouterOptions {
+    const routerOptions = this.container.make<IBlueprint>('blueprint').get<RouterOptions>('stone.router', {} as any)
+    return { ...routerOptions, dependencyResolver: this.container }
   }
 }

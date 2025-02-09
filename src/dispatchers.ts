@@ -1,108 +1,117 @@
-import { Route } from './Route'
 import { RouterError } from './errors/RouterError'
-import { IControllerInstance, IDispacher, IIncomingEvent, IOutgoingResponse, RouterActionContext, RouterCallableAction } from './declarations'
+import { isFunctionModule, isObjectLikeModule } from '@stone-js/core'
+import { DependencyResolver, FunctionalEventHandler, IComponentEventHandler, IEventHandler, IIncomingEvent, MetaComponentEventHandler, MetaEventHandler } from './declarations'
 
 /**
  * Options for dispatching a route handler.
  *
- * @template IncomingEventType - The type representing the incoming HTTP event.
- * @template OutgoingResponseType - The type representing the outgoing HTTP response.
+ * @template IncomingEventType - The type representing the incoming event.
+ * @template OutgoingResponseType - The type representing the outgoing response.
  */
 export interface DispatcherOptions<
   IncomingEventType extends IIncomingEvent,
-  OutgoingResponseType extends IOutgoingResponse
+  OutgoingResponseType = unknown
 > {
-  /** The name of the handler method in the controller. */
-  handler?: string
+  /** The name of the action method in the handler. */
+  action?: string
 
-  /** The incoming HTTP event. */
+  /** The dependency resolver to use. */
+  resolver?: DependencyResolver
+
+  /** The incoming event. */
   event: IncomingEventType
 
-  /** A callable action used for route handling. */
-  callable?: RouterCallableAction
-
-  /** An instance of a controller containing handler methods. */
-  controller?: IControllerInstance
-
-  /** The matched route for the current request. */
-  route: Route<IncomingEventType, OutgoingResponseType>
+  /** An instance of a handler containing action methods or a callable handler. */
+  handler?:
+  | IEventHandler<IncomingEventType, OutgoingResponseType>
+  | FunctionalEventHandler<IncomingEventType, OutgoingResponseType>
+  | MetaEventHandler<IncomingEventType, OutgoingResponseType>
+  | MetaComponentEventHandler<IncomingEventType, OutgoingResponseType>
 }
 
 /**
  * Dispatches a callable router action.
  *
- * @template IncomingEventType - The type representing the incoming HTTP event.
- * @template OutgoingResponseType - The type representing the outgoing HTTP response.
+ * @template IncomingEventType - The type representing the incoming event.
+ * @template OutgoingResponseType - The type representing the outgoing response.
  *
- * @param options - The dispatcher options, including event, route, and callable action.
- * @returns A promise resolving to the outgoing HTTP response.
+ * @param options - The dispatcher options, including event and handler.
+ * @returns A promise resolving to the outgoing response.
  * @throws {RouterError} If no callable function is found.
  *
  * @example
  * ```typescript
  * await callableDispatcher({
  *   event,
- *   route,
- *   callable: async (context) => { return new OutgoingResponse('Success') }
+ *   handler: async (context) => { return new OutgoingResponse('Success') }
  * });
  * ```
  */
-export const callableDispatcher: IDispacher = async <
+export async function callableDispatcher<
   IncomingEventType extends IIncomingEvent,
-  OutgoingResponseType extends IOutgoingResponse
-> ({ event, route, callable }: DispatcherOptions<IncomingEventType, OutgoingResponseType>): Promise<OutgoingResponseType | unknown> => {
-  const params = route.getDefinedParams()
-  const context: RouterActionContext<IncomingEventType, OutgoingResponseType> = {
-    event,
-    route,
-    params,
-    body: event.body,
-    query: route.query
-  }
-
-  if (typeof callable === 'function') {
-    return callable(context)
+  OutgoingResponseType = unknown
+> ({ event, handler }: DispatcherOptions<IncomingEventType, OutgoingResponseType>): Promise<OutgoingResponseType> {
+  if (isFunctionModule<FunctionalEventHandler<IncomingEventType, OutgoingResponseType>>(handler)) {
+    return await handler(event)
   }
 
   throw new RouterError('No callable function found')
 }
 
 /**
- * Dispatches a controller action by invoking a specific handler method.
+ * Dispatch event to a handler action.
  *
- * @template IncomingEventType - The type representing the incoming HTTP event.
- * @template OutgoingResponseType - The type representing the outgoing HTTP response.
+ * @template IncomingEventType - The type representing the incoming event.
+ * @template OutgoingResponseType - The type representing the outgoing response.
  *
- * @param options - The dispatcher options, including event, route, controller, and handler.
- * @returns A promise resolving to the outgoing HTTP response.
- * @throws {RouterError} If the handler is not found in the controller.
+ * @param options - The dispatcher options, including event, action, and handler.
+ * @returns A promise resolving to the outgoing response.
+ * @throws {RouterError} If the action is not found in the handler.
  *
  * @example
  * ```typescript
- * await controllerDispatcher({
+ * await handlerDispatcher({
  *   event,
- *   route,
- *   controller: new MyController(),
- *   handler: 'handleRequest'
+ *   action: 'handleRequest',
+ *   handler: new MyController(),
  * });
  * ```
  */
-export const controllerDispatcher: IDispacher = async <
+export async function handlerDispatcher<
   IncomingEventType extends IIncomingEvent,
-  OutgoingResponseType extends IOutgoingResponse
-> ({ event, route, controller, handler }: DispatcherOptions<IncomingEventType, OutgoingResponseType>): Promise<OutgoingResponseType | unknown> => {
-  const params = route.getDefinedParams()
-  const context: RouterActionContext<IncomingEventType, OutgoingResponseType> = {
-    event,
-    route,
-    params,
-    body: event.body,
-    query: route.query
+  OutgoingResponseType = unknown
+> ({ event, handler, action }: DispatcherOptions<IncomingEventType, OutgoingResponseType>): Promise<OutgoingResponseType> {
+  if (isObjectLikeModule<IEventHandler<IncomingEventType, OutgoingResponseType>>(handler) && action !== undefined && action in handler) {
+    return await handler[action](event)
   }
 
-  if (controller !== undefined && handler !== undefined && handler in controller) {
-    return controller[handler](context)
+  throw new RouterError(`Action ${String(action)} not found in handler`)
+}
+
+/**
+ * Dispatches a component router action.
+ *
+ * @template IncomingEventType - The type representing the incoming event.
+ * @template OutgoingResponseType - The type representing the outgoing response.
+ *
+ * @param options - The dispatcher options, including event, options, and handler.
+ * @returns A promise resolving to the outgoing response.
+ * @throws {RouterError} If no component is found.
+ *
+ * @example
+ * ```typescript
+ * await componentDispatcher({
+ *   options,
+ * });
+ * ```
+ */
+export async function componentDispatcher<
+  IncomingEventType extends IIncomingEvent,
+  OutgoingResponseType = unknown
+> ({ handler }: DispatcherOptions<IncomingEventType, OutgoingResponseType>): Promise<OutgoingResponseType> {
+  if (isObjectLikeModule<IComponentEventHandler<IncomingEventType, OutgoingResponseType>>(handler)) {
+    return handler as OutgoingResponseType
   }
 
-  throw new RouterError(`Handler ${String(handler)} not found in controller`)
+  throw new RouterError('No component found')
 }

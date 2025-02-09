@@ -29,8 +29,8 @@ describe('RouteCollection', () => {
 
   it('should initialize with provided routes', () => {
     const routes = [
-      Route.create({ path: '/test', method: 'GET', action: vi.fn() }),
-      Route.create({ path: '/example', method: 'POST', action: vi.fn() })
+      Route.create({ path: '/test', method: 'GET', handler: vi.fn() }),
+      Route.create({ path: '/example', method: 'POST', handler: vi.fn() })
     ]
 
     const collection = new RouteCollection(routes)
@@ -40,7 +40,7 @@ describe('RouteCollection', () => {
   })
 
   it('should add a route to the collection', () => {
-    const route = Route.create({ path: '/test', method: 'GET', action: vi.fn() })
+    const route = Route.create({ path: '/test', method: 'GET', handler: vi.fn() })
 
     routeCollection.add(route)
 
@@ -49,8 +49,8 @@ describe('RouteCollection', () => {
   })
 
   it('should retrieve routes by method', () => {
-    const route1 = Route.create({ path: '/test', method: 'GET', action: vi.fn() })
-    const route2 = Route.create({ path: '/example', method: 'POST', action: vi.fn() })
+    const route1 = Route.create({ path: '/test', method: 'GET', handler: vi.fn() })
+    const route2 = Route.create({ path: '/example', method: 'POST', handler: vi.fn() })
 
     routeCollection.add(route1).add(route2)
 
@@ -60,7 +60,7 @@ describe('RouteCollection', () => {
   })
 
   it('should match a route based on event and method', () => {
-    const route = Route.create({ path: '/test', method: 'GET', action: vi.fn() })
+    const route = Route.create({ path: '/test', method: 'GET', handler: vi.fn() })
     route.matches = vi.fn(() => true)
 
     routeCollection.add(route)
@@ -77,7 +77,7 @@ describe('RouteCollection', () => {
   })
 
   it('should return options response if a route exists but the method is OPTIONS', async () => {
-    const route = Route.create({ path: '/test', method: 'POST', action: vi.fn() })
+    const route = Route.create({ path: '/test', method: 'POST', handler: vi.fn() })
     const resolver = vi.fn((params) => params)
 
     route.matches = vi.fn((a, b) => b === false)
@@ -95,7 +95,7 @@ describe('RouteCollection', () => {
   })
 
   it('should throw RouterError if resolver is undefined and a route exists but the method is OPTIONS', async () => {
-    const route = Route.create({ path: '/test', method: 'POST', action: vi.fn() })
+    const route = Route.create({ path: '/test', method: 'POST', handler: vi.fn() })
 
     route.matches = vi.fn((a, b) => b === false)
 
@@ -110,7 +110,7 @@ describe('RouteCollection', () => {
   })
 
   it('should throw MethodNotAllowedError if a route exists but the method is not allowed', () => {
-    const route = Route.create({ path: '/test', method: 'POST', action: vi.fn() })
+    const route = Route.create({ path: '/test', method: 'POST', handler: vi.fn() })
     route.matches = vi.fn(() => true)
 
     routeCollection.add(route)
@@ -121,7 +121,7 @@ describe('RouteCollection', () => {
   })
 
   it('should check if a named route exists and retrieve it by name', () => {
-    const route = Route.create({ path: '/test', method: 'GET', name: 'testRoute', action: vi.fn() })
+    const route = Route.create({ path: '/test', method: 'GET', name: 'testRoute', handler: vi.fn() })
 
     routeCollection.add(route)
 
@@ -134,9 +134,9 @@ describe('RouteCollection', () => {
   })
 
   it('should dump all routes as JSON objects', () => {
-    const route1 = Route.create({ path: '/test', method: 'GET', action: vi.fn() })
-    const route2 = Route.create({ path: '/example', method: 'POST', action: vi.fn() })
-    const route3 = Route.create({ path: '/test', method: 'HEAD', action: vi.fn(), isInternalHeader: true })
+    const route1 = Route.create({ path: '/test', method: 'GET', handler: vi.fn() })
+    const route2 = Route.create({ path: '/example', method: 'POST', handler: vi.fn() })
+    const route3 = Route.create({ path: '/test', method: 'HEAD', handler: vi.fn(), isInternalHeader: true })
 
     routeCollection.add(route1).add(route2).add(route3)
 
@@ -158,8 +158,8 @@ describe('RouteCollection', () => {
   })
 
   it('should convert all routes to a JSON string', () => {
-    const route1 = Route.create({ path: '/test', method: 'GET', action: vi.fn() })
-    const route2 = Route.create({ path: '/example', method: 'POST', action: vi.fn() })
+    const route1 = Route.create({ path: '/test', method: 'GET', handler: vi.fn() })
+    const route2 = Route.create({ path: '/example', method: 'POST', handler: vi.fn() })
 
     routeCollection.add(route1).add(route2)
 
@@ -169,8 +169,8 @@ describe('RouteCollection', () => {
   })
 
   it('should iterate over all routes', () => {
-    const route1 = Route.create({ path: '/test', method: 'GET', action: vi.fn() })
-    const route2 = Route.create({ path: '/example', method: 'POST', action: vi.fn() })
+    const route1 = Route.create({ path: '/test', method: 'GET', handler: vi.fn() })
+    const route2 = Route.create({ path: '/example', method: 'POST', handler: vi.fn() })
 
     routeCollection.add(route1).add(route2)
 

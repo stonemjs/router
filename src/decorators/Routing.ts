@@ -4,7 +4,7 @@ import { RouterBlueprint, routerBlueprint, RouterConfig } from '../options/Route
 /**
  * Options for the `Routing` decorator, extending router configuration.
  */
-export interface RoutingOptions extends RouterConfig {}
+export interface RoutingOptions extends Partial<RouterConfig> {}
 
 /**
  * A class decorator for configuring routing behavior.
@@ -18,9 +18,8 @@ export interface RoutingOptions extends RouterConfig {}
  * class Application {}
  * ```
  */
-export const Routing = <T extends ClassType = ClassType>(options: RoutingOptions): ClassDecorator => {
+export const Routing = <T extends ClassType = ClassType>(options: RoutingOptions = {}): ClassDecorator => {
   return classDecoratorLegacyWrapper<T>((target: T, context: ClassDecoratorContext<T>): undefined => {
-    const blueprint: RouterBlueprint = { stone: { router: options } }
-    addBlueprint(target, context, routerBlueprint, blueprint)
+    addBlueprint(target, context, routerBlueprint, { stone: { router: options } } as unknown as RouterBlueprint)
   })
 }

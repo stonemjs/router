@@ -4,12 +4,12 @@ import { Any } from '../../src/decorators/Any'
 import { Post } from '../../src/decorators/Post'
 import { Page } from '../../src/decorators/Page'
 import { Match } from '../../src/decorators/Match'
-import { Group } from '../../src/decorators/Group'
 import { Patch } from '../../src/decorators/Patch'
 import { Delete } from '../../src/decorators/Delete'
 import { Options } from '../../src/decorators/Options'
 import { Fallback } from '../../src/decorators/Fallback'
 import { Controller } from '../../src/decorators/Controller'
+import { EventHandler } from '../../src/decorators/EventHandler'
 import { GROUP_KEY, MATCH_KEY } from '../../src/decorators/constants'
 import { Routing, RoutingOptions } from '../../src/decorators/Routing'
 import { DELETE, GET, OPTIONS, PATCH, POST, PUT } from '../../src/constants'
@@ -57,9 +57,9 @@ describe('Decorators', () => {
     })
   })
 
-  describe('Group', () => {
+  describe('EventHandler', () => {
     it('should call setMetadata with default options if none are provided', () => {
-      Group('/users')(class {})
+      EventHandler('/users')(class {})
       expect(setMetadata).toHaveBeenCalledWith(
         undefined,
         GROUP_KEY,

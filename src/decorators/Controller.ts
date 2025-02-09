@@ -1,6 +1,5 @@
-import { GROUP_KEY } from './constants'
+import { EventHandler } from './EventHandler'
 import { DecoratorGroupRouteDefinition } from '../declarations'
-import { classDecoratorLegacyWrapper, ClassType, setMetadata, SERVICE_KEY } from '@stone-js/core'
 
 /**
  * Options for the `Controller` decorator, extending group route definition options.
@@ -23,9 +22,4 @@ export interface ControllerOptions extends DecoratorGroupRouteDefinition {}
  * }
  * ```
  */
-export const Controller = <T extends ClassType = ClassType>(path: string, options?: ControllerOptions): ClassDecorator => {
-  return classDecoratorLegacyWrapper((_target: T, context: ClassDecoratorContext<T>): undefined => {
-    setMetadata(context, GROUP_KEY, { ...options, path })
-    setMetadata(context, SERVICE_KEY, { singleton: true })
-  })
-}
+export const Controller = (path: string, options?: ControllerOptions): ClassDecorator => EventHandler(path, options)

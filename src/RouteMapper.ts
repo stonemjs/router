@@ -1,22 +1,23 @@
-import { HTTP_METHODS } from './constants'
-import { ClassType } from '@stone-js/core'
 import { Route, RouteOptions } from './Route'
 import { RouterError } from './errors/RouterError'
-import { BindingResolver, IBoundModel, IContainer, IDispachers, IIncomingEvent, IMatcher, IOutgoingResponse, OutgoingResponseResolver, RouteDefinition, RouterAction } from './declarations'
+import { GET, HEAD, HTTP_METHODS } from './constants'
+import { isFunctionModule, isNotEmpty } from '@stone-js/core'
+import { BindingResolver, FunctionalEventHandler, HttpMethod, IBoundModel, IIncomingEvent, IMatcher, RouteDefinition } from './declarations'
 
 /**
  * Configuration options for the RouteMapper.
  */
-export interface RouteMapperOptions {
-  prefix: string
-  strict: boolean
+export interface RouteMapperOptions<
+  IncomingEventType extends IIncomingEvent = IIncomingEvent,
+  OutgoingResponseType = unknown
+> {
+  prefix?: string
+  strict?: boolean
   maxDepth: number
-  matchers: IMatcher[]
-  dispatchers: IDispachers
-  rules: Record<string, RegExp>
-  defaults: Record<string, unknown>
-  responseResolver?: OutgoingResponseResolver
-  bindings: Record<string, IBoundModel | BindingResolver>
+  rules?: Record<string, RegExp>
+  defaults?: Record<string, unknown>
+  bindings?: Record<string, IBoundModel | BindingResolver>
+  matchers: Array<IMatcher<IncomingEventType, OutgoingResponseType>>
 }
 
 /**
@@ -27,32 +28,29 @@ export interface RouteMapperOptions {
  */
 export class RouteMapper<
   IncomingEventType extends IIncomingEvent = IIncomingEvent,
-  OutgoingResponseType extends IOutgoingResponse = IOutgoingResponse
+  OutgoingResponseType = unknown
 > {
   /**
    * Factory method to create a RouteMapper instance.
    *
    * @param options - Configuration options for the RouteMapper.
-   * @param container - Optional dependency injection container.
    * @returns A new RouteMapper instance.
    */
   static create<
     IncomingEventType extends IIncomingEvent = IIncomingEvent,
-    OutgoingEventType extends IOutgoingResponse = IOutgoingResponse
-  >(options: RouteMapperOptions, container?: IContainer): RouteMapper<IncomingEventType, OutgoingEventType> {
-    return new this(options, container)
+    OutgoingResponseType = unknown
+  >(options: RouteMapperOptions<IncomingEventType, OutgoingResponseType>): RouteMapper<IncomingEventType, OutgoingResponseType> {
+    return new this(options)
   }
 
   /**
    * Constructs a RouteMapper instance.
    *
    * @param options - Configuration options for the RouteMapper.
-   * @param container - Optional dependency injection container.
    * @throws {RouterError} If `maxDepth` is not a positive integer.
    */
   constructor (
-    private readonly options: RouteMapperOptions,
-    private readonly container?: IContainer
+    private readonly options: RouteMapperOptions<IncomingEventType, OutgoingResponseType>
   ) {
     if (options.maxDepth <= 0) {
       throw new RouterError('Maximum depth must be a positive integer.')
@@ -65,16 +63,15 @@ export class RouteMapper<
    * @param definitions - An array of route definitions.
    * @returns An array of Route instances.
    */
-  toRoutes (definitions: RouteDefinition[]): Array<Route<IncomingEventType, OutgoingResponseType>> {
+  toRoutes (
+    definitions: Array<RouteDefinition<IncomingEventType, OutgoingResponseType>>
+  ): Array<Route<IncomingEventType, OutgoingResponseType>> {
     return this
       .flattenDefinitions(definitions)
       .map((definition) =>
         Route
           .create<IncomingEventType, OutgoingResponseType>(this.toRouteOptions(definition))
-          .setOutgoingResponseResolver(this.options.responseResolver)
-          .setDispatchers(this.options.dispatchers)
           .setMatchers(this.options.matchers)
-          .setContainer(this.container)
       )
   }
 
@@ -86,7 +83,10 @@ export class RouteMapper<
    * @returns An array of flattened route definitions.
    * @throws {RouterError} If maximum depth is exceeded.
    */
-  private flattenDefinitions (definitions: RouteDefinition[], depth: number = 0): RouteDefinition[] {
+  private flattenDefinitions (
+    definitions: Array<RouteDefinition<IncomingEventType, OutgoingResponseType>>,
+    depth: number = 0
+  ): Array<RouteDefinition<IncomingEventType, OutgoingResponseType>> {
     if (depth >= this.options.maxDepth) {
       throw new RouterError(`Maximum route definition depth of ${String(this.options.maxDepth)} exceeded.`)
     }
@@ -95,15 +95,29 @@ export class RouteMapper<
 
     return definitions
       .flatMap((def) => [def.path].flat().filter(Boolean).map((path) => ({ ...def, path })))
-      .flatMap((def) => [def.method, def.methods ?? []].flat().map((method) => ({ ...def, method })))
+      .flatMap((def) => this.gathersMethods(def).map((method) => ({ ...def, method })))
       .flatMap((def) => [def.protocol].flat().map((protocol) => ({ ...def, protocol })))
       .flatMap((def) => [def.domain].flat().map((domain) => ({ ...def, domain })))
       .flatMap((def) => {
-        if (!Array.isArray(def.children)) return def
+        if (!Array.isArray(def.children)) {
+          return def.method === GET ? [def, { ...def, isInternalHeader: true, method: HEAD }] : def
+        }
         return this
           .flattenDefinitions(def.children, depth)
           .map((child) => this.mergeDefinitions(def, child))
       })
+  }
+
+  /**
+   * Gathers all HTTP methods for a route definition.
+   *
+   * @param definition - The route definition to gather HTTP methods from.
+   * @returns An array of HTTP methods
+   */
+  private gathersMethods ({ method, methods }: RouteDefinition<IncomingEventType, OutgoingResponseType>): HttpMethod[] {
+    const values = [method, methods].flat().filter(v => isNotEmpty<HttpMethod>(v))
+    values.length === 0 && values.push(GET)
+    return values
   }
 
   /**
@@ -113,9 +127,11 @@ export class RouteMapper<
    * @param child - The child route definition.
    * @returns A merged route definition.
    */
-  private mergeDefinitions (parent: RouteDefinition, child: RouteDefinition): RouteDefinition {
+  private mergeDefinitions (
+    parent: RouteDefinition<IncomingEventType, OutgoingResponseType>,
+    child: RouteDefinition<IncomingEventType, OutgoingResponseType>
+  ): RouteDefinition<IncomingEventType, OutgoingResponseType> {
     child.rules = { ...parent.rules, ...child.rules }
-    child.action = this.mergeDefinitionsAction(parent, child)
     child.defaults = { ...parent.defaults, ...child.defaults }
     child.bindings = { ...parent.bindings, ...child.bindings }
     child.name = [parent.name, child.name].filter(Boolean).join('.')
@@ -123,26 +139,15 @@ export class RouteMapper<
     child.middleware = [child.middleware, parent.middleware].flat().filter((v) => v !== undefined)
     child.excludeMiddleware = [child.excludeMiddleware, parent.excludeMiddleware].flat().filter((v) => v !== undefined)
 
-    return { ...parent, ...child }
-  }
-
-  /**
-   * Merges parent and child route actions.
-   *
-   * @param parent - The parent route definition.
-   * @param child - The child route definition.
-   * @returns A merged route action.
-   */
-  private mergeDefinitionsAction (parent: RouteDefinition, child: RouteDefinition): RouterAction | undefined {
-    if (parent.action !== undefined && child.action !== undefined) {
-      if (typeof child.action === 'string' && typeof parent.action === 'function') {
-        return { [child.action]: parent.action as ClassType }
-      } else {
-        return child.action
-      }
-    } else {
-      return child.action
+    if (
+      child.handler !== undefined &&
+      !isFunctionModule<FunctionalEventHandler<IncomingEventType, OutgoingResponseType>>(parent.handler) &&
+      !isFunctionModule<FunctionalEventHandler<IncomingEventType, OutgoingResponseType>>(child.handler)
+    ) {
+      child.handler = { ...parent.handler, ...child.handler }
     }
+
+    return { ...parent, ...child }
   }
 
   /**
@@ -152,7 +157,7 @@ export class RouteMapper<
    * @returns The validated route options.
    * @throws {RouterError} If validation fails.
    */
-  private toRouteOptions (definition: RouteDefinition): RouteOptions {
+  private toRouteOptions (definition: RouteDefinition<IncomingEventType, OutgoingResponseType>): RouteOptions<IncomingEventType, OutgoingResponseType> {
     if (definition.path === undefined) {
       throw new RouterError('Route definition must have a path')
     }
@@ -160,12 +165,13 @@ export class RouteMapper<
       throw new RouterError(`Invalid method(${String(definition.method)}), valid methods are(${String(HTTP_METHODS.join(','))})`)
     }
     // One of the following must be defined
-    if (definition.action === undefined && definition.component === undefined && definition.redirect === undefined) {
-      throw new RouterError('Route definition must have one of the following: action, component, or redirect')
+    if (definition.handler === undefined && definition.redirect === undefined) {
+      throw new RouterError('Route definition must have one of the following: action, or redirect')
     }
 
     return {
-      ...definition as RouteOptions,
+      ...definition as RouteOptions<IncomingEventType, OutgoingResponseType>,
+      children: undefined,
       strict: definition.strict ?? this.options.strict,
       rules: { ...this.options.rules, ...definition.rules },
       bindings: { ...this.options.bindings, ...definition.bindings },

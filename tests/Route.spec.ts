@@ -2,10 +2,9 @@ import { MetaPipe } from '@stone-js/pipeline'
 import { uriConstraints } from '../src/utils'
 import { methodMatcher } from '../src/matchers'
 import { RouteOptions, Route } from '../src/Route'
+import { OutgoingResponse } from '@stone-js/core'
 import { RouterError } from '../src/errors/RouterError'
 import { RouteNotFoundError } from '../src/errors/RouteNotFoundError'
-import { IContainer, OutgoingResponseResolver } from '../src/declarations'
-import { OutgoingResponse } from '@stone-js/core'
 
 /* eslint-disable @typescript-eslint/no-extraneous-class */
 
@@ -23,7 +22,7 @@ vi.mock('../src/matchers', () => ({
 const createRouteOptions = (overrides = {}): RouteOptions => ({
   path: '/test',
   method: 'GET',
-  action: vi.fn(),
+  handler: vi.fn(),
   customOptions: 'test',
   excludeMiddleware: ['middleware1', 'middleware2'],
   ...overrides
@@ -136,7 +135,7 @@ describe('Route Class', () => {
     })
 
     it('should return false if excludeMiddleware option is undefined', () => {
-      const route = Route.create({ path: '/test', method: 'GET', action: vi.fn() })
+      const route = Route.create({ path: '/test', method: 'GET', handler: vi.fn() })
       expect(route.isMiddlewareExcluded('middleware1')).toBe(false)
     })
   })
@@ -144,9 +143,7 @@ describe('Route Class', () => {
   describe('Setters and getters', () => {
     it('should test setters', () => {
       route
-        .setContainer(vi.fn() as unknown as IContainer)
-        .setDispatchers({ callable: vi.fn(), controller: vi.fn() })
-        .setOutgoingResponseResolver(vi.fn() as unknown as OutgoingResponseResolver)
+        .setDispatchers({ callable: vi.fn(), handler: vi.fn() })
       // @ts-expect-error - Testing private property
       expect(route.dispatchers).toEqual({ callable: expect.any(Function), controller: expect.any(Function) })
       // @ts-expect-error - Testing private property
@@ -296,7 +293,7 @@ describe('Route Class', () => {
   describe('run', () => {
     it('should run callable action', async () => {
       const mockEvent = {}
-      routeOptions.action = vi.fn(async () => OutgoingResponse.create({ content: 'response' }))
+      routeOptions.handler = vi.fn(async () => OutgoingResponse.create({ content: 'response' }))
       const callable = vi.fn(({ callable }) => callable())
 
       route.setDispatchers({
@@ -308,12 +305,12 @@ describe('Route Class', () => {
 
       expect(result.content).toBe('response')
       expect(callable).toHaveBeenCalled()
-      expect(routeOptions.action).toHaveBeenCalled()
+      expect(routeOptions.handler).toHaveBeenCalled()
     })
 
     it('should run callable action with response resolver', async () => {
       const mockEvent = {}
-      routeOptions.action = vi.fn(async () => 'response')
+      routeOptions.handler = vi.fn(async () => 'response')
       const callable = vi.fn(({ callable }) => callable())
 
       route.setDispatchers({
@@ -326,13 +323,13 @@ describe('Route Class', () => {
 
       expect(result.content).toBe('response')
       expect(callable).toHaveBeenCalled()
-      expect(routeOptions.action).toHaveBeenCalled()
+      expect(routeOptions.handler).toHaveBeenCalled()
     })
 
     it('should run component action with response resolver', async () => {
       const mockEvent = {}
       // @ts-expect-error - Testing invalid input
-      routeOptions.action = undefined
+      routeOptions.handler = undefined
       routeOptions.component = { default: vi.fn() }
       const callable = vi.fn(({ callable }) => callable())
 
@@ -352,7 +349,7 @@ describe('Route Class', () => {
       class TestController {
         get = vi.fn(async () => 'response')
       }
-      routeOptions.action = { get: TestController }
+      routeOptions.handler = { get: TestController }
       const controller = vi.fn(({ controller, handler }) => controller[handler]())
 
       route
@@ -376,7 +373,7 @@ describe('Route Class', () => {
       const container = {
         resolve: vi.fn(() => new TestController())
       } as unknown as IContainer
-      routeOptions.action = { get: TestController }
+      routeOptions.handler = { get: TestController }
       const controller = vi.fn(({ controller, handler }) => controller[handler]())
 
       route
@@ -439,13 +436,13 @@ describe('Route Class', () => {
     })
 
     it('should throw an error for invalid dispatcher', async () => {
-      routeOptions.action = vi.fn(async () => 'response')
+      routeOptions.handler = vi.fn(async () => 'response')
 
       await expect(route.run({} as any)).rejects.toThrow(RouterError)
     })
 
     it('should throw an error for invalid actions', async () => {
-      routeOptions.action = 'invalid-action' as any
+      routeOptions.handler = 'invalid-action' as any
 
       await expect(route.run({} as any)).rejects.toThrow(RouterError)
     })

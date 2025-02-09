@@ -1,5 +1,42 @@
-import { RouteOptions } from './Route'
-import { RouteSegmentConstraint } from './declarations'
+import { EventHandlerType, FactoryEventHandler, IIncomingEvent, IOutgoingResponse, MetaEventHandler, RegexPatternOptions, RouteSegmentConstraint } from './declarations'
+
+/**
+ * Defines a route handler with metadata for the provided handler function.
+ * This function allows users to define a route handler with metadata.
+ *
+ * @param module - The module handler function to be defined.
+ * @param options - The metadata options for the handler.
+ * @returns The defined route handler with metadata.
+ */
+export const defineHandler = <U extends IIncomingEvent = IIncomingEvent, V = IOutgoingResponse>(
+  module: EventHandlerType<U, V>,
+  options: Omit<MetaEventHandler<U, V>, 'module'> = {}
+): MetaEventHandler<U, V> => {
+  return { ...options, module }
+}
+
+/**
+ * Defines a factory handler with metadata for the provided handler function.
+ * This function allows users to define a factory handler with metadata.
+ *
+ * @param module - The module handler function to be defined.
+ * @returns The defined factory handler with metadata.
+*/
+export const factoryHandler = <U extends IIncomingEvent = IIncomingEvent, V = IOutgoingResponse>(
+  module: FactoryEventHandler<U, V>
+): MetaEventHandler<U, V> => {
+  return { module, isFactory: true }
+}
+
+/**
+ * Check if the provided value is a meta Component module.
+ *
+ * @param value - The value to check.
+ * @returns `true` if the value is a meta Component module, otherwise `false`.
+*/
+export const isMetaComponentModule = <ComponentModuleType>(value: any): value is Record<'module', ComponentModuleType> => {
+  return value?.isComponent === true
+}
 
 /**
  * Regular expression for extracting path constraints from route segments.
@@ -24,7 +61,7 @@ const domainConstraintRegex = /^(?:\{(.+?)(?:@(.+?))?(?:\((.+?)\))?([?*+]?)(?:=(
  * console.log(regex.test('/users/123')); // true
  * ```
  */
-export const uriRegex = (options: RouteOptions, flags: string = 'i'): RegExp => {
+export const uriRegex = (options: RegexPatternOptions, flags: string = 'i'): RegExp => {
   flags = options.strict === true ? '' : flags
   const domain = buildDomainPattern(getDomainConstraints(options)) ?? ''
   const trailingSlash = options.strict === true ? (options.path.endsWith('/') ? '/' : '') : '/?'
@@ -45,7 +82,7 @@ export const uriRegex = (options: RouteOptions, flags: string = 'i'): RegExp => 
  * console.log(regex.test('/users/123')); // true
  * ```
  */
-export const pathRegex = (options: RouteOptions, flags: string = 'i'): RegExp => {
+export const pathRegex = (options: RegexPatternOptions, flags: string = 'i'): RegExp => {
   flags = options.strict === true ? '' : flags
   const trailingSlash = options.strict === true ? (options.path.endsWith('/') ? '/' : '') : '/?'
   const pattern = getSegmentsConstraints(options).reduce((prev, curr) => `${prev}${buildSegmentPattern(curr)}`, '')
@@ -65,7 +102,7 @@ export const pathRegex = (options: RouteOptions, flags: string = 'i'): RegExp =>
  * console.log(regex?.test('api.example.com')); // true
  * ```
  */
-export const domainRegex = (options: RouteOptions, flags: string = 'i'): RegExp | undefined => {
+export const domainRegex = (options: RegexPatternOptions, flags: string = 'i'): RegExp | undefined => {
   flags = options.strict === true ? '' : flags
   const pattern = options.domain !== undefined ? buildDomainPattern(getDomainConstraints(options)) : undefined
   return pattern !== undefined ? new RegExp(`^${pattern}$`, flags) : undefined
@@ -128,7 +165,7 @@ export const buildSegmentPattern = (constraint?: Partial<RouteSegmentConstraint>
  * @param options - The route options to extract constraints from.
  * @returns An array of partial route segment constraints.
  */
-export const uriConstraints = (options: RouteOptions): Array<Partial<RouteSegmentConstraint>> => {
+export const uriConstraints = (options: RegexPatternOptions): Array<Partial<RouteSegmentConstraint>> => {
   return [getDomainConstraints(options), getSegmentsConstraints(options)].flat().filter(v => v !== undefined)
 }
 
@@ -138,7 +175,7 @@ export const uriConstraints = (options: RouteOptions): Array<Partial<RouteSegmen
  * @param options - The route options to extract domain constraints from.
  * @returns Partial route segment constraint for the domain or undefined.
  */
-export const getDomainConstraints = (options: RouteOptions): Partial<RouteSegmentConstraint> | undefined => {
+export const getDomainConstraints = (options: RegexPatternOptions): Partial<RouteSegmentConstraint> | undefined => {
   let domainConstraints: Partial<RouteSegmentConstraint> | undefined
 
   if (options.domain !== undefined) {
@@ -166,7 +203,7 @@ export const getDomainConstraints = (options: RouteOptions): Partial<RouteSegmen
  * @param options - The route options to extract constraints from.
  * @returns An array of partial segment constraints for the path.
  */
-export const getSegmentsConstraints = (options: RouteOptions): Array<Partial<RouteSegmentConstraint>> => {
+export const getSegmentsConstraints = (options: RegexPatternOptions): Array<Partial<RouteSegmentConstraint>> => {
   return options
     .path
     .split('/')

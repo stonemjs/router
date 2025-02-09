@@ -1,70 +1,53 @@
 import { RouterError } from './errors/RouterError'
-import { ILogger, IErrorHandler, IBlueprint } from '@stone-js/core'
-import { IIncomingEvent, IOutgoingResponse, OutgoingResponseResolver } from './declarations'
+import { ILogger, IErrorHandler, Promiseable } from '@stone-js/core'
+import { IOutgoingResponse, StoneIncomingEvent } from './declarations'
 
 /**
  * RouterErrorHandler options.
  */
 export interface RouterErrorHandlerOptions {
   logger: ILogger
-  blueprint: IBlueprint
 }
 
 /**
  * Class representing an RouterErrorHandler.
  */
-export class RouterErrorHandler implements IErrorHandler<IIncomingEvent, IOutgoingResponse> {
+export class RouterErrorHandler<
+  IncomingEventType extends StoneIncomingEvent = StoneIncomingEvent,
+  OutgoingResponseType extends IOutgoingResponse = IOutgoingResponse
+> implements IErrorHandler<IncomingEventType, OutgoingResponseType> {
   private readonly logger: ILogger
-  private readonly blueprint: IBlueprint
 
   /**
    * Create an RouterErrorHandler.
    *
    * @param options - RouterErrorHandler options.
    */
-  constructor ({ logger, blueprint }: RouterErrorHandlerOptions) {
-    if (blueprint === undefined) {
-      throw new RouterError('Blueprint is required to create an RouterErrorHandler instance.')
-    }
+  constructor ({ logger }: RouterErrorHandlerOptions) {
     if (logger === undefined) {
       throw new RouterError('Logger is required to create an RouterErrorHandler instance.')
     }
 
     this.logger = logger
-    this.blueprint = blueprint
   }
 
   /**
    * Handle an error.
    *
    * @param error - The error to handle.
-   * @param _event - The incoming http event.
+   * @param event - The incoming http event.
    * @returns The outgoing http response.
    */
-  public async handle (error: Error, _event: IIncomingEvent): Promise<IOutgoingResponse> {
-    const responseResolver = this.getResponseResolver()
+  public handle (error: Error, event: StoneIncomingEvent): Promiseable<OutgoingResponseType> {
+    const message = (error: string): string | { error: string } => event.is(['json']) === false ? error : { error }
 
     this.logger.error(error.message, { error })
 
-    const responseOptions = {
-      RouteNotFoundError: { statusCode: 404 },
-      MethodNotAllowedError: { statusCode: 405 }
-    }[error.name] ?? { statusCode: 500 }
+    const response = ({
+      RouteNotFoundError: { statusCode: 404, content: message('Not Found') },
+      MethodNotAllowedError: { statusCode: 405, content: message('Method Not Allowed') }
+    })[error.name] ?? { statusCode: 500, content: message('Internal Server Error') }
 
-    if (responseResolver !== undefined) {
-      return await responseResolver(responseOptions)
-    } else {
-      throw new RouterError('ResponseResolver is required to handle errors.')
-    }
-  }
-
-  /**
-   * Get the response resolver.
-   *
-   * @returns The response resolver.
-   */
-  private getResponseResolver (): OutgoingResponseResolver | undefined {
-    return this.blueprint.get<OutgoingResponseResolver>('stone.router.responseResolver') ??
-      this.blueprint.get<OutgoingResponseResolver>('stone.kernel.responseResolver')
+    return response as OutgoingResponseType
   }
 }

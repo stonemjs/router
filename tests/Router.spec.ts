@@ -1,13 +1,13 @@
 import { Mock } from 'vitest'
 import { Route } from '../src/Route'
 import { Router } from '../src/Router'
+import { IBlueprint } from '@stone-js/core'
 import { RouteEvent } from '../src/events/RouteEvent'
-import { IBlueprint, IListener } from '@stone-js/core'
 import { RouterError } from '../src/errors/RouterError'
 import { RouteCollection } from '../src/RouteCollection'
 import { RouteNotFoundError } from '../src/errors/RouteNotFoundError'
+import { DependencyResolver, IIncomingEvent, RouteDefinition } from '../src/declarations'
 import { DELETE, GET, OPTIONS, PATCH, POST, PUT } from '../src/constants'
-import { IContainer, IIncomingEvent, RouteDefinition } from '../src/declarations'
 
 /* eslint-disable @typescript-eslint/no-extraneous-class */
 
@@ -34,7 +34,7 @@ describe('Router', () => {
     resolve: vi.fn(),
     instance: vi.fn().mockReturnThis(),
     has: vi.fn(() => true)
-  } as unknown as IContainer
+  } as unknown as DependencyResolver
 
   const eventEmitterMock = {
     emit: vi.fn(),
@@ -149,7 +149,7 @@ describe('Router', () => {
   })
 
   it('should define routes', () => {
-    router.define([{ path: '/define', method: GET, action: vi.fn() }])
+    router.define([{ path: '/define', method: GET, handler: vi.fn() }])
     expect(router.getRoutes().add).toHaveBeenCalled()
     expect(blueprintMock.add).toHaveBeenCalledWith('stone.router.definitions', [expect.objectContaining({ method: GET })])
   })
