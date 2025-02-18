@@ -1,9 +1,9 @@
-import { Route, RouteOptions } from './Route'
+import { Route } from './Route'
 import { RouteMapper } from './RouteMapper'
 import { RouteEvent } from './events/RouteEvent'
 import { RouterError } from './errors/RouterError'
 import { RouteCollection } from './RouteCollection'
-import { FunctionalEventListener } from '@stone-js/core'
+import { FunctionalEventListener, isObjectLikeModule } from '@stone-js/core'
 import { RouteNotFoundError } from './errors/RouteNotFoundError'
 import { DELETE, GET, NAVIGATION_EVENT, OPTIONS, PATCH, POST, PUT } from './constants'
 import { isAliasPipe, isClassPipe, isFactoryPipe, MetaPipe, MixedPipe, PipeInstance, Pipeline, PipelineOptions } from '@stone-js/pipeline'
@@ -45,7 +45,9 @@ export class Router<
   static create<
     IncomingEventType extends IIncomingEvent = IIncomingEvent,
     OutgoingResponseType = unknown
-  >(options: RouterOptions<IncomingEventType, OutgoingResponseType>): Router<IncomingEventType, OutgoingResponseType> {
+  >(
+    options: RouterOptions<IncomingEventType, OutgoingResponseType>
+  ): Router<IncomingEventType, OutgoingResponseType> {
     return new this(options)
   }
 
@@ -54,7 +56,9 @@ export class Router<
    *
    * @param routerOptions - Configuration options for the router.
    */
-  protected constructor (private routerOptions: RouterOptions<IncomingEventType, OutgoingResponseType>) {
+  protected constructor (
+    private routerOptions: RouterOptions<IncomingEventType, OutgoingResponseType>
+  ) {
     this.routeMapper = RouteMapper.create<IncomingEventType, OutgoingResponseType>(routerOptions)
     this.routes = RouteCollection.create<IncomingEventType, OutgoingResponseType>(
       this.routeMapper.toRoutes(routerOptions.definitions)
@@ -70,7 +74,10 @@ export class Router<
    */
   group (
     path: string,
-    definition?: Omit<FunctionalRouteGroupDefinition<IncomingEventType, OutgoingResponseType>, 'path'>
+    definition?: Omit<
+    FunctionalRouteGroupDefinition<IncomingEventType, OutgoingResponseType>,
+    'path'
+    >
   ): this {
     this.groupDefinition = { ...definition, path }
     return this
@@ -95,7 +102,9 @@ export class Router<
    */
   options (
     path: string,
-    handlerOrDefinition: FunctionalEventHandler<IncomingEventType, OutgoingResponseType> | FunctionalRouteDefinition<IncomingEventType, OutgoingResponseType>
+    handlerOrDefinition:
+    | FunctionalEventHandler<IncomingEventType, OutgoingResponseType>
+    | FunctionalRouteDefinition<IncomingEventType, OutgoingResponseType>
   ): this {
     return this.match(path, handlerOrDefinition, [OPTIONS])
   }
@@ -109,7 +118,9 @@ export class Router<
    */
   get (
     path: string,
-    handlerOrDefinition: FunctionalEventHandler<IncomingEventType, OutgoingResponseType> | FunctionalRouteDefinition<IncomingEventType, OutgoingResponseType>
+    handlerOrDefinition:
+    | FunctionalEventHandler<IncomingEventType, OutgoingResponseType>
+    | FunctionalRouteDefinition<IncomingEventType, OutgoingResponseType>
   ): this {
     return this.match(path, handlerOrDefinition, [GET])
   }
@@ -123,7 +134,9 @@ export class Router<
    */
   add (
     path: string,
-    handlerOrDefinition: FunctionalEventHandler<IncomingEventType, OutgoingResponseType> | FunctionalRouteDefinition<IncomingEventType, OutgoingResponseType>
+    handlerOrDefinition:
+    | FunctionalEventHandler<IncomingEventType, OutgoingResponseType>
+    | FunctionalRouteDefinition<IncomingEventType, OutgoingResponseType>
   ): this {
     return this.get(path, handlerOrDefinition)
   }
@@ -136,7 +149,10 @@ export class Router<
    * @param definition - The route functional definition.
    * @returns The router instance for chaining.
    */
-  page (path: string, definition: FunctionalPageRouteDefinition<IncomingEventType, OutgoingResponseType>): this {
+  page (
+    path: string,
+    definition: FunctionalPageRouteDefinition<IncomingEventType, OutgoingResponseType>
+  ): this {
     return this.get(path, definition)
   }
 
@@ -149,7 +165,9 @@ export class Router<
    */
   post (
     path: string,
-    handlerOrDefinition: FunctionalEventHandler<IncomingEventType, OutgoingResponseType> | FunctionalRouteDefinition<IncomingEventType, OutgoingResponseType>
+    handlerOrDefinition:
+    | FunctionalEventHandler<IncomingEventType, OutgoingResponseType>
+    | FunctionalRouteDefinition<IncomingEventType, OutgoingResponseType>
   ): this {
     return this.match(path, handlerOrDefinition, [POST])
   }
@@ -163,7 +181,9 @@ export class Router<
    */
   put (
     path: string,
-    handlerOrDefinition: FunctionalEventHandler<IncomingEventType, OutgoingResponseType> | FunctionalRouteDefinition<IncomingEventType, OutgoingResponseType>
+    handlerOrDefinition:
+    | FunctionalEventHandler<IncomingEventType, OutgoingResponseType>
+    | FunctionalRouteDefinition<IncomingEventType, OutgoingResponseType>
   ): this {
     return this.match(path, handlerOrDefinition, [PUT])
   }
@@ -177,7 +197,9 @@ export class Router<
    */
   patch (
     path: string,
-    handlerOrDefinition: FunctionalEventHandler<IncomingEventType, OutgoingResponseType> | FunctionalRouteDefinition<IncomingEventType, OutgoingResponseType>
+    handlerOrDefinition:
+    | FunctionalEventHandler<IncomingEventType, OutgoingResponseType>
+    | FunctionalRouteDefinition<IncomingEventType, OutgoingResponseType>
   ): this {
     return this.match(path, handlerOrDefinition, [PATCH])
   }
@@ -191,7 +213,9 @@ export class Router<
    */
   delete (
     path: string,
-    handlerOrDefinition: FunctionalEventHandler<IncomingEventType, OutgoingResponseType> | FunctionalRouteDefinition<IncomingEventType, OutgoingResponseType>
+    handlerOrDefinition:
+    | FunctionalEventHandler<IncomingEventType, OutgoingResponseType>
+    | FunctionalRouteDefinition<IncomingEventType, OutgoingResponseType>
   ): this {
     return this.match(path, handlerOrDefinition, [DELETE])
   }
@@ -205,7 +229,9 @@ export class Router<
    */
   any (
     path: string,
-    handlerOrDefinition: FunctionalEventHandler<IncomingEventType, OutgoingResponseType> | FunctionalRouteDefinition<IncomingEventType, OutgoingResponseType>
+    handlerOrDefinition:
+    | FunctionalEventHandler<IncomingEventType, OutgoingResponseType>
+    | FunctionalRouteDefinition<IncomingEventType, OutgoingResponseType>
   ): this {
     return this.match(path, handlerOrDefinition, [GET, POST, PUT, PATCH, DELETE, OPTIONS])
   }
@@ -216,7 +242,9 @@ export class Router<
    * @param action - The handler to execute for the fallback route.
    * @returns The current `Router` instance.
    */
-  fallback (action: FunctionalEventHandler<IncomingEventType, OutgoingResponseType>): this {
+  fallback (
+    action: FunctionalEventHandler<IncomingEventType, OutgoingResponseType>
+  ): this {
     return this.get('/:__fallback__(.*)*', { action, fallback: true })
   }
 
@@ -230,7 +258,9 @@ export class Router<
    */
   match (
     path: string,
-    handlerOrDefinition: FunctionalEventHandler<IncomingEventType, OutgoingResponseType> | FunctionalRouteDefinition<IncomingEventType, OutgoingResponseType>,
+    handlerOrDefinition:
+    | FunctionalEventHandler<IncomingEventType, OutgoingResponseType>
+    | FunctionalRouteDefinition<IncomingEventType, OutgoingResponseType>,
     methods: HttpMethod[]
   ): this {
     const child: RouteDefinition<IncomingEventType, OutgoingResponseType> = typeof handlerOrDefinition === 'object'
@@ -290,7 +320,11 @@ export class Router<
    * @param middleware - A single middleware or an array of middleware to add.
    * @returns The current `Router` instance.
    */
-  use (middleware: MixedPipe<IncomingEventType, OutgoingResponseType> | Array<MixedPipe<IncomingEventType, OutgoingResponseType>>): this {
+  use (
+    middleware:
+    | MixedPipe<IncomingEventType, OutgoingResponseType>
+    | Array<MixedPipe<IncomingEventType, OutgoingResponseType>>
+  ): this {
     this.routerOptions.middleware ??= []
     this.routerOptions.middleware = this.routerOptions.middleware.concat(middleware)
     return this
@@ -303,7 +337,12 @@ export class Router<
    * @param middleware - A single middleware or an array of middleware to attach.
    * @returns The current `Router` instance.
    */
-  useOn (name: string | string[], middleware: MixedPipe<IncomingEventType, OutgoingResponseType> | Array<MixedPipe<IncomingEventType, OutgoingResponseType>>): this {
+  useOn (
+    name: string | string[],
+    middleware:
+    | MixedPipe<IncomingEventType, OutgoingResponseType>
+    | Array<MixedPipe<IncomingEventType, OutgoingResponseType>>
+  ): this {
     Array(name).flat().forEach((name) => {
       this
         .routerOptions
@@ -348,7 +387,10 @@ export class Router<
    * @returns A promise resolving to the outgoing response after executing the specified route.
    * @throws {RouteNotFoundError} If no route is found with the given name.
    */
-  async respondWithRouteName (event: IncomingEventType, name: string): Promise<OutgoingResponseType> {
+  async respondWithRouteName (
+    event: IncomingEventType,
+    name: string
+  ): Promise<OutgoingResponseType> {
     const route = this.routes.getByName(name)
 
     if (route === undefined) {
@@ -365,7 +407,9 @@ export class Router<
    * @returns The matched route.
    * @throws {RouteNotFoundError} If no route matches the given event.
    */
-  async findRoute (event: IncomingEventType): Promise<Route<IncomingEventType, OutgoingResponseType>> {
+  async findRoute (
+    event: IncomingEventType
+  ): Promise<Route<IncomingEventType, OutgoingResponseType>> {
     await this.routerOptions.eventEmitter?.emit(
       RouteEvent.create({ type: RouteEvent.ROUTING, source: this, metadata: { event } })
     )
@@ -373,18 +417,6 @@ export class Router<
     this.currentRoute = this.routes.match(event)
 
     return this.currentRoute
-  }
-
-  /**
-   * Finds a route based on the provided options.
-   *
-   * @param options - Options to match against the routes.
-   * @returns The matched route, or `undefined` if no match is found.
-  */
-  findRouteByOptions (
-    options: Partial<RouteOptions<IncomingEventType, OutgoingResponseType>>
-  ): Route<IncomingEventType, OutgoingResponseType> | undefined {
-    return this.routes.matchOptions(options)
   }
 
   /**
@@ -415,15 +447,18 @@ export class Router<
       throw new RouterError('This method can only be used in a browser environment')
     }
 
-    let path = pathOrOptions as string
-    const options = pathOrOptions as NavigateOptions
+    let path = typeof pathOrOptions === 'string' ? pathOrOptions : ''
+    const options = (isObjectLikeModule(pathOrOptions) ? pathOrOptions : {}) as NavigateOptions
 
     if (typeof options.name === 'string') {
       path = this.generate({ ...options, withDomain: false })
     }
 
-    window.history.pushState({ path, options }, '', path)
-    window.dispatchEvent(new CustomEvent(NAVIGATION_EVENT, { detail: { path, options } }))
+    options.replace === true
+      ? window.history.replaceState({ ...options, path }, '', path)
+      : window.history.pushState({ ...options, path }, '', path)
+
+    window.dispatchEvent(new CustomEvent(NAVIGATION_EVENT, { detail: { ...options, path } }))
   }
 
   /**
@@ -432,7 +467,9 @@ export class Router<
    * @param route - The route for which middleware should be gathered.
    * @returns An array of middleware to execute for the route.
    */
-  gatherRouteMiddleware (route: Route<IncomingEventType, OutgoingResponseType>): Array<MixedPipe<IncomingEventType, OutgoingResponseType>> {
+  gatherRouteMiddleware (
+    route: Route<IncomingEventType, OutgoingResponseType>
+  ): Array<MixedPipe<IncomingEventType, OutgoingResponseType>> {
     return this
       .routerOptions
       .middleware
@@ -523,13 +560,25 @@ export class Router<
     return await this.routes.dump()
   }
 
-  private async runRoute (event: IncomingEventType, route: Route<IncomingEventType, OutgoingResponseType>): Promise<OutgoingResponseType> {
+  private async runRoute (
+    event: IncomingEventType,
+    route: Route<IncomingEventType, OutgoingResponseType>
+  ): Promise<OutgoingResponseType> {
     event.setRouteResolver?.(() => route)
-    await this.routerOptions.eventEmitter?.emit(RouteEvent.create({ type: RouteEvent.ROUTE_MATCHED, source: this, metadata: { event, route } }))
+    await this.routerOptions.eventEmitter?.emit(
+      RouteEvent.create({
+        source: this,
+        metadata: { event, route },
+        type: RouteEvent.ROUTE_MATCHED
+      })
+    )
     return await this.runRouteWithMiddleware(event, route)
   }
 
-  private async runRouteWithMiddleware (event: IncomingEventType, route: Route<IncomingEventType, OutgoingResponseType>): Promise<OutgoingResponseType> {
+  private async runRouteWithMiddleware (
+    event: IncomingEventType,
+    route: Route<IncomingEventType, OutgoingResponseType>
+  ): Promise<OutgoingResponseType> {
     return await Pipeline
       .create<IncomingEventType, OutgoingResponseType>(this.makePipelineOptions())
       .send(event)
@@ -537,7 +586,10 @@ export class Router<
       .then(async (ev) => await this.bindAndRun(route, ev))
   }
 
-  private async bindAndRun (route: Route<IncomingEventType, OutgoingResponseType>, event: IncomingEventType): Promise<OutgoingResponseType> {
+  private async bindAndRun (
+    route: Route<IncomingEventType, OutgoingResponseType>,
+    event: IncomingEventType
+  ): Promise<OutgoingResponseType> {
     await route
       .setDispatchers(this.routerOptions.dispatchers)
       .setResolver(this.routerOptions.dependencyResolver)
@@ -550,7 +602,12 @@ export class Router<
     return {
       resolver: (metaPipe: MetaPipe<IncomingEventType, OutgoingResponseType>) => {
         if (isClassPipe(metaPipe) || isAliasPipe(metaPipe)) {
-          return this.routerOptions.dependencyResolver?.resolve<PipeInstance<IncomingEventType, OutgoingResponseType>>(metaPipe.module, true)
+          return this
+            .routerOptions
+            .dependencyResolver
+            ?.resolve<PipeInstance<IncomingEventType, OutgoingResponseType>>(
+            metaPipe.module, true
+          )
         } else if (isFactoryPipe(metaPipe)) {
           return metaPipe.module(this.routerOptions.dependencyResolver)
         }

@@ -2,7 +2,17 @@ import { Route, RouteOptions } from './Route'
 import { RouterError } from './errors/RouterError'
 import { GET, HEAD, HTTP_METHODS } from './constants'
 import { isFunctionModule, isNotEmpty } from '@stone-js/core'
-import { BindingResolver, FunctionalEventHandler, HttpMethod, IBoundModel, IIncomingEvent, IMatcher, RouteDefinition } from './declarations'
+import {
+  IMatcher,
+  HttpMethod,
+  IBoundModel,
+  IDispachers,
+  IIncomingEvent,
+  BindingResolver,
+  RouteDefinition,
+  DependencyResolver,
+  FunctionalEventHandler
+} from './declarations'
 
 /**
  * Configuration options for the RouteMapper.
@@ -16,7 +26,9 @@ export interface RouteMapperOptions<
   maxDepth: number
   rules?: Record<string, RegExp>
   defaults?: Record<string, unknown>
+  dependencyResolver?: DependencyResolver
   bindings?: Record<string, IBoundModel | BindingResolver>
+  dispatchers: IDispachers<IncomingEventType, OutgoingResponseType>
   matchers: Array<IMatcher<IncomingEventType, OutgoingResponseType>>
 }
 
@@ -72,6 +84,8 @@ export class RouteMapper<
         Route
           .create<IncomingEventType, OutgoingResponseType>(this.toRouteOptions(definition))
           .setMatchers(this.options.matchers)
+          .setDispatchers(this.options.dispatchers)
+          .setResolver(this.options.dependencyResolver)
       )
   }
 

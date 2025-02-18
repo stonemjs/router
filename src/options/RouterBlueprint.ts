@@ -1,10 +1,13 @@
 import { RouterErrorHandler } from '../RouterErrorHandler'
 import { RouterServiceProvider } from '../RouterServiceProvider'
+import { ClassDispatcher } from '../dispatchers/ClassDispatcher'
 import { RouterOptions, StoneIncomingEvent } from '../declarations'
 import { routeConfigMiddleware } from '../middleware/configMiddleware'
+import { CallableDispatcher } from '../dispatchers/CallableDispatcher'
+import { RedirectDispatcher } from '../dispatchers/RedirectDispatcher'
+import { ComponentDispatcher } from '../dispatchers/ComponentDispatcher'
 import { AppConfig, OutgoingResponse, StoneBlueprint } from '@stone-js/core'
 import { hostMatcher, methodMatcher, protocolMatcher, uriMatcher } from '../matchers'
-import { callableDispatcher, componentDispatcher, handlerDispatcher } from '../dispatchers'
 
 /**
  * Defines the configuration options for the router.
@@ -78,9 +81,10 @@ export const routerBlueprint: RouterBlueprint = {
       middleware: [],
       definitions: [],
       dispatchers: {
-        handler: handlerDispatcher,
-        callable: callableDispatcher,
-        component: componentDispatcher
+        class: ClassDispatcher,
+        redirect: RedirectDispatcher,
+        callable: CallableDispatcher,
+        component: ComponentDispatcher
       },
       skipMiddleware: false
     }

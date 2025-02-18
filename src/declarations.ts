@@ -1,6 +1,5 @@
 import { Route } from './Route'
 import { MatcherOptions } from './matchers'
-import { DispatcherOptions } from './dispatchers'
 import { MixedPipe, PipeType } from '@stone-js/pipeline'
 import { AdapterConfig, Event, FunctionalEventListener, IContainer, IncomingEvent, OutgoingResponse, Promiseable } from '@stone-js/core'
 
@@ -71,9 +70,11 @@ export interface StoneIncomingEvent extends IncomingEvent {
   query?: URLSearchParams
   decodedPathname?: string
   readonly isSecure?: boolean
-  is: (types: string[]) => boolean | string
   isMethod: (method: HttpMethod) => boolean
+  is: (...types: string[]) => boolean | string
   getUri: (withDomain: boolean) => string | undefined
+  acceptsTypes: (...types: string[]) => boolean | string
+  preferredType: (types: string[], defaultType?: string) => string
   setRouteResolver: <U extends IIncomingEvent, V = unknown>(resolver: () => Route<U, V>) => void
 }
 
@@ -86,12 +87,36 @@ export type IMatcher<
 > = (options: MatcherOptions<IncomingEventType, OutgoingResponseType>) => boolean
 
 /**
- * Defines the structure for route dispatchers.
+ * Represents a dispatcher context.
  */
-export type IDispacher<
+export interface DispatcherContext<
   IncomingEventType extends IIncomingEvent,
   OutgoingResponseType = unknown
-> = (options: DispatcherOptions<IncomingEventType, OutgoingResponseType>) => Promiseable<OutgoingResponseType>
+> {
+  event: IncomingEventType
+  route: Route<IncomingEventType, OutgoingResponseType>
+}
+
+/**
+ * Represents a class dispatcher.
+ */
+export type DispacheClass<
+IncomingEventType extends IIncomingEvent,
+OutgoingResponseType = unknown
+> = new (...args: any[]) => IDispacher<IncomingEventType, OutgoingResponseType>
+
+/**
+ * Defines the structure for route dispatchers.
+ */
+export interface IDispacher<
+  IncomingEventType extends IIncomingEvent,
+  OutgoingResponseType = unknown
+> {
+  getName: (
+    route: Route<IncomingEventType, OutgoingResponseType>
+  ) => Promiseable<string>
+  dispatch: (context: DispatcherContext<IncomingEventType, OutgoingResponseType>) => Promiseable<OutgoingResponseType>
+}
 
 /**
  * Collection of dispatchers for route handling.
@@ -99,7 +124,12 @@ export type IDispacher<
 export type IDispachers<
   IncomingEventType extends IIncomingEvent,
   OutgoingResponseType = unknown
-> = Record<'callable' | 'handler' | 'component', IDispacher<IncomingEventType, OutgoingResponseType>>
+> = Record<DispacherType, DispacheClass<IncomingEventType, OutgoingResponseType>>
+
+/**
+ * Represents dispatcher types.
+ */
+export type DispacherType = 'callable' | 'class' | 'component' | 'redirect'
 
 /**
  * Represents an event handler class.
@@ -190,7 +220,9 @@ export interface MetaEventHandler<
 export type MixedEventHandler<
   IncomingEventType extends IIncomingEvent = IIncomingEvent,
   OutgoingResponseType = unknown
-> = MetaEventHandler<IncomingEventType, OutgoingResponseType> | FunctionalEventHandler<IncomingEventType, OutgoingResponseType>
+> = MetaEventHandler<IncomingEventType, OutgoingResponseType>
+| FunctionalEventHandler<IncomingEventType, OutgoingResponseType>
+| MetaComponentEventHandler<IncomingEventType, OutgoingResponseType>
 
 /**
  * Represents a component event handler class.
@@ -382,7 +414,7 @@ export interface RouteDefinition<
   middleware?: Array<MixedPipe<IncomingEventType, OutgoingResponseType>>
   children?: Array<RouteDefinition<IncomingEventType, OutgoingResponseType>>
   excludeMiddleware?: Array<PipeType<IncomingEventType, OutgoingResponseType>>
-  handler?: MixedEventHandler<IncomingEventType, OutgoingResponseType> | MetaComponentEventHandler<IncomingEventType, OutgoingResponseType>
+  handler?: MixedEventHandler<IncomingEventType, OutgoingResponseType>
   [k: string]: unknown
 }
 
@@ -439,6 +471,7 @@ export interface RouterOptions<
 export interface NavigateOptions {
   name: string
   hash?: string
+  replace?: boolean
   query?: Record<string, string>
   params?: Record<string, string>
 }

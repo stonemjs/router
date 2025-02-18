@@ -3,7 +3,15 @@ import { RouterError } from './errors/RouterError'
 import { RouteNotFoundError } from './errors/RouteNotFoundError'
 import { isFunctionPipe, MetaPipe, MixedPipe } from '@stone-js/pipeline'
 import { isMetaComponentModule, uriConstraints, uriRegex } from './utils'
-import { isFunctionModule, isMetaClassModule, isMetaFactoryModule, isMetaFunctionModule, isNotEmpty, isObjectLikeModule, Promiseable } from '@stone-js/core'
+import {
+  isNotEmpty,
+  Promiseable,
+  isFunctionModule,
+  MixedEventHandler,
+  isMetaClassModule,
+  isMetaFactoryModule,
+  isMetaFunctionModule
+} from '@stone-js/core'
 import {
   IMatcher,
   BindingKey,
@@ -13,18 +21,13 @@ import {
   IDispachers,
   RouteParams,
   BindingValue,
-  IEventHandler,
+  DispacheClass,
   IIncomingEvent,
   RouteDefinition,
   GenerateOptions,
-  MetaEventHandler,
-  EventHandlerClass,
   DependencyResolver,
-  FactoryEventHandler,
-  FunctionalEventHandler,
   RouteSegmentConstraint,
-  MetaComponentEventHandler,
-  LazyComponentEventHandler
+  DispacherType
 } from './declarations'
 
 /**
@@ -376,18 +379,6 @@ export class Route<IncomingEventType extends IIncomingEvent = IIncomingEvent, Ou
   }
 
   /**
-   * Checks if the route matches the provided options.
-   *
-   * @param options - The options to match against the route.
-   * @returns `true` if the route matches the options, otherwise `false`.
-  */
-  matchesOptions (options: Partial<RouteOptions<IncomingEventType, OutgoingResponseType>>): boolean {
-    return Object
-      .entries(options)
-      .reduce((matched, [key, value]) => matched && this.options[key] === value, true)
-  }
-
-  /**
    * Checks if the provided event matches the route.
    *
    * @param event - The incoming event to check against the route.
@@ -422,17 +413,7 @@ export class Route<IncomingEventType extends IIncomingEvent = IIncomingEvent, Ou
    * @throws `RouterError` if the route action is invalid.
    */
   async run (event: IncomingEventType): Promise<OutgoingResponseType> {
-    if (this.isRedirection()) {
-      return await this.runRedirection(event, this.options.redirect)
-    } else if (this.isComponent()) {
-      return await this.runComponent(event)
-    } else if (this.isHandler()) {
-      return await this.runHandler(event)
-    } else if (this.isCallable()) {
-      return await this.runCallable(event)
-    } else {
-      throw new RouterError('Invalid handler provided.')
-    }
+    return await this.getDispatcher().dispatch({ event, route: this })
   }
 
   /**
@@ -523,7 +504,7 @@ export class Route<IncomingEventType extends IIncomingEvent = IIncomingEvent, Ou
     return {
       path: this.options.path,
       method: this.options.method,
-      handler: this.isHandler() ? (await this.getHandlerFullname()) : 'callable',
+      handler: await this.getHandlerName(),
       name: this.options.name ?? 'N/A',
       domain: this.options.domain ?? 'N/A',
       fallback: this.isFallback()
@@ -586,125 +567,37 @@ export class Route<IncomingEventType extends IIncomingEvent = IIncomingEvent, Ou
     }
   }
 
-  private isRedirection (): this is this & { options: { redirect: string } } {
-    return this.options.redirect !== undefined
+  private async getHandlerName (): Promise<string> {
+    if (isNotEmpty<MixedEventHandler<IncomingEventType, OutgoingResponseType>>(this.options.handler)) {
+      return await this.getDispatcher().getName(this)
+    }
+    return 'N/A'
   }
 
-  private isCallable (): boolean {
-    return (
+  private getDispatcher (): IDispacher<IncomingEventType, OutgoingResponseType> {
+    const type = this.getDispatcherType()
+    const dispatcher = isNotEmpty<DispacherType>(type) ? this.dispatchers?.[type] : undefined
+
+    if (isNotEmpty<DispacheClass<IncomingEventType, OutgoingResponseType>>(dispatcher)) {
+      return this.resolveModule<IDispacher<IncomingEventType, OutgoingResponseType>>(dispatcher)
+    }
+
+    throw new RouterError(`Dispatcher for ${String(type)} not found`)
+  }
+
+  private getDispatcherType (): DispacherType | undefined {
+    if (isNotEmpty(this.options.redirect)) {
+      return 'redirect'
+    } else if (isMetaComponentModule(this.options.handler)) {
+      return 'component'
+    } else if (isMetaClassModule(this.options.handler)) {
+      return 'class'
+    } else if (
       isMetaFactoryModule(this.options.handler) ||
       isMetaFunctionModule(this.options.handler) ||
       isFunctionModule(this.options.handler)
-    )
-  }
-
-  private isHandler (): boolean {
-    return isMetaClassModule(this.options.handler)
-  }
-
-  private isComponent (): boolean {
-    return isMetaComponentModule(this.options.handler)
-  }
-
-  private async getCallable (): Promise<FunctionalEventHandler<IncomingEventType, OutgoingResponseType>> {
-    if (isMetaFactoryModule<FactoryEventHandler<IncomingEventType, OutgoingResponseType>>(this.options.handler)) {
-      return (await this.resolveHandlerModule<FactoryEventHandler<IncomingEventType, OutgoingResponseType>>(this.options.handler))(this.resolver)
-    } else if (isMetaFunctionModule<FunctionalEventHandler<IncomingEventType, OutgoingResponseType>>(this.options.handler)) {
-      return await this.resolveHandlerModule<FunctionalEventHandler<IncomingEventType, OutgoingResponseType>>(this.options.handler)
-    } else if (isFunctionModule<FunctionalEventHandler<IncomingEventType, OutgoingResponseType>>(this.options.handler)) {
-      return this.options.handler
-    } else {
-      throw new RouterError('Invalid callable provided.')
-    }
-  }
-
-  private async getHandlerClass (): Promise<EventHandlerClass<IncomingEventType, OutgoingResponseType>> {
-    if (isMetaClassModule<EventHandlerClass<IncomingEventType, OutgoingResponseType>>(this.options.handler)) {
-      return await this.resolveHandlerModule<EventHandlerClass<IncomingEventType, OutgoingResponseType>>(this.options.handler)
-    } else {
-      throw new RouterError('Invalid event handler provided.')
-    }
-  }
-
-  /**
-   * Resolves the handler module if it is a lazy-loaded module.
-   * Lazy module are modules that are loaded only when needed.
-   * They are defined using dynamic imports `import('lazy-module.mjs').then(v => v.myModule)`.
-   * Note: Lazy-loaded only applies to class and functional handlers.
-   *
-   * @param handler - The handler to resolve.
-   * @returns The resolved handler module.
-  */
-  private async resolveHandlerModule<HandlerType>(handler: unknown): Promise<HandlerType> {
-    if (
-      isObjectLikeModule<MetaComponentEventHandler<IncomingEventType, OutgoingResponseType>>(handler) &&
-      isFunctionModule<LazyComponentEventHandler<IncomingEventType, OutgoingResponseType>>(handler.module) &&
-      handler.lazy === true
     ) {
-      return await handler.module() as HandlerType
-    }
-    return (handler as MetaComponentEventHandler<IncomingEventType, OutgoingResponseType>).module as HandlerType
-  }
-
-  private async getHandlerInstance (): Promise<IEventHandler<IncomingEventType, OutgoingResponseType>> {
-    return this.resolveModule<IEventHandler<IncomingEventType, OutgoingResponseType>>(await this.getHandlerClass())
-  }
-
-  private getHandlerAction (): string {
-    if (isObjectLikeModule<MetaEventHandler<IncomingEventType, OutgoingResponseType>>(this.options.handler)) {
-      return this.options.handler.action ?? 'handle'
-    }
-    return 'handle'
-  }
-
-  private async getHandlerFullname (): Promise<string> {
-    return `${(await this.getHandlerClass()).name}@${String(this.getHandlerAction())}`
-  }
-
-  private getDispatcher (type: 'callable' | 'handler' | 'component'): IDispacher<IncomingEventType, OutgoingResponseType> {
-    if (isNotEmpty<IDispacher<IncomingEventType, OutgoingResponseType>>(this.dispatchers?.[type])) {
-      return this.dispatchers[type]
-    } else {
-      throw new RouterError(`Dispatcher for ${type} not found`)
-    }
-  }
-
-  private async runCallable (event: IncomingEventType): Promise<OutgoingResponseType> {
-    return await this.getDispatcher('callable')({
-      event,
-      resolver: this.resolver,
-      handler: await this.getCallable()
-    })
-  }
-
-  private async runHandler (event: IncomingEventType): Promise<OutgoingResponseType> {
-    return await this.getDispatcher('handler')({
-      event,
-      resolver: this.resolver,
-      action: this.getHandlerAction(),
-      handler: await this.getHandlerInstance()
-    })
-  }
-
-  /**
-   * For the component we don't resolve the handler here.
-   * So Component third party library can handle all the logic.
-  */
-  private async runComponent (event: IncomingEventType): Promise<OutgoingResponseType> {
-    return await this.getDispatcher('component')({
-      event,
-      resolver: this.resolver,
-      handler: this.options.handler
-    })
-  }
-
-  private async runRedirection (event: IncomingEventType, redirect: string | Record<string, unknown> | Function, statusCode: number = 302): Promise<OutgoingResponseType> {
-    if (typeof redirect === 'object') {
-      return await this.runRedirection(event, redirect.location as string, parseInt(redirect.status as string))
-    } else if (typeof redirect === 'function') {
-      return await this.runRedirection(event, await redirect(this, event))
-    } else {
-      return { statusCode, headers: { Location: redirect } } as unknown as OutgoingResponseType
+      return 'callable'
     }
   }
 

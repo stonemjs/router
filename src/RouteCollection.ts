@@ -1,4 +1,4 @@
-import { Route, RouteOptions } from './Route'
+import { Route } from './Route'
 import { HTTP_METHODS } from './constants'
 import { IIncomingEvent } from './declarations'
 import { RouteNotFoundError } from './errors/RouteNotFoundError'
@@ -71,21 +71,6 @@ export class RouteCollection<
     this.addToMethodList(route)
     this.addToNameList(route)
     return this
-  }
-
-  /**
-   * Matches a `Route` based on a set of options.
-   *
-   * @param options - The options to match against.
-   * @returns The matched `Route`, or `undefined` if no match is found.
-  */
-  matchOptions (options: Partial<RouteOptions<IncomingEventType, OutgoingResponseType>>): Route<IncomingEventType, OutgoingResponseType> | undefined {
-    const { method, path } = options
-    const methodPath = `${String(method)}.${String(path)}`
-
-    return this.routes.has(methodPath)
-      ? this.routes.get(methodPath)
-      : this.routes.values().find(route => route.matchesOptions(options))
   }
 
   /**
